@@ -19,12 +19,14 @@ function test(name, fn) {
   catch (error) { console.error(`✗ ${name}`); throw error; }
 }
 
-test('published catalogue has stable IDs and the intended first route blocks', () => {
+test('published catalogue has stable IDs and two complete route blocks', () => {
   assert.equal(new Set(PHRASES.map(item => item.id)).size, PHRASES.length);
   assert.equal(PHRASES[0].id, 'p001');
   assert.equal(PHRASES[99].id, 'p100');
-  assert.deepEqual(AVAILABLE_BY_LEVEL, { A2: 100, B1: 100, B2: 25, C1: 20 });
-  assert.equal(PHRASES.length, 245);
+  assert.ok(PHRASES.some(item => item.id === 'a2_200'));
+  assert.ok(PHRASES.some(item => item.id === 'b1_200'));
+  assert.deepEqual(AVAILABLE_BY_LEVEL, { A2: 200, B1: 200, B2: 25, C1: 20 });
+  assert.equal(PHRASES.length, 445);
 });
 
 test('every published phrase has three real-life examples and complete metadata', () => {
@@ -33,6 +35,14 @@ test('every published phrase has three real-life examples and complete metadata'
     assert.equal(item.examples.length, 3, item.id);
     assert.ok(item.examples.every(example => typeof example === 'string' && example.length > 12), item.id);
     assert.equal(item.cloze, true);
+  }
+});
+
+test('route blocks do not repeat the same learning phrase', () => {
+  const normalise = value => value.toLocaleLowerCase('en').replace(/[’']/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+  for (const level of ['A2', 'B1']) {
+    const phrases = PHRASES.filter(item => item.level === level).map(item => normalise(item.phrase));
+    assert.equal(new Set(phrases).size, phrases.length, level);
   }
 });
 
@@ -94,6 +104,14 @@ test('a milestone needs 100 verified units and an 8/10 checkpoint', () => {
   assert.equal(balanceOf(wallet), 100);
   const duplicate = awardMilestone(wallet, 'B1', 1, 10, 100, 2000);
   assert.deepEqual(duplicate, wallet);
+});
+
+test('the second 100-unit checkpoint is available only after 200 verified units', () => {
+  const items = PHRASES.filter(item => item.level === 'B1');
+  const first199 = Object.fromEntries(items.slice(0, 199).map(item => [item.id, { s: 'MASTERED', v: true }]));
+  assert.equal(checkpointCandidates(items, first199, 2).length, 0);
+  const all200 = Object.fromEntries(items.map(item => [item.id, { s: 'MASTERED', v: true }]));
+  assert.equal(checkpointCandidates(items, all200, 2).length, 10);
 });
 
 test('gift requests spend only earned virtual credit and are idempotent', () => {

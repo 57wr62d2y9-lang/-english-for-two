@@ -17,13 +17,13 @@ Every 100 verified units (25% of a 400-unit route) unlocks a 10-question checkpo
 
 ## Current content
 
-- A2: 100 phrases
-- B1: 100 phrases
+- A2: 200 phrases (50% of the planned route)
+- B1: 200 phrases (50% of the planned route)
 - B2: 25 phrases
 - C1: 20 phrases
 - 12 grammar reference topics, 12 collocations, 15 irregular verbs, and external human listening lessons
 
-The interface always shows both the 400-unit route and the number of units currently published, so unfinished content is never presented as complete.
+The interface always shows both the 400-unit route and the number of units currently published, so unfinished content is never presented as complete. The two main routes now contain 400 learning units and 1,200 original real-life examples in total.
 
 ## Development
 

@@ -1,8 +1,10 @@
 import { PHRASES as ORIGINAL_PHRASES, COLLOCATIONS, VERBS, VIDEOS } from './data.js';
 import { B1_EXTRA, THIRD_EXAMPLES } from './content-extra.js';
 import { A2_EXTRA } from './content-a2.js';
+import { A2_BLOCK_2 } from './content-a2-2.js';
+import { B1_BLOCK_2 } from './content-b1-2.js';
 
-const fromRow = (row, id, level) => ({
+const fromRow = (row, id, level, set = 'Everyday 100') => ({
   id,
   level,
   phrase: row[0],
@@ -11,7 +13,7 @@ const fromRow = (row, id, level) => ({
   examples: row.slice(3, 6),
   topic: row[6] || 'Everyday English',
   cloze: true,
-  set: 'Everyday 100'
+  set
 });
 
 export const PHRASES = [
@@ -23,7 +25,9 @@ export const PHRASES = [
     set: 'Everyday 100'
   })),
   ...A2_EXTRA.map((row, index) => fromRow(row, `a2_${String(index + 1).padStart(3, '0')}`, 'A2')),
-  ...B1_EXTRA.map((row, index) => fromRow(row, `b1_${String(index + 1).padStart(3, '0')}`, 'B1'))
+  ...B1_EXTRA.map((row, index) => fromRow(row, `b1_${String(index + 1).padStart(3, '0')}`, 'B1')),
+  ...A2_BLOCK_2.map((row, index) => fromRow(row, `a2_${String(index + 101).padStart(3, '0')}`, 'A2', 'Everyday 200')),
+  ...B1_BLOCK_2.map((row, index) => fromRow(row, `b1_${String(index + 101).padStart(3, '0')}`, 'B1', 'Everyday 200'))
 ];
 
 export const AVAILABLE_BY_LEVEL = Object.fromEntries(['A2', 'B1', 'B2', 'C1'].map(level => [level, PHRASES.filter(item => item.level === level).length]));
