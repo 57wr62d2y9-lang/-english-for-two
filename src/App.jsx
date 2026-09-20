@@ -192,6 +192,8 @@ function App() {
       const before = current.byDay?.[key] || {};
       return {
         ...current,
+        answers: (current.answers || 0) + 1,
+        correct: (current.correct || 0) + (ok ? 1 : 0),
         byDay: {
           ...current.byDay,
           [key]: { ...before, answers: (before.answers || 0) + 1, correct: (before.correct || 0) + (ok ? 1 : 0), at: Date.now() }
@@ -210,6 +212,8 @@ function App() {
         const before = current.byDay?.[key] || {};
         return {
           ...current,
+          totalMinutes: (current.totalMinutes || 0) + seconds / 60,
+          sessions: (current.sessions || 0) + 1,
           byDay: {
             ...current.byDay,
             [key]: { ...before, seconds: (before.seconds || 0) + seconds, sessions: (before.sessions || 0) + 1, at: Date.now() }
