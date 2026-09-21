@@ -14,6 +14,50 @@
   --green-soft: #eaf8f3;
 }
 
+/* Tap-to-translate uses independent controls, never nested answer buttons. */
+.englishText {display:contents!important;font:inherit!important;color:inherit!important;}
+.app .englishText > button.wordTap,.wordSheet .englishText > button.wordTap {all:unset;display:inline;font:inherit;color:inherit;line-height:inherit;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-decoration-color:#b9a6b080;text-underline-offset:4px;border-radius:3px;touch-action:manipulation;}
+.app button.wordTap:hover,.app button.wordTap:focus-visible {background:#fbe3ee;color:#9b285b;outline:2px solid #df397d;outline-offset:2px;}
+.app button.wordTap:active {background:#f5c8db;}
+.lookupHint {font-size:12px;line-height:1.55;color:#906779;background:#fcf1f6;padding:10px 12px;border-radius:12px;margin:0 0 20px;}
+.answerChoiceHint {font-size:11px;line-height:1.5;color:#867480;margin:16px 0 7px;}
+.lookupOptions {margin-top:8px!important;}
+.lookupOption {padding:15px;border:1px solid #dfd9de;border-radius:15px;background:#fff;color:#403941;}
+.lookupOption .optionText {font-size:16px;line-height:1.8;overflow-wrap:anywhere;}
+.sessionApp .lookupOptions button.chooseAnswer {display:block;margin:10px 0 0 auto;min-height:44px;padding:8px 16px;background:#f9edf3;border:1px solid #efcfdf;border-radius:10px;color:#9a3865;font-size:13px;line-height:1.4;font-weight:650;}
+.sessionApp .lookupOptions button.chooseAnswer:disabled {background:transparent;border-color:transparent;color:inherit;}
+.lookupOption.correct {color:var(--green);background:var(--green-soft);border-color:#8bcdb8;}
+.lookupOption.wrong {color:#ad2858;background:#fff0f4;border-color:#eda9c0;}
+.orderMode {margin-bottom:12px;}
+.orderMode button {min-height:44px;}
+.sentenceAssembly .orderLookupToken,.wordBank .orderLookupToken {font-size:14px;color:#755768;padding:9px 11px;border:1px solid #e5d9e0;border-radius:9px;background:#fff;}
+.wordSheet {position:fixed;inset:auto 0 0;width:min(100%,600px);max-width:100%;max-height:88dvh;margin:0 auto;padding:0;border:1px solid #f1e4eb;border-bottom:0;border-radius:25px 25px 0 0;background:#fffdfb;color:#312830;box-shadow:0 -10px 70px #36142630;overscroll-behavior:contain;overflow-y:auto;}
+.wordSheet::backdrop {background:#28142270;backdrop-filter:blur(3px);}
+.wordSheetInner {padding:22px 22px calc(22px + env(safe-area-inset-bottom));}
+.wordSheet header {display:flex;justify-content:space-between;gap:16px;align-items:flex-start;}
+.wordSheet header small {font-size:10px;font-weight:750;letter-spacing:1.4px;color:#967383;}
+.wordSheet h2 {font-size:30px;line-height:1.2;margin:8px 0 5px;overflow-wrap:anywhere;}
+.wordSheet .wordLemma {font-size:12px;color:#8a7c84;margin:6px 0 0;}
+.wordSheet .closeWordSheet {position:sticky;top:0;flex-shrink:0;min-width:44px;min-height:44px;border:1px solid #ecdee5;border-radius:50%;background:#faf0f5;color:#8e506d;font-size:27px;line-height:1;}
+.wordSheet section {margin-top:19px;}
+.wordSheet p {font-size:14px;line-height:1.7;margin:9px 0;}
+.wordSheet h3 {font-size:12px;text-transform:uppercase;letter-spacing:.7px;color:#977385;margin:0 0 12px;}
+.wordSheet .wordMeaning>.optionalTranslation>p {font-size:19px;line-height:1.5;color:#493541;font-weight:650;}
+.wordSheet .wordMeaning details {font-size:12px;color:#7b6d74;margin-top:12px;}
+.wordSheet .wordPhrase {background:#fbf0e0;padding:16px;border-radius:16px;}
+.wordSheet .wordPhrase strong {font-size:18px;}
+.wordSheet .wordPhrase small {font-size:12px;line-height:1.6;}
+.wordSheet .wordContext {border:1px solid #e9e0e5;border-radius:16px;padding:16px;}
+.wordSheet .wordContext p[lang=en] {font-size:16px;}
+.wordSheet .wordExamples article {display:flex;align-items:flex-start;gap:11px;padding:12px 0;border-bottom:1px solid #ede5e9;}
+.wordSheet .wordExamples article p {margin:0 0 5px;}
+.wordSheet .exampleNumber {display:grid;place-items:center;flex-shrink:0;width:24px;height:24px;margin-top:3px;border-radius:7px;background:#f6eaf0;color:#a3758c;font-size:11px;}
+.wordSheet .optionalTranslation p {color:#86717d;font-size:14px;}
+.wordSheet .optionalTranslation button {min-height:44px;line-height:1.5;color:#a3396c;font-size:13px;text-align:left;}
+.wordSheet .wordSource {font-size:11px;color:#9b8c94;line-height:1.6;margin:20px 0 16px;}
+.wordSheet .primary {min-height:48px;}
+@media(min-width:680px) {.wordSheet {inset:50% auto auto 50%;transform:translate(-50%,-50%);border-radius:25px;max-height:85dvh;width:560px;}}
+
 /* v0.3: the daily lesson and its permanent ascent are the main experience. */
 .app.v5App {padding-bottom:110px;background:#fffdfb;}
 .v5App .brandbar {margin-bottom:18px;}

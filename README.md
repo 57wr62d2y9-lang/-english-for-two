@@ -1,4 +1,30 @@
-# English for Two · 0.4.1
+# English for Two · 0.4.2
+
+## Tap-to-translate (0.4.2)
+
+- Tap a word in daily lesson prompts, passages, options, examples, rules or
+  feedback to open a dismissible native dialog with a Russian meaning,
+  the actual tapped sentence, and up to two distinct course examples.
+- Authored offline notes explain ambiguous function words (will/would,
+  articles, prepositions), known word forms and contractions. Visible phrases
+  such as "works for me" have their idiomatic meaning, not a literal word gloss.
+- Existing full-sentence/passage translation remains available. Unknown words
+  and untranslated examples use the existing MyMemory service on demand;
+  successes are cached and identical concurrent requests are deduplicated.
+  Offline/limit failures offer retry; no fabricated example is inserted.
+- Word taps never choose an answer. English options have a separate "Выбрать"
+  button. Sentence assembly has a translation mode that preserves chosen words.
+- A native dialog supplies modal focus handling and Escape/backdrop dismissal.
+  Component tests cover independent answer selection, order preservation,
+  stale-request protection and cleanup. Lookups set only the existing hint flag:
+  they do not create wrong answers or alter reward thresholds.
+- `tests/word-preview.jsx` is an isolated lesson-only UI harness, without a
+  mounted account/backup/wallet component. `node tests/build-word-preview.mjs
+  <temporary-directory>` builds a standalone 390px mobile QA page; it is not
+  included in the production build.
+
+Translation service specification: https://mymemory.translated.net/doc/spec.php
+and usage limits: https://mymemory.translated.net/doc/usagelimits.php.
 
 Private English practice for Artur and Anna: https://english-for-two.onrender.com.
 

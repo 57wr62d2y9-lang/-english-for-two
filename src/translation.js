@@ -1,5 +1,6 @@
 const CACHE_PREFIX = 'eft:ru:v4:';
 const memory = new Map();
+const pending = new Map();
 
 function decodeEntities(value) {
   if (typeof document === 'undefined') return value;
@@ -29,6 +30,13 @@ export async function translateToRussian(text) {
   if (!clean) return '';
   const cached = readCache(clean);
   if (cached) return cached;
+  if(pending.has(clean))return pending.get(clean);
+  const request=requestTranslation(clean);
+  pending.set(clean,request);
+  try {return await request;} finally {if(pending.get(clean)===request)pending.delete(clean);}
+}
+
+async function requestTranslation(clean) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 12000);
   try {

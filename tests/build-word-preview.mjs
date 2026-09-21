@@ -1,0 +1,10 @@
+import {build} from 'esbuild';
+import {mkdir,writeFile} from 'node:fs/promises';
+const target=process.argv[2];
+if(!target)throw new Error('Provide an explicit temporary output directory');
+const result=await build({entryPoints:['tests/word-preview.jsx'],bundle:true,write:false,outfile:'word-preview.js',format:'iife',define:{'import.meta.env':'{}','process.env.NODE_ENV':'"development"'},loader:{'.css':'css'}});
+const js=result.outputFiles.find(f=>f.path.endsWith('.js')).text.replaceAll('</script','<\\/script');
+const css=result.outputFiles.find(f=>f.path.endsWith('.css')).text;
+const inner=`<!doctype html><html lang="ru"><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style><div id="root"></div><script>${js}</script></html>`;
+const html=`<!doctype html><html lang="ru"><meta charset="UTF-8"><title>Word lookup · isolated mobile QA</title><body style="margin:0;background:#ece8eb;display:grid;place-items:start center"><iframe title="Мобильный урок" style="width:390px;height:844px;border:0;background:white" srcdoc="${inner.replaceAll('&','&amp;').replaceAll('"','&quot;')}"></iframe></body></html>`;
+await mkdir(target,{recursive:true});await writeFile(`${target}/word-preview.html`,html);console.log(`${target}/word-preview.html`);
