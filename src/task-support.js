@@ -151,6 +151,9 @@ export const isConditionalGuide=guide=>['conditional','third','conditionalInvers
 export function translationTarget(task) {
   if(task.passage)return {text:task.passage,ru:task.passageRu || '',label:'Показать перевод всего текста'};
   if(task.type==='grammar') {const detail=grammarDetail(task.item || task);return {text:detail.sentence,ru:detail.translation,label:'Показать перевод предложения'};}
+  if(task.type==='recognition')return {text:task.prompt,ru:task.item?.ru || '',label:'Показать перевод выражения'};
+  if(task.type==='context' && !task.prompt?.includes('_____'))return {text:task.prompt,ru:'',label:'Перевести значение'};
+  if(task.type==='recall')return {text:'',ru:'',label:''}; // the prompt is already Russian
   if(task.example?.en)return {text:task.example.en,ru:task.example.ru || '',label:'Показать перевод предложения'};
   if(task.type==='ielts' && task.skill==='Writing' && task.answer)return {text:task.prompt.includes('_____')?task.prompt.replace('_____',task.answer):task.answer,ru:task.answerRu || '',label:'Показать перевод примера ответа'};
   if(task.practice)return {text:task.model,ru:'',label:'Показать перевод примера ответа'};

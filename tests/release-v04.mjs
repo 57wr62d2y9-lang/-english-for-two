@@ -52,9 +52,11 @@ await test('Reading translates the whole passage, never its question title',()=>
   const task=DAILY_IELTS.find(t=>t.id==='ielts-B1-flexible-work-0');
   assert.match(translationTarget(task).ru,/после пробного периода/);
 });
-await test('sentence translation selects the example, not the exercise instruction',()=>{
-  const target=translationTarget({type:'context',prompt:'Choose the expression.',example:{en:'That works for me.',ru:'Меня это устраивает.'}});
+await test('translation follows the visible sentence or phrase, not a hidden example',()=>{
+  const target=translationTarget({type:'context',prompt:'_____.',example:{en:'That works for me.',ru:'Меня это устраивает.'}});
   assert.equal(target.text,'That works for me.');assert.equal(target.ru,'Меня это устраивает.');
+  assert.equal(translationTarget({type:'context',prompt:'handle a problem',example:{en:'We dealt with it yesterday.'}}).text,'handle a problem');
+  assert.equal(translationTarget({type:'recognition',prompt:'It depends.',item:{ru:'Зависит от обстоятельств.'},example:{en:'The price depends on the size.'}}).text,'It depends.');
   const grammar=DAILY_GRAMMAR.find(t=>t.id==='daily-B1-conditional-1');
   assert.equal(translationTarget({type:'grammar',item:grammar}).text,'If I lived closer, I would walk to work.');
 });
