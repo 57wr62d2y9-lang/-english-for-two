@@ -79,6 +79,9 @@ stale-write protection, identity isolation, notifications/deduplication and gift
 It creates fresh QA accounts and writes their exact disposable IDs to
 /tmp/eft-v04-qa-account-ids.json for scoped cleanup.
 
-All existing infrastructure remains free. No cron configuration is changed.
-Personal morning/evening reminder times are not connected yet: this requires
-access to the existing cron-job.org jobs/handler, not a duplicate scheduler.
+Personal daily morning/evening reminder times are saved through the original
+Sites backend at /api/reminders/settings. It verifies Telegram init data, selects
+the already linked member server-side and patches only that person's schedule.
+Settings survive reloads and work every day, including weekends. The UI supports
+timezones and disabling reminders. The existing cron-job.org two-minute tick and
+delivery deduplication are preserved; no extra scheduler or paid service is added.

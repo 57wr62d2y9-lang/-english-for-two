@@ -482,3 +482,16 @@ footer { display: flex; align-items: center; justify-content: center; gap: 7px; 
 .optionalTranslation button { min-height: 40px; font-size: 13px; }
 .optionalTranslation p { color: #625362; line-height: 1.65; }
 .phraseMeaning.compact { margin: 12px 0; padding: 12px 0; }
+.reminderSettings h2 { margin: 0 0 8px; font-size: 19px; }
+.reminderSettings p { line-height: 1.55; }
+.reminderSettings .reminderOwner { margin: 18px 0 12px; }
+.reminderSettings .reminderToggle { display: flex; align-items: center; gap: 10px; margin: 14px 0 22px; }
+.reminderToggle input { width: 21px; height: 21px; margin: 0; accent-color: #dd367b; }
+.reminderTimes { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 14px; }
+.reminderTimes label { min-width: 0; }
+.reminderTimes input,.reminderSettings select { display: block; width: 100%; min-width: 0; box-sizing: border-box; font: inherit; font-size: 17px; padding: 13px 12px; margin: 7px 0 18px; border: 1px solid #ded6de; border-radius: 12px; color: #342d36; background: #fff; }
+.reminderSettings select { font-size: 16px; }
+.reminderSettings input:focus,.reminderSettings select:focus { outline: 2px solid #df70a0; outline-offset: 2px; }
+.reminderSettings .reminderSaved { color: #21775e; font-size: 14px; }
+.reminderSettings .helper { margin: 12px 0; }
+.reminderSettings a.big { display: block; text-align: center; text-decoration: none; }
