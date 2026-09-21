@@ -1,42 +1,65 @@
-# English for Two
+# English for Two · 0.3
 
-A mobile-first Telegram Mini App for Artur and Anya. It combines short phrase sessions, spaced reviews, real-life examples, human listening links, visible course progress, and personal gift rewards.
+Private English practice for Artur and Anna: https://english-for-two.onrender.com.
 
-## Learning model
+## Daily lessons
 
-- Each CEFR-labelled route is planned as 400 knowledge units. This is an internal course route, not an official CEFR certificate.
-- A published phrase has a Russian meaning and three original real-life examples. Example translations are fetched from the free MyMemory API and cached on the device.
-- Daily sessions adaptively mix phrases, error-driven grammar, level-aware collocations, irregular verbs, spoken recall, context questions, and human listening; there are no separate drill blocks on the home screen.
-- Morning sessions prioritise due reviews plus up to two new units. Evening sessions consolidate the day, recover errors and introduce at most one unit when the review queue is light.
-- Review targets are transparent: approximately days 1, 3, 5, 8, 12, 30, 60, and 90 after first exposure. A wrong answer returns the item to a short interval.
-- A wrong item also returns after 2–4 other tasks in the same session using a different task type.
-- A unit earns 10 course points only after distributed evidence: four distinct review days, two context checks, recall or listening evidence, and a long-term check around day 30.
-- “Очень хорошо знаю” removes an item from the short queue, then schedules a real verification after 35 days. It awards no course progress until that verification is passed.
-- Practice XP measures activity. Course points measure retained knowledge. They are intentionally separate.
-- A selected route is not shown as a verified level. The final 20-task check unlocks only after all 400 units are published and retained, all four checkpoints are passed, and requires 16/20.
+- 600 stable-ID phrases: A2 200, B1 200, B2 100, C1 100.
+- Strict level-specific task pools, typed recall, sentence ordering, contextual
+  choice, collocations and 56 authored grammar questions.
+- 44 original IELTS Reading/Writing/Speaking tasks integrated into daily lessons.
+  A2 builds foundation skills; no CEFR-to-IELTS band equivalence is claimed.
+- 13 British Council recordings and 8 dedicated teaching videos. Every recording
+  is followed by three questions in one uninterrupted block. C1 video questions
+  assess inference/discourse and explicitly disclose the B2 source level.
+- Exact phrase pronunciation uses device speech synthesis. Generic long-video
+  links are absent from the lesson interface.
+- Bilingual rules include construction, explanation and example. “It depends”
+  has 12 distinct translated contexts. Additional sentence translations are
+  available on demand.
+- Task fingerprints do not repeat in a normal session; phrase examples rotate.
 
-## Gift rewards
+## Progress and rewards
 
-Every completed morning and evening routine can award $1, $2, or $3 once per slot. The transparent calculation considers time, accuracy, task diversity, recall/context/listening success, due reviews, and recovered mistakes; repeated easy recognition cannot earn the top reward. Every 100 verified units (25% of a 400-unit route) unlocks a mixed 10-question checkpoint; a score of at least 8/10 awards $100 once. Gift credit is a private promise between the learners: it is not cash, a payment service, or a bank balance.
+- Existing SRS IDs, scheduled review dates and all earned dollars are retained.
+- A separate lesson ledger powers the gopher mountain and completion animation.
+  A full lesson adds one practice stage; a five-minute lesson adds one third.
+  The 80-stage practice goal does not itself certify a CEFR level.
+- Previous routine rewards migrate into the ledger once.
+- Paused lessons retain question, time and answers across reloads.
+- $0 for incomplete lessons or accuracy below 75%; $1 for completion.
+  $2 requires 28 checked answers, >=95% accuracy, four types and 22 unaided
+  unique successes. $3 requires 45 answers, >=98%, six types, 40 unaided
+  successes, 38 unique successes, media/IELTS/recall and a fast pace.
+- Five minutes caps at $1. One reward per morning/evening slot.
+  Speaking self-assessment and hinted answers cannot farm higher rewards.
+- Spaced mastery, checkpoints and final knowledge verification are separate from
+  the practice ascent. The planned 400 units per route are not all published.
 
-## Current content
+## Couple and personal backups
 
-- A2: 200 phrases (50% of the planned route)
-- B1: 200 phrases (50% of the planned route)
-- B2: 100 phrases (25% of the planned route)
-- C1: 100 phrases (25% of the planned route)
-- 12 grammar reference topics, 16 error-driven grammar diagnostics, 27 level-aware collocations, 15 irregular verbs, 13 verified British Council listening lessons, edited phrase families, and 16 original IELTS-style practices
-
-The interface always shows both the 400-unit route and the number of units currently published, so unfinished content is never presented as complete. The four routes contain 600 published learning units and 1,800 original real-life examples in total.
+- One-time six-character pairing; no manual sharing URL fallback.
+- Gift wishes, requests, decisions and partner lesson/earnings news update
+  automatically. Failed gift submissions do not reserve local credit.
+- Telegram push requires TELEGRAM_BOT_TOKEN and verified Telegram init data.
+  Without the token, the in-app inbox works; closed-app push is not claimed.
+- Authenticated private backups cover per-item progress, lesson history,
+  wallet records and paused lessons. Atomic merges reject stale writes.
+  Partner snapshots never include private learning records.
+- UUID + random 256-bit secret authenticates the device; only SHA-256 is stored.
+  RLS and explicit deny policies block direct browser database access.
 
 ## Development
 
-```bash
-npm install
-npm run validate
-npm run dev
-```
+Run npm ci, npm run validate, then npm run dev.
+Set VITE_COUPLE_SYNC_URL at frontend build time.
+The backend is supabase/functions/english-for-two-sync/index.ts; migrations are
+versioned under supabase/migrations.
 
-Progress, detailed mistakes, personal goals, and reward history are stored locally and, inside Telegram, synced to each learner’s Telegram CloudStorage. A free Supabase Edge Function syncs only the paired partner summary, goals, and gift decisions. Each installation creates a random 256-bit credential; only its SHA-256 hash reaches the database. The secret follows the learner through Telegram CloudStorage when available, browser clients receive no database key or table access, and detailed answers are never shared with the partner. A bot token is optional and is used only for Telegram push notifications. Telegram share links remain the fallback if the shared service is unavailable. Legacy `eft2` and earlier `eft3` progress is retained without deleting old keys.
+Tests include 33 original checks and 9 lesson regressions. The opt-in
+tests/backend-smoke.mjs requires EFT_LIVE_TEST_URL and checks live backups,
+stale-write protection, identity isolation, notifications/deduplication and gifts.
+It creates fresh QA accounts and writes their exact disposable IDs to
+/tmp/eft-v03-qa-account-ids.json for scoped cleanup.
 
-Set `VITE_COUPLE_SYNC_URL` on the existing static deployment to enable automatic pair sync. The database schema and Edge Function live under `supabase/`.
+All existing infrastructure remains free. No cron configuration is changed.

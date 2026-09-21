@@ -198,7 +198,7 @@ test('gift requests spend only earned virtual credit and are idempotent', () => 
 test('one completed morning and evening session can each earn a one-time reward', () => {
   const morning = Date.parse('2026-09-20T05:15:00Z');
   const evening = Date.parse('2026-09-20T16:15:00Z');
-  const session = { plannedMs: 15 * 60000, spentSeconds: 12 * 60, answers: 8, correct:6, taskCounts:{recognition:8}, successByType:{recognition:6} };
+  const session = { plannedMs: 15 * 60000, spentSeconds: 14 * 60, answers: 16, correct:12, taskCounts:{recognition:16}, successByType:{recognition:12} };
   let wallet = { earned:{}, spent:{}, goals:{}, incoming:{} };
   wallet = awardRoutine(wallet, session, morning).wallet;
   wallet = awardRoutine(wallet, session, morning + 1000).wallet;
@@ -209,15 +209,19 @@ test('one completed morning and evening session can each earn a one-time reward'
 });
 
 test('$1/$2/$3 rewards measure quality and recognition farming cannot earn more', () => {
-  const base = { plannedMs:15*60000, spentSeconds:12*60, answers:10 };
-  const farming = evaluateSessionReward({ ...base, correct:10, taskCounts:{recognition:10}, successByType:{recognition:10}, dueSuccess:0 });
+  const base = { plannedMs:15*60000, spentSeconds:15*60, answers:45 };
+  const farming = evaluateSessionReward({ ...base, correct:45, taskCounts:{recognition:45}, successByType:{recognition:45}, dueSuccess:0 });
   assert.equal(farming.amount, 1);
-  const strong = evaluateSessionReward({ ...base, correct:8, taskCounts:{recognition:2,context:3,recall:3}, successByType:{recognition:2,context:2,recall:2}, dueSuccess:2 });
+  const strong = evaluateSessionReward({ ...base, answers:30,correct:29, taskCounts:{recognition:6,context:8,recall:8,grammar:8}, successByType:{recognition:6,context:8,recall:8,grammar:7},correctTaskKeys:Array.from({length:29},(_,i)=>`key-${i}`),unaidedCorrect:29 });
   assert.equal(strong.amount, 2);
-  const excellent = evaluateSessionReward({ ...base, correct:9, taskCounts:{recognition:2,context:3,recall:3,listening:2}, successByType:{recognition:2,context:3,recall:2,listening:2}, recovered:1, dueSuccess:3 });
+  const excellentInput = { ...base, correct:45, taskCounts:{recognition:8,context:8,recall:8,listening:6,grammar:9,ielts:6}, successByType:{recognition:8,context:8,recall:8,listening:6,grammar:9,ielts:6}, correctTaskKeys:Array.from({length:45},(_,i)=>`key-${i}`),unaidedCorrect:45,fastCorrect:30 };
+  const excellent = evaluateSessionReward(excellentInput);
   assert.equal(excellent.amount, 3);
-  const short = evaluateSessionReward({ ...excellent, plannedMs:5*60000, spentSeconds:4*60 });
-  assert.ok(short.amount <= 2);
+  const short = evaluateSessionReward({ ...excellentInput, plannedMs:5*60000, spentSeconds:5*60 });
+  assert.equal(short.amount, 1);
+  assert.equal(evaluateSessionReward({...excellentInput,correct:30}).amount,0);
+  assert.equal(evaluateSessionReward({...excellentInput,unaidedCorrect:3}).amount,1);
+  assert.equal(evaluateSessionReward({...excellentInput,fastCorrect:3}).amount,2);
 });
 
 test('collocations are level-aware and keep independent SRS records', () => {
@@ -241,9 +245,9 @@ test('grammar diagnostics are level-aware and keep separate SRS records', () => 
 });
 
 test('morning and evening sessions have distinct new-material limits', () => {
-  assert.equal(newItemLimit({ minutes:15, slot:'morning' }), 2);
-  assert.equal(newItemLimit({ minutes:15, slot:'evening' }), 1);
-  assert.equal(newItemLimit({ minutes:5, slot:'morning' }), 1);
+  assert.equal(newItemLimit({ minutes:15, slot:'morning' }), 8);
+  assert.equal(newItemLimit({ minutes:15, slot:'evening' }), 6);
+  assert.equal(newItemLimit({ minutes:5, slot:'morning' }), 4);
 });
 
 test('B1 listening rotates across B1 lessons instead of falling back to A2', () => {

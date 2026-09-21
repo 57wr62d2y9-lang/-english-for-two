@@ -163,16 +163,18 @@ function mapGift(row: Record<string, unknown>, from = '') {
 async function snapshot(accountId: string) {
   const { data: pair, error: pairError } = await db.from('eft_pairs').select('partner_id').eq('user_id', accountId).maybeSingle();
   if (pairError) throw pairError;
-  if (!pair?.partner_id) return { paired:false, partner:null, incoming:[], outgoing:[] };
+  if (!pair?.partner_id) return { paired:false, partner:null, incoming:[], outgoing:[], notifications:[], telegramNotifications:Boolean(BOT_TOKEN) };
   const partnerId = String(pair.partner_id);
-  const [partnerResult, incomingResult, outgoingResult] = await Promise.all([
+  const [partnerResult, incomingResult, outgoingResult, noticesResult] = await Promise.all([
     db.from('eft_users').select('display_name, level, percent, balance, today_minutes, routines, goals, updated_at').eq('account_id', partnerId).maybeSingle(),
     db.from('eft_gift_requests').select('id, title, cost, status, created_at, updated_at, resolved_at').eq('recipient_id', accountId).order('updated_at', { ascending:false }).limit(25),
-    db.from('eft_gift_requests').select('id, title, cost, status, created_at, updated_at, resolved_at').eq('requester_id', accountId).order('updated_at', { ascending:false }).limit(25)
+    db.from('eft_gift_requests').select('id, title, cost, status, created_at, updated_at, resolved_at').eq('requester_id', accountId).order('updated_at', { ascending:false }).limit(25),
+    db.from('eft_notifications').select('id, payload, created_at').eq('recipient_id',accountId).order('created_at',{ascending:false}).limit(50)
   ]);
   if (partnerResult.error) throw partnerResult.error;
   if (incomingResult.error) throw incomingResult.error;
   if (outgoingResult.error) throw outgoingResult.error;
+  if (noticesResult.error) throw noticesResult.error;
   const partner = partnerResult.data ? {
     displayName:partnerResult.data.display_name,
     level:partnerResult.data.level,
@@ -186,6 +188,8 @@ async function snapshot(accountId: string) {
   } : null;
   return {
     paired:true,
+    notifications:noticesResult.data || [],
+    telegramNotifications:Boolean(BOT_TOKEN),
     partner,
     incoming:(incomingResult.data || []).map(row => mapGift(row, String(partner?.displayName || 'Partner'))),
     outgoing:(outgoingResult.data || []).map(row => mapGift(row))
@@ -239,6 +243,46 @@ async function guardJoinAttempts(accountId: string) {
 }
 
 async function handle(action: string, payload: Record<string, unknown>, account: Account) {
+  if (action === 'load_state') {
+    const offset=Math.max(0,Math.min(9500,Math.trunc(Number(payload.offset)||0)));
+    const {data,error}=await db.from('eft_private_records').select('record_key,payload,updated_ms').eq('account_id',account.id).order('record_key').range(offset,offset+499);
+    if(error) throw error;
+    return {records:data || []};
+  }
+  if (action === 'save_state') {
+    const records=Array.isArray(payload.records) ? payload.records : [];
+    if(records.length>120) throw new RequestError('Слишком много записей за один запрос.',413);
+    const clean=records.map(raw=>{
+      const value=raw as Record<string,unknown>;
+      const key=String(value.key || '');
+      const at=Math.trunc(Number(value.at));
+      if(!/^(progress:(A2|B1|B2|C1):[\w:-]+|lesson:[\w:-]+|day:\d{4}-\d{2}-\d{2}|wallet:(earned|spent|goals):[\w:-]+|legacy|draft)$/.test(key) || key.length>180 || !Number.isSafeInteger(at) || at<1 || at>Date.now()+86400000 || JSON.stringify(value.data ?? null).length>90000) throw new RequestError('Некорректная запись прогресса.');
+      return {key,at,data:value.data ?? null};
+    });
+    const {error}=await db.rpc('eft_merge_private_records',{p_account_id:account.id,p_records:clean});
+    if(error) throw error;
+    return {saved:clean.length};
+  }
+  if (action === 'publish_lesson') {
+    const lesson=(payload.lesson || {}) as Record<string,unknown>;
+    const id=String(lesson.id || '');
+    if(!/^[\w-]{6,100}$/.test(id) || !['A2','B1','B2','C1'].includes(String(lesson.level))) throw new RequestError('Некорректный урок.');
+    const {data:pair,error:pairError}=await db.from('eft_pairs').select('partner_id').eq('user_id',account.id).maybeSingle();
+    if(pairError) throw pairError;
+    if(!pair?.partner_id) return {published:false};
+    const {data:user,error:userError}=await db.from('eft_users').select('display_name').eq('account_id',account.id).single();
+    if(userError) throw userError;
+    const earned=Math.max(0,Math.min(3,Math.trunc(Number(lesson.reward)||0)));
+    const notice={kind:'lesson',from:user.display_name,level:lesson.level,reward:earned,seconds:Math.max(0,Math.min(3600,Math.round(Number(lesson.seconds)||0))),answers:Math.max(0,Math.min(500,Math.round(Number(lesson.answers)||0))),accuracy:Math.max(0,Math.min(100,Math.round(Number(lesson.accuracy)||0))),steps:Math.max(0,Math.min(10000,Number(lesson.steps)||0))};
+    const {data:existing,error:lookupError}=await db.from('eft_notifications').select('id').eq('id',`${account.id}:${id}`).maybeSingle();
+    if(lookupError) throw lookupError;
+    if(!existing) {
+      const {error}=await db.from('eft_notifications').insert({id:`${account.id}:${id}`,recipient_id:pair.partner_id,sender_id:account.id,payload:notice});
+      if(error?.code !== '23505' && error) throw error;
+      if(!error) await notify(String(pair.partner_id),`🐿 <b>${escapeHtml(String(user.display_name))}</b>: урок ${escapeHtml(String(lesson.level))} завершён!\n${notice.answers} ответов · точность ${notice.accuracy}%\nВ копилку +$${earned} · подъём до отметки ${Math.round(notice.steps*10)/10}.`);
+    }
+    return {published:true};
+  }
   if (action === 'sync') {
     const profile = cleanProfile((payload.profile || {}) as Record<string, unknown>, account.telegram);
     const { error } = await db.from('eft_users').update(profile).eq('account_id', account.id);
@@ -322,9 +366,9 @@ Deno.serve(async (request: Request) => {
   if (!databaseUrl || !databaseKey) return response(request, { ok:false, error:'База синхронизации ещё не настроена.' }, 503);
   try {
     const contentLength = Number(request.headers.get('content-length') || 0);
-    if (contentLength > 50000) throw new RequestError('Запрос слишком большой.', 413);
+    if (contentLength > 1000000) throw new RequestError('Запрос слишком большой.', 413);
     const raw = await request.text();
-    if (raw.length > 50000) throw new RequestError('Запрос слишком большой.', 413);
+    if (raw.length > 1000000) throw new RequestError('Запрос слишком большой.', 413);
     let body: Record<string, unknown>;
     try { body = JSON.parse(raw || '{}'); } catch { throw new RequestError('Некорректный JSON.'); }
     const account = await authenticate(request);

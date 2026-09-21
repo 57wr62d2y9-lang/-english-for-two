@@ -30,7 +30,10 @@ const parse = s => { try { return JSON.parse(s || 'null'); } catch { return null
 const choose = (a,b) => !a ? b : !b ? a : (a.at || 0) >= (b.at || 0) ? a : b;
 export function mergeItems(a = {}, b = {}) {
   const out = { ...a };
-  for (const [id, item] of Object.entries(b)) if (!out[id] || (item.l || 0) > (out[id].l || 0)) out[id] = item;
+  for (const [id, item] of Object.entries(b)) {
+    const old = out[id];
+    if (!old || (item.l || 0) > (old.l || 0) || ((item.l || 0) === (old.l || 0) && (item.c || 0) + (item.w || 0) > (old.c || 0) + (old.w || 0))) out[id] = normaliseItem(item);
+  }
   return out;
 }
 const BUCKETS = 64;
@@ -134,16 +137,24 @@ export function saveLevelProgress(level, items) {
   queues.set(level,job.catch(()=>false)); return job;
 }
 const emptyExam = () => Object.fromEntries(['Listening','Reading','Writing','Speaking'].map(skill => [skill,{attempts:0,correct:0,scored:0,last:0,taskTypes:{}}]));
-export const emptyStats = () => ({ totalMinutes:0, sessions:0, correct:0, answers:0, byDay:{}, ielts:emptyExam(), legacy:{totalMinutes:0,sessions:0,correct:0,answers:0} });
+export const emptyStats = () => ({ totalMinutes:0, sessions:0, correct:0, answers:0, byDay:{}, lessons:{}, ielts:emptyExam(), legacy:{totalMinutes:0,sessions:0,correct:0,answers:0} });
 export async function loadStats() {
   const local = localRead(prefix()+'stats');
   const legacy = localRead(legacyPrefix()+'stats') || emptyStats();
-  const base = local || { ...emptyStats(), legacy: { totalMinutes:legacy.totalMinutes||0,sessions:legacy.sessions||0,correct:legacy.correct||0,answers:legacy.answers||0 }, byDay: {} };
+  const base = { ...emptyStats(), ...(local || { legacy: { totalMinutes:legacy.totalMinutes||0,sessions:legacy.sessions||0,correct:legacy.correct||0,answers:legacy.answers||0 } }) };
   const keysResult = await cloudCall('getKeys');
   const keys = (keysResult.value || []).filter(k=>/^eft3_stats_\d{4}-\d{2}$/.test(k)).slice(-120);
   for (let start=0; start<keys.length; start+=50) {
     const remote = await cloudCall('getItems',keys.slice(start,start+50));
     for (const value of Object.values(remote.value || {})) for (const [day,record] of Object.entries(parse(value)||{})) base.byDay[day] = choose(base.byDay[day],record);
+  }
+  const dailyKeys = (keysResult.value || []).filter(k=>/^eft4_day_/.test(k));
+  for (let start=0; start<dailyKeys.length; start+=50) {
+    const remote = await cloudCall('getItems',dailyKeys.slice(start,start+50));
+    for (const [key,value] of Object.entries(remote.value || {})) {
+      const day=key.slice('eft4_day_'.length), record=parse(value);
+      if(record) base.byDay[day]=choose(base.byDay[day],record);
+    }
   }
   const remoteLegacy = parse((await cloudCall('getItem','eft3_stats_base')).value);
   if (remoteLegacy) for (const f of ['totalMinutes','sessions','correct','answers']) base.legacy[f] = Math.max(base.legacy[f]||0,remoteLegacy[f]||0);
@@ -193,12 +204,19 @@ export function saveStats(stats) {
         dirtyStatsMonths.clear();
         const latest = localRead(prefix()+'stats') || stats;
         await setRemote('eft3_stats_base',latest.legacy||{});
-        for (const month of months) await setRemote('eft3_stats_'+month,Object.fromEntries(Object.entries(latest.byDay||{}).filter(([d])=>d.startsWith(month))));
+        for (const month of months) for (const [day,record] of Object.entries(latest.byDay || {}).filter(([d])=>d.startsWith(month))) await setRemote('eft4_day_'+day,record);
       }
     })().finally(() => { statsJob = null; });
   }
   return statsJob;
 }
+
+export function loadDraft() { return localRead(prefix()+'activeLesson'); }
+export function saveDraft(session) { const record={at:Date.now(),data:session};localWrite(prefix()+'activeLesson',record);return record; }
+export function loadReadNotifications() { return localRead(prefix()+'readNotifications') || []; }
+export function saveReadNotifications(ids) { localWrite(prefix()+'readNotifications',ids.slice(-200)); }
+export function getLocalMeta(key) { return localRead(prefix()+key); }
+export function setLocalMeta(key,value) { return localWrite(prefix()+key,value); }
 export async function loadWallet() {
   const local = { earned:{}, spent:{}, goals:{}, incoming:{}, partner:null, ...(localRead(prefix()+'wallet') || {}) };
   const keys = (await cloudCall('getKeys')).value || [];

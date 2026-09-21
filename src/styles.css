@@ -14,6 +14,126 @@
   --green-soft: #eaf8f3;
 }
 
+/* v0.3: the daily lesson and its permanent ascent are the main experience. */
+.v5App {padding-bottom:110px;background:#fffdfb;}
+.v5App .brandbar {margin-bottom:18px;}
+.v5App .brandbar strong {font-size:20px;letter-spacing:-.5px;}
+.v5App .todayTop h1 {font-size:26px;line-height:1.12;}
+.v5App .todayCard {margin-top:15px;}
+.mountainCard {position:relative;border:1px solid #e6e5e1;border-radius:27px;background:#f8f9f2;overflow:hidden;margin:12px 0 16px;}
+.mountainHeading {display:flex;align-items:center;justify-content:space-between;padding:18px 20px 0;position:relative;z-index:1;}
+.mountainHeading>span {font-size:10px;font-weight:800;letter-spacing:1.6px;color:#617b6b;}
+.mountainHeading strong {font-size:23px;color:#3b5547;}
+.mountainHeading i {font-style:normal;font-size:16px;margin:0 10px;color:#7e9586;}
+.landscape {display:block;width:100%;max-height:295px;margin-top:-8px;}
+.gopher {display:block;width:100%;height:100%;overflow:visible;}
+.mountainFoot {display:flex;align-items:center;justify-content:space-between;gap:20px;padding:0 21px 19px;}
+.mountainFoot strong {display:block;font-size:28px;letter-spacing:-1px;color:#385447;}
+.mountainFoot strong small {font-size:14px;letter-spacing:0;font-weight:500;color:#718175;}
+.mountainFoot span {font-size:11px;color:#718175;}
+.mountainFoot p {font-size:12px;line-height:1.5;max-width:145px;color:#647a6b;text-align:right;}
+.lessonChips {display:flex;flex-wrap:wrap;gap:6px;margin:18px 0 12px;}
+.lessonChips span {font-size:10px;background:#f6f0f5;color:#85546d;padding:7px 9px;border-radius:9px;}
+.rewardRules {margin-top:12px;border-top:1px solid var(--line);padding-top:13px;font-size:12px;line-height:1.6;color:#766c75;}
+.rewardRules summary {cursor:pointer;color:#82526a;font-weight:650;}
+.rewardRules p {margin:9px 0;}
+.quickStats.two {grid-template-columns:repeat(2,1fr);}
+.bottomNav {position:fixed;bottom:0;left:50%;transform:translateX(-50%);z-index:20;width:min(100%,680px);display:grid;grid-template-columns:repeat(4,1fr);padding:9px 10px calc(10px + env(safe-area-inset-bottom));background:#fffefaee;backdrop-filter:blur(16px);border-top:1px solid #e9e3e2;}
+.bottomNav button {display:flex;flex-direction:column;align-items:center;gap:5px;background:none;border:0;color:#958b91;font-size:10px;font-weight:650;padding:5px;}
+.bottomNav button span {font-size:22px;line-height:1.2;}
+.bottomNav button.active {color:var(--pink-dark);}
+.bottomNav button.active span {background:#fbe6f0;border-radius:9px;min-width:45px;}
+.bell {position:relative;font-size:23px;}
+.bell i {position:absolute;right:-3px;top:-4px;background:var(--pink);color:#fff;font:700 10px system-ui;min-width:18px;height:18px;line-height:18px;border-radius:50%;}
+.textBack {border:0;background:none;color:#877282;font-size:13px;padding:0 0 14px;}
+.saveStatus {justify-content:center;text-align:center;font-size:10px!important;margin:25px 0 5px;}
+.v5App .explainCard {margin:15px 0;line-height:1.65;}
+.v5App .explainCard h2 {margin:0;font-size:19px;}
+.v5App .explainCard p {font-size:13px;color:#796d76;}
+.v5App .settingsCard {margin:13px 0;}
+.v5App .settingsCard label {display:block;margin:10px 0;font-weight:700;}
+.v5App .settingsCard p,.v5App .settingsCard small {font-size:12px;line-height:1.6;color:#80727c;}
+.v5App .versionLabel {font-size:11px;text-align:center;color:#968991;}
+.giftTabs {margin:15px 0;}
+.v5App .giftCard {display:block;}
+.v5App .giftCard button {width:100%;margin-top:12px;}
+.v5App .history>div {flex-wrap:wrap;}
+.decisionButtons {display:flex;gap:6px;}
+.decisionButtons button {font-size:11px;padding:8px 10px;}
+.notificationList>p {color:#887984;font-size:13px;line-height:1.6;}
+.notificationList article {padding:18px 4px;display:flex;gap:15px;align-items:flex-start;border-bottom:1px solid var(--line);}
+.notificationIcon {display:grid;place-items:center;width:43px;min-width:43px;height:43px;background:#f6efe3;border-radius:14px;font-size:24px;}
+.notificationList article strong {font-size:14px;}
+.notificationList article p {font-size:12px;margin:7px 0;color:#88737e;}
+.notificationList article small {font-size:10px;color:#a6949d;}
+.emptyState {padding:30px 20px;margin:18px 0;border:1px dashed #dacecf;border-radius:20px;color:#8f7c86;font-size:13px;line-height:1.65;text-align:center;}
+.errorText {color:#b33953!important;font-size:13px;}
+.sessionApp .topbar strong {font-size:14px;}
+.sessionApp .timer {display:block;padding:9px 11px;border-radius:12px;font-size:14px;background:#f7f2f5;color:#875b74;font-variant-numeric:tabular-nums;}
+.sessionApp .contextTitle {font-size:24px;line-height:1.4;letter-spacing:-.4px;overflow-wrap:anywhere;}
+.sessionApp .mainTranslation {font-size:20px;margin-top:-7px;}
+.sessionApp .meaning {font-size:15px;line-height:1.65;}
+.sessionApp .options button {font-size:15px;line-height:1.45;padding:17px;}
+.sessionApp .options button:disabled {opacity:1;cursor:default;}
+.sessionApp .feedback {display:block;margin-top:20px;padding:19px;}
+.sessionApp .feedback>strong {display:block;font-size:19px;margin-bottom:10px;}
+.sessionApp .feedback p {font-size:13px;line-height:1.65;}
+.answerReveal {font-size:19px;font-weight:750;color:#316c54;margin:10px 0;}
+.sessionApp .feedback.wrong .answerReveal {color:#96495e;}
+.ruleHelp {background:#faf6ee;border:1px solid #eadeca;border-radius:17px;padding:14px 15px;margin:16px 0;color:#635849;font-size:13px;line-height:1.65;}
+.ruleHelp summary {font-weight:750;cursor:pointer;font-size:14px;}
+.ruleHelp code {display:block;white-space:normal;background:#ede4d5;border-radius:8px;padding:9px 10px;margin-top:12px;color:#776045;font-family:inherit;font-weight:700;font-size:13px;}
+.ruleHelp p {margin:12px 0 0;}
+.ruExplanation {color:#887562;font-size:13px;line-height:1.65;}
+.phraseMeaning {display:grid;gap:3px;margin-top:15px;padding-top:12px;border-top:1px solid #e6dcca;}
+.phraseMeaning small {font-size:12px;color:#8d7465;}
+.ruleHelp .examplePair {margin:13px 0 0;background:#ffffffa8;}
+.ruleHelp .examplePair strong {font-size:13px;}
+.ruleHelp .examplePair span {font-size:12px;}
+.pronounce {display:flex;flex-wrap:wrap;gap:8px;margin:15px 0;}
+.pronounce button {border:1px solid #eadde3;border-radius:10px;padding:10px 13px;background:#fff6fa;color:#a04870;font-size:13px;}
+.pronounce small {width:100%;font-size:10px;color:#9b8c95;}
+.optionalTranslation button {background:none;border:0;border-bottom:1px dotted #a7959f;color:#9c8592;font-size:11px;padding:3px 0;margin-top:7px;}
+.optionalTranslation p {font-size:12px;line-height:1.5;color:#8b7b83;font-weight:400;}
+.wordGlossary {display:grid;gap:8px;margin-top:13px;}
+.wordGlossary>div {display:grid;grid-template-columns:80px 1fr;gap:3px 10px;font-size:11px;padding-top:8px;border-top:1px solid #e9e0d4;}
+.wordGlossary b {font-size:12px;}
+.wordGlossary small {grid-column:2;font-size:11px;color:#897567;}
+.taskHint {margin-top:22px;color:#96727f;font-size:13px;}
+.taskHint>summary {cursor:pointer;}
+.mediaBlock {margin-top:12px;padding:19px;background:#eef3ef;border:1px solid #dbe6df;border-radius:20px;}
+.mediaBlock h1 {font-size:25px;line-height:1.3;color:#416350;}
+.mediaBlock p {font-size:13px;line-height:1.6;color:#758879;}
+.mediaBlock small {font-size:11px;color:#738371;line-height:1.6;display:block;}
+.mediaBlock .audioLink {margin:17px 0;font-size:14px;background:#fff;color:#416650;}
+.questionCounter {font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:#9b7585;margin-top:24px;}
+.typedAnswer input {width:100%;border:1px solid #d6c7d0;padding:17px 14px;border-radius:14px;font-size:16px;background:#fff;}
+.sentenceAssembly {display:flex;gap:5px;flex-wrap:wrap;min-height:90px;border:1px dashed #cbb3c1;padding:13px;border-radius:15px;background:#fdf8fb;align-content:flex-start;}
+.sentenceAssembly>span {font-size:12px;color:#b29aa7;}
+.sentenceAssembly button,.wordBank button {border:1px solid #e5d9e0;background:#fff;border-radius:9px;padding:9px 11px;font-size:14px;color:#755768;}
+.wordBank {display:flex;gap:6px;flex-wrap:wrap;margin:17px 0;}
+.speakingPractice {padding:20px;background:#f3f0fa;border-radius:18px;margin:17px 0;color:#746583;}
+.speakingPractice p {font-size:13px;line-height:1.6;}
+.speakingPractice>div {display:flex;align-items:center;justify-content:space-between;gap:15px;margin:15px 0;}
+.speakingPractice strong {font-size:28px;}
+.speakingPractice details {font-size:12px;line-height:1.6;}
+.endLesson {margin-top:25px;font-size:12px!important;color:#a38d97!important;}
+.lessonFinish {text-align:center;padding-top:30px;background:#fffdf8;}
+.lessonFinish>h1 {font-size:28px;line-height:1.2;color:#435548;letter-spacing:-.5px;}
+.lessonFinish>p {font-size:13px;line-height:1.6;color:#867b74;}
+.lessonFinish .resultSummary {display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0;}
+.ascentMoment {position:absolute;inset:76px 25px 72px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;pointer-events:none;}
+.celebration .landscape {opacity:.48;}
+.climbGopher {width:100px;height:120px;transform:translateY(40px);opacity:0;}
+.entered .climbGopher {animation:climbUp 2.4s cubic-bezier(.2,.7,.3,1) both;}
+.earnedCoin {position:absolute;top:20px;right:30px;background:#f6d384;color:#775523;border:3px solid #ffedb4;border-radius:50%;width:65px;height:65px;display:grid;place-items:center;font-size:23px;font-weight:850;opacity:0;box-shadow:0 6px 0 #d3ac65;}
+.entered .earnedCoin {animation:coinIn .6s 1.9s both;}
+.ascentMoment>strong {background:#ffffffdd;padding:8px 13px;border-radius:20px;font-size:12px;color:#4e6656;margin-top:5px;}
+@keyframes climbUp {0%{transform:translate(-55px,50px) rotate(-5deg);opacity:0}20%{opacity:1}45%{transform:translate(-15px,15px) rotate(3deg)}75%{transform:translate(12px,-5px) rotate(-2deg)}100%{transform:translate(0,-12px);opacity:1}}
+@keyframes coinIn {from{opacity:0;transform:scale(.3) translateY(20px)}to{opacity:1;transform:scale(1) translateY(0)}}
+@media(prefers-reduced-motion:reduce){.entered .climbGopher,.entered .earnedCoin{animation:none;opacity:1;transform:none;}}
+@media(min-width:600px){.landscape{max-height:320px}.mountainCard{border-radius:30px}.lessonChips span{font-size:12px}.v5App .todayTop h1{font-size:29px}.climbGopher{width:115px;height:138px}}
+
 * { box-sizing: border-box; }
 html { background: #fff; }
 body { margin: 0; min-width: 320px; min-height: 100vh; background: #fff; }

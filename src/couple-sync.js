@@ -77,7 +77,7 @@ export function mergeCoupleSnapshot(wallet, data = {}) {
   return next;
 }
 
-async function invoke(action, payload = {}) {
+export async function invoke(action, payload = {}) {
   if (!ENDPOINT) return { ok: false, disabled: true, error: 'Синхронизация пары ещё не подключена.' };
 
   const controller = new AbortController();
@@ -112,3 +112,4 @@ export const createPairCode = () => invoke('create_pair_code');
 export const joinPair = code => invoke('join_pair', { code: normalisePairCode(code) });
 export const createCoupleGiftRequest = request => invoke('create_request', { request });
 export const resolveCoupleGiftRequest = (id, status) => invoke('resolve_request', { id, status });
+export const publishLesson = lesson => invoke('publish_lesson', { lesson });

@@ -126,18 +126,20 @@ export function settleRecovery(queue = [], itemId, correct, failedType, step) {
 
 export function chooseTask(items, progress, session, time = Date.now()) {
   const seen = session.recent || [];
-  const recovery = (session.recoveryQueue || []).find(entry => entry.dueStep <= session.step && !seen.slice(-2).includes(entry.id));
+  const visits = session.visits || {};
+  const allowed = item => !seen.slice(-4).includes(item.id) && (visits[item.id] || 0) < 3;
+  const recovery = (session.recoveryQueue || []).find(entry => entry.dueStep <= session.step && !seen.slice(-4).includes(entry.id) && entry.attempts <= 2);
   if (recovery) {
     const item = items.find(candidate => candidate.id === recovery.id);
     if (item) return { item, type: recovery.nextType, early: true, recovery: true };
   }
-  const due = items.filter(x => isDue(progress[x.id], time)).sort((a, b) => {
+  const due = items.filter(x => isDue(progress[x.id], time) && allowed(x)).sort((a, b) => {
     const weak = weaknessScore(progress[b.id], time) - weaknessScore(progress[a.id], time);
     return weak || (progress[a.id].n || 0) - (progress[b.id].n || 0);
   });
-  const fresh = items.filter(x => !progress[x.id] || (progress[x.id].s === 'NEW' && !progress[x.id].known));
-  const recentNew = items.filter(x => progress[x.id] && !progress[x.id].rec && !progress[x.id].known);
-  const recentRecall = items.filter(x => progress[x.id]?.rec && !progress[x.id]?.days?.length && !progress[x.id]?.known);
+  const fresh = items.filter(x => allowed(x) && (!progress[x.id] || (progress[x.id].s === 'NEW' && !progress[x.id].known)));
+  const recentNew = items.filter(x => allowed(x) && progress[x.id] && !progress[x.id].rec && !progress[x.id].known);
+  const recentRecall = items.filter(x => allowed(x) && progress[x.id]?.rec && !progress[x.id]?.days?.length && !progress[x.id]?.known);
   const newLimit = newItemLimit(session);
   const morningNewWindow = session.slot !== 'evening' && (session.step === 0 || (session.newCount === 1 && session.step >= 6));
   const eveningNewWindow = session.slot === 'evening' && session.newCount === 0 && session.step >= 8 && due.length < 3;
@@ -149,7 +151,7 @@ export function chooseTask(items, progress, session, time = Date.now()) {
   // Morning sessions introduce up to two units. Evening sessions primarily
   // consolidate the day and introduce at most one when the due queue is light.
   else if (fresh.length && session.newCount < newLimit) pool = fresh;
-  else pool = items.filter(x => progress[x.id] && !progress[x.id].known).sort((a,b) => weaknessScore(progress[b.id], time) - weaknessScore(progress[a.id], time) || (progress[a.id].l || 0) - (progress[b.id].l || 0));
+  else pool = items.filter(x => allowed(x) && progress[x.id] && !progress[x.id].known).sort((a,b) => (visits[a.id] || 0) - (visits[b.id] || 0) || (progress[a.id].l || 0) - (progress[b.id].l || 0));
   if (!pool.length) pool = fresh;
   const item = pool.find(x => !seen.slice(-3).includes(x.id)) || pool[0];
   if (!item) return null;
@@ -158,8 +160,8 @@ export function chooseTask(items, progress, session, time = Date.now()) {
   return { item, type, early: p && !isDue(p, time) };
 }
 export function newItemLimit(session = {}) {
-  if (Number(session.minutes) <= 5) return 1;
-  return session.slot === 'evening' ? 1 : 2;
+  if (Number(session.minutes) <= 5) return 4;
+  return session.slot === 'evening' ? 6 : 8;
 }
 export function courseProgress(items, progress) {
   const current = items.filter(x => progress[x.id]?.v && progress[x.id]?.s === 'MASTERED');
@@ -197,29 +199,33 @@ export function routineRewardId(time = Date.now()) {
 export function evaluateSessionReward(session = {}) {
   const plannedSeconds = Math.max(1, Number(session.plannedMs || 0) / 1000);
   const spentSeconds = Math.max(0, Number(session.spentSeconds || 0));
-  const answers = Math.max(0, Number(session.answers || 0));
-  const correct = Math.max(0, Number(session.correct || 0));
+  const answers = Math.max(0, Number(session.scoredAnswers ?? session.answers ?? 0));
+  const correct = Math.max(0, Number(session.scoredCorrect ?? session.correct ?? 0));
   const accuracy = answers ? correct / answers : 0;
   const counts = session.taskCounts || {};
   const successes = session.successByType || {};
   const diversity = Object.values(counts).filter(value => Number(value) > 0).length;
-  const hardSuccesses = ['context','recall','listening','collocation','irregular','ielts'].reduce((sum, type) => sum + Number(successes[type] || 0), 0);
+  const hardSuccesses = ['context','recall','listening','video','grammar','collocation','order','ielts'].reduce((sum, type) => sum + Number(successes[type] || 0), 0);
   const minutes = plannedSeconds / 60;
-  const minAnswers = minutes <= 5.5 ? 5 : 8;
-  const completed = spentSeconds >= plannedSeconds * 0.8 && answers >= minAnswers;
-  if (!completed) return { amount: 0, accuracy, diversity, reasons: [] };
+  const minAnswers = minutes <= 5.5 ? 6 : 15;
+  const completed = spentSeconds >= plannedSeconds * 0.9 && answers >= minAnswers;
+  const unique = new Set(session.correctTaskKeys || []).size;
+  const unaided = Number(session.unaidedCorrect || 0);
+  const fast = Number(session.fastCorrect || 0);
+  if (!completed) return { amount: 0, accuracy, diversity, reasons: [`Нужно пройти 90% занятия и ответить хотя бы на ${minAnswers} проверяемых заданий.`] };
+  if (accuracy < .75) return { amount: 0, accuracy, diversity, reasons: ['Слишком много ошибок: для награды нужно не менее 75% верных ответов.'] };
 
   let amount = 1;
-  const reasons = ['занятие выполнено'];
-  if (accuracy >= .8 && diversity >= 3 && hardSuccesses >= 2) {
+  const reasons = ['Урок пройден', `${Math.round(accuracy * 100)}% верных ответов`];
+  if (minutes >= 12 && answers >= 28 && accuracy >= .95 && diversity >= 4 && hardSuccesses >= 12 && unique >= 22 && unaided >= 22) {
     amount = 2;
-    reasons.push(`${Math.round(accuracy * 100)}% точности`, `${diversity} типа заданий`);
+    reasons.push('Уверенный темп и самостоятельные ответы');
   }
-  const strongTransfer = Number(successes.recall || 0) >= 1 && (Number(successes.context || 0) + Number(successes.listening || 0) >= 1);
-  const meaningfulProgress = Number(session.recovered || 0) >= 1 || Number(session.dueSuccess || 0) >= 3;
-  if (minutes >= 12 && answers >= 10 && accuracy >= .9 && diversity >= 4 && strongTransfer && meaningfulProgress) {
+  const transfer = Number(successes.recall || 0) + Number(successes.order || 0) >= 6;
+  const media = Number(successes.listening || 0) + Number(successes.video || 0) >= 3;
+  if (minutes >= 12 && answers >= 45 && accuracy >= .98 && diversity >= 6 && transfer && media && Number(successes.ielts || 0) >= 3 && unique >= 38 && unaided >= 40 && fast >= 28 && answers / (spentSeconds / 60) >= 2.8) {
     amount = 3;
-    reasons.push(session.recovered ? `${session.recovered} слабых элемента восстановлено` : `${session.dueSuccess} важных повтора`);
+    reasons.push('Не менее 45 ответов, почти без ошибок, в быстром темпе');
   }
   return { amount, accuracy, diversity, reasons: reasons.slice(0, 4) };
 }
@@ -235,6 +241,18 @@ export function awardRoutine(wallet, session, time = Date.now()) {
     }
   };
   return { wallet: next, awarded: evaluation.amount, slot: studySlot(time), evaluation };
+}
+
+export const ROUTE_LESSONS = 80;
+export function lessonRecord(session, level, time = Date.now()) {
+  const seconds = Math.max(0, Number(session.spentSeconds || 0));
+  const completed = seconds >= Number(session.plannedMs || 0) / 1000 * .9 && Number(session.scoredAnswers ?? session.answers ?? 0) >= (session.minutes <= 5 ? 6 : 15);
+  return { id:session.id, level, at:time, seconds, answers:session.answers || 0, correct:session.correct || 0, completed, climb:completed ? Math.min(1, seconds / 900) : 0, reward:session.routineReward || 0 };
+}
+export function ascentProgress(stats, level) {
+  const lessons = Object.values(stats?.lessons || {}).filter(record => record.level === level && record.completed);
+  const steps = lessons.reduce((sum, record) => sum + Number(record.climb || 0), 0);
+  return { lessons:lessons.length, steps, total:ROUTE_LESSONS, percent:Math.min(100, steps / ROUTE_LESSONS * 100) };
 }
 export function balanceOf(wallet) {
   return Object.values(wallet.earned || {}).reduce((n,x) => n + Number(x.amount || 0), 0)
