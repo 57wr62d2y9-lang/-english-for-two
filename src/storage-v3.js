@@ -48,7 +48,9 @@ async function setRemote(key, value) {
   return r.ok;
 }
 // 64 bounded buckets per level leave enough room for a full 400-unit route.
-const FIELDS = ['s','c','w','l','n','f','step','rec','ctx','days','xp','v','known','rewardDay','event'];
+// New fields are only appended, so every existing compact CloudStorage record
+// remains readable without resetting Artur's or Anna's history.
+const FIELDS = ['s','c','w','l','n','f','step','rec','ctx','days','xp','v','known','rewardDay','event','rcl','lis','selfKnown','knownAt','lastWrong','lastCorrect'];
 export const packItems = items => Object.fromEntries(Object.entries(items).map(([id,p]) => [id, FIELDS.map(f => p[f] ?? null)]));
 export const unpackItems = items => Object.fromEntries(Object.entries(items || {}).map(([id,v]) => [id, Array.isArray(v) ? normaliseItem(Object.fromEntries(FIELDS.map((f,i) => [f,v[i] ?? undefined]))) : normaliseItem(v)]));
 export async function loadSettings() {
@@ -102,7 +104,8 @@ export function saveLevelProgress(level, items) {
   });
   queues.set(level,job.catch(()=>false)); return job;
 }
-export const emptyStats = () => ({ totalMinutes:0, sessions:0, correct:0, answers:0, byDay:{}, legacy:{totalMinutes:0,sessions:0,correct:0,answers:0} });
+const emptyExam = () => Object.fromEntries(['Listening','Reading','Writing','Speaking'].map(skill => [skill,{attempts:0,correct:0,scored:0,last:0,taskTypes:{}}]));
+export const emptyStats = () => ({ totalMinutes:0, sessions:0, correct:0, answers:0, byDay:{}, ielts:emptyExam(), legacy:{totalMinutes:0,sessions:0,correct:0,answers:0} });
 export async function loadStats() {
   const local = localRead(prefix()+'stats');
   const legacy = localRead(legacyPrefix()+'stats') || emptyStats();
@@ -119,8 +122,25 @@ export async function loadStats() {
   return summariseStats(base);
 }
 export function summariseStats(stats) {
-  const out = { ...stats, ...stats.legacy };
-  for (const r of Object.values(stats.byDay || {})) { out.totalMinutes += (r.seconds||0)/60; out.sessions += r.sessions||0; out.correct += r.correct||0; out.answers += r.answers||0; }
+  const out = {
+    ...stats,
+    totalMinutes:stats.legacy?.totalMinutes || 0,
+    sessions:stats.legacy?.sessions || 0,
+    correct:stats.legacy?.correct || 0,
+    answers:stats.legacy?.answers || 0,
+    ielts:emptyExam()
+  };
+  for (const r of Object.values(stats.byDay || {})) {
+    out.totalMinutes += (r.seconds||0)/60; out.sessions += r.sessions||0; out.correct += r.correct||0; out.answers += r.answers||0;
+    for (const [skill, value] of Object.entries(r.ielts || {})) {
+      if (!out.ielts[skill]) continue;
+      out.ielts[skill].attempts += value.attempts || 0;
+      out.ielts[skill].correct += value.correct || 0;
+      out.ielts[skill].scored += value.scored || 0;
+      out.ielts[skill].last = Math.max(out.ielts[skill].last || 0, value.last || 0);
+      for (const [type,count] of Object.entries(value.taskTypes || {})) out.ielts[skill].taskTypes[type] = (out.ielts[skill].taskTypes[type] || 0) + count;
+    }
+  }
   return out;
 }
 export function saveStats(stats) {

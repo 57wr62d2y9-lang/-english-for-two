@@ -95,6 +95,9 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 .partnerCard button { min-height: 38px; padding: 7px 10px; border: 1px solid #edbfd1; border-radius: 12px; color: var(--pink-dark); background: white; font-size: 11px; font-weight: 800; }
 .referenceButton { width: 100%; min-height: 52px; display: flex; align-items: center; justify-content: space-between; padding: 12px 15px; border: 1px solid var(--line); border-radius: 17px; color: var(--ink); background: white; font-weight: 800; }
 .referenceButton b { color: var(--pink); font-size: 20px; }
+.referenceButton > span strong, .referenceButton > span small { display:block; }
+.referenceButton > span small { margin-top:3px; color:var(--muted); font-size:10px; font-weight:600; }
+.examButton { margin-bottom:8px; background:linear-gradient(145deg,#fff,#fff5f9); }
 
 .menuList { display: grid; gap: 8px; }
 .menuButton { width: 100%; min-height: 70px; display: grid; grid-template-columns: 44px 1fr 20px; align-items: center; gap: 12px; padding: 11px 13px; text-align: left; color: var(--ink); border: 1px solid var(--line); border-radius: 19px; background: white; }
@@ -115,7 +118,9 @@ footer { display: flex; align-items: center; justify-content: center; gap: 7px; 
 .timer { min-width: 60px; min-height: 40px; border: 0; border-radius: 13px; color: var(--pink-dark); background: var(--pink-soft); font-weight: 850; }
 .sessionProgress { height: 5px; margin: -2px 2px 15px; }
 .exercise { min-height: calc(100vh - 112px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); padding: 24px 20px; border: 1px solid var(--line); border-radius: 26px; background: white; box-shadow: 0 14px 38px #2916210c; }
-.earlyTag { display: inline-block; padding: 7px 9px; margin-bottom: 16px; border-radius: 9px; color: #796770; background: #f7f2f5; font-size: 9px; font-weight: 850; letter-spacing: .8px; }
+.earlyTag, .recoveryTag, .verificationTag { display: inline-block; padding: 7px 9px; margin:0 6px 10px 0; border-radius: 9px; color: #796770; background: #f7f2f5; font-size: 9px; font-weight: 850; letter-spacing: .8px; }
+.recoveryTag { color:#986021; background:#fff4df; }
+.verificationTag { color:#74519b; background:#f2eafa; }
 .phrase { margin: 12px 0 10px; font-size: clamp(34px, 10vw, 50px); line-height: 1.04; letter-spacing: -1.6px; }
 .meaning, .prompt { color: #655d65; font-size: 16px; line-height: 1.45; }
 .speakPrompt { margin: 18px 0 10px; padding: 12px 14px; color: #76405a; background: var(--pink-soft); border-radius: 14px; font-size: 13px; line-height: 1.4; }
@@ -130,6 +135,14 @@ footer { display: flex; align-items: center; justify-content: center; gap: 7px; 
 .actions { margin-top: 18px; }
 .twoActions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
 .helper { display: block; margin-top: 10px; color: #8c848b; font-size: 10px; line-height: 1.35; }
+.variationBox { margin:12px 0 4px; border:1px solid var(--line); border-radius:16px; overflow:hidden; }
+.variationBox summary { padding:12px 14px; color:var(--pink-dark); font-size:12px; font-weight:850; cursor:pointer; }
+.variationBox .examplePair { padding:11px 14px; border-top:1px solid var(--line); }
+.videoContext { display:grid; gap:3px; margin:12px 0; padding:13px 14px; color:var(--ink); text-decoration:none; border:1px solid #efd2de; border-radius:15px; background:#fffafd; }
+.videoContext span { color:var(--pink-dark); font-size:10px; font-weight:850; }
+.videoContext strong { font-size:13px; }
+.videoContext small { color:var(--muted); font-size:10px; }
+.recallVariation { margin:8px 0; padding:10px 12px; border-radius:12px; color:#675d64; background:var(--soft); font-size:11px; line-height:1.4; }
 .contextTitle, .recallCue { margin: 17px 0; font-size: clamp(25px, 7vw, 35px); line-height: 1.2; letter-spacing: -.7px; }
 .options { display: grid; gap: 9px; margin-top: 17px; }
 .options > button { min-height: 52px; padding: 13px 14px; text-align: left; color: #403941; background: white; border: 1px solid #dfd9de; border-radius: 15px; }
@@ -149,6 +162,9 @@ footer { display: flex; align-items: center; justify-content: center; gap: 7px; 
 .finishCard p { margin: 0 0 16px; color: var(--muted); line-height: 1.45; }
 .rewardWon, .rewardHint { margin: 12px 0; padding: 12px 14px; border-radius: 14px; font-size: 12px; line-height: 1.4; }
 .rewardWon { color: var(--green); background: var(--green-soft); font-weight: 850; }
+.rewardWon strong, .rewardWon span, .rewardWon small { display:block; }
+.rewardWon strong { font-size:27px; }
+.rewardWon small { margin-top:3px; font-weight:650; }
 .rewardHint { color: #786e74; background: var(--soft); }
 .audioLink { display: block; width: 100%; min-height: 50px; margin: 15px 0; padding: 14px; border-radius: 15px; color: white; background: var(--pink); text-align: center; text-decoration: none; font-weight: 850; }
 .listeningPrompt { margin: 12px 0; padding: 13px 14px; border-radius: 14px; background: var(--soft); }
@@ -208,6 +224,46 @@ footer { display: flex; align-items: center; justify-content: center; gap: 7px; 
 .history strong, .history small { display: block; }
 .history small { color: var(--muted); margin-top: 3px; }
 .history button { min-height: 40px; padding: 7px 12px; border: 1px solid #e7bbce; border-radius: 12px; color: var(--pink-dark); background: white; }
+.partnerGoals { margin-bottom:12px; padding:16px; border:1px solid var(--line); border-radius:19px; }
+.partnerGoals > div:not(.eyebrow) { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:11px 0; border-bottom:1px solid var(--line); }
+.partnerGoals > div:last-child { border-bottom:0; padding-bottom:0; }
+.partnerGoals strong, .partnerGoals small { display:block; }
+.partnerGoals small { margin-top:3px; color:var(--muted); font-size:10px; }
+.partnerGoals b { color:var(--pink-dark); }
+
+.examHero { margin-bottom:12px; padding:20px; border:1px solid var(--line); border-radius:24px; background:linear-gradient(145deg,#fff,#fff3f8); }
+.examHero h1 { margin:8px 0; font-size:28px; line-height:1.1; }
+.examHero p { color:var(--muted); font-size:12px; line-height:1.5; }
+.examHero .segmented { margin-top:14px; }
+.examStats { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-bottom:10px; }
+.examStats button { min-width:0; min-height:72px; padding:9px 4px; border:1px solid var(--line); border-radius:15px; color:var(--ink); background:white; }
+.examStats button.active { border-color:#ed9bbb; background:var(--pink-soft); }
+.examStats span, .examStats strong, .examStats small { display:block; overflow:hidden; text-overflow:ellipsis; }
+.examStats span { font-size:8px; color:var(--muted); }
+.examStats strong { margin:3px 0; font-size:17px; }
+.examStats small { font-size:8px; color:var(--muted); }
+.examRecommendation { display:grid; grid-template-columns:auto 1fr; gap:3px 9px; margin-bottom:10px; padding:12px 14px; border-radius:15px; background:var(--green-soft); }
+.examRecommendation span { color:var(--green); font-size:9px; font-weight:850; }
+.examRecommendation strong { font-size:13px; }
+.examRecommendation small { grid-column:1/-1; color:#547569; font-size:10px; }
+.examTask { padding:19px; border:1px solid var(--line); border-radius:22px; }
+.examTaskTop { display:flex; justify-content:space-between; gap:10px; color:var(--pink-dark); font-size:10px; font-weight:850; }
+.examTask h2 { margin:8px 0 12px; font-size:24px; }
+.examTask h3 { margin:16px 0 0; font-size:16px; line-height:1.4; }
+.examTask > p { color:var(--muted); font-size:12px; line-height:1.45; }
+.examPassage, .examPrompt { padding:14px; border-radius:15px; background:var(--soft); font-size:13px; line-height:1.55; }
+.examQuestions { display:grid; gap:8px; margin-top:12px; }
+.examQuestions div { padding:11px 12px; border:1px solid var(--line); border-radius:12px; font-size:12px; line-height:1.4; }
+.examStructure { display:grid; gap:4px; margin-top:13px; padding:12px 13px; border-radius:13px; background:var(--pink-soft); }
+.examStructure strong { color:var(--pink-dark); font-size:10px; }
+.examStructure span { font-size:12px; line-height:1.4; }
+.examStructure small { color:var(--muted); }
+.examChecklist { margin:13px 0 0; padding-left:20px; color:#605860; font-size:12px; line-height:1.55; }
+.speakingTimer { display:grid; grid-template-columns:1fr auto auto; align-items:center; gap:7px; margin-top:14px; padding:12px; border-radius:14px; background:var(--soft); }
+.speakingTimer span, .speakingTimer strong { grid-row:1/3; }
+.speakingTimer span { font-size:10px; color:var(--muted); }
+.speakingTimer strong { grid-column:2; font-size:24px; }
+.speakingTimer button { min-height:34px; border:1px solid var(--line); border-radius:10px; background:white; font-size:10px; }
 
 .search { width: 100%; min-height: 48px; margin-bottom: 12px; padding: 0 15px; border: 1px solid var(--line); border-radius: 15px; outline: none; font-size: 16px; }
 .search:focus { border-color: #e991b5; box-shadow: 0 0 0 3px #fff0f6; }
@@ -252,6 +308,17 @@ footer { display: flex; align-items: center; justify-content: center; gap: 7px; 
 .settingsCard { margin-bottom: 10px; }
 .settingsCard label { display: block; margin-bottom: 10px; font-weight: 850; }
 .settingsCard p { margin: 12px 0 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
+.pairCard.connected { border-color: #abd9ca; background: #f9fdfb; }
+.pairCode { margin: 13px 0 2px; padding: 15px; border-radius: 16px; text-align: center; background: var(--pink-soft); }
+.pairCode span, .pairCode strong, .pairCode small { display: block; }
+.pairCode span { color: #9c6a7f; font-size: 9px; letter-spacing: 1.1px; font-weight: 850; }
+.pairCode strong { margin: 5px 0 3px; color: var(--pink-dark); font-size: 31px; letter-spacing: 5px; }
+.pairCode small { color: var(--muted); font-size: 10px; }
+.pairJoin { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 10px; }
+.pairJoin input { min-width: 0; min-height: 48px; padding: 0 12px; border: 1px solid var(--line); border-radius: 13px; outline: none; text-transform: uppercase; font-size: 16px; letter-spacing: 1px; }
+.pairJoin input:focus { border-color: #e991b5; box-shadow: 0 0 0 3px #fff0f6; }
+.pairJoin button { min-width: 92px; }
+.pairError { margin-top: 10px; padding: 10px 11px; border-radius: 11px; color: #a52a55; background: #fff0f4; font-size: 11px; line-height: 1.4; }
 .checkpointCard { margin-top: 8px; }
 
 @media (max-width: 430px) {

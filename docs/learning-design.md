@@ -7,7 +7,7 @@ This document records why the product behaves as it does. The app is for two rea
 1. **One obvious next action.** Home shows minutes left today, reviews ready, and one primary session button.
 2. **No daily lock.** Reaching the target is a success state, not a reason to stop. Extra practice remains available.
 3. **Activity is not mastery.** Practice XP gives immediate feedback. Course points require retained knowledge.
-4. **Recognition is only the beginning.** A phrase moves from meaning recognition to spoken recall and then contextual choice.
+4. **Recognition is only the beginning.** Multiple-choice recognition is weak evidence; spoken recall, new context, and listening carry more weight.
 5. **Meaning is never hidden.** The Russian meaning is visible before practice; real-life examples show a cached Russian translation as well.
 6. **Grammar is a reference.** It does not appear as unrelated rule questions inside phrase sessions.
 7. **Rewards are earned slowly.** A quarter-route reward needs 100 verified units and a checkpoint, not repeated tapping.
@@ -24,14 +24,16 @@ An item is course-verified when all of the following are true:
 - at least 30 days have passed since first exposure;
 - its current state has not been demoted by a later error.
 
-The “Очень хорошо знаю” button permanently removes the item from practice. It does not verify the unit and cannot award course points.
+The “Очень хорошо знаю” button removes the item from the normal short queue and schedules a delayed recall check after 35 days. Passing that check verifies the unit and schedules a rare 90-day recheck. Failing it returns the item to ordinary learning. Legacy records that previously used an infinite due date are migrated into this flow.
+
+A failed phrase enters a small in-session recovery queue. After 2–4 different tasks it returns in another form (for example, recognition → recall). A second failure can be retried later, but the item is never repeated mechanically three times in a row. The long-term schedule remains the main evidence of retention.
 
 ## Route and reward economics
 
 | Measure | Meaning |
 |---|---|
 | Practice XP | Immediate activity feedback; cannot be spent |
-| $1 routine credit | Once for a completed morning session and once for a completed evening session |
+| $1–$3 routine credit | Once per morning/evening slot; based on time, accuracy, task diversity, hard-task success, and recovery |
 | 10 course points | One currently verified knowledge unit |
 | 1,000 course points | 100 units, or 25% of a 400-unit route |
 | $100 gift credit | Awarded once after an 8/10 quarter checkpoint |
@@ -63,6 +65,10 @@ The design borrows principles, not proprietary content or visual copies.
 
 - Each Telegram user has independent CloudStorage; each learner therefore has a genuinely separate cabinet.
 - Sync is best effort and bounded by Telegram’s per-key storage limits. Progress uses 64 compact buckets per level.
-- Partner progress, reward requests, and decisions are exchanged by explicit Mini App links in Telegram. This keeps the system free but requires one send/open action from each person; it is not a tamper-proof financial ledger.
+- Automatic partner sync uses an optional Supabase Free project. A server-side Edge Function validates signed Telegram `initData`; the frontend never receives the bot token or database service key.
+- Public tables have RLS enabled and grant no `anon` or `authenticated` access. Only the authenticated Edge Function service role reads or writes them.
+- Pairing uses a six-character one-time code valid for 15 minutes and stable Telegram user IDs. Only level, verified percentage, today's minutes, routine status, virtual balance, active goals, and gift requests are shared. Detailed mistakes and SRS history remain private.
+- If the shared service is unavailable, the prior explicit Telegram Mini App link flow remains available. cron-job.org notifications are unchanged.
 - Example translations use MyMemory’s small anonymous free allowance and are cached on the phone. The authored phrase meaning remains available if that service is temporarily unreachable.
 - External listening remains on the publisher’s page, keeping human audio and source rights intact.
+- IELTS progress is stored separately from CEFR progress. The app uses original practice prompts and public legal audio links and never labels its feedback as an official IELTS band score.
