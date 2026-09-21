@@ -256,7 +256,9 @@ async function handle(action: string, payload: Record<string, unknown>, account:
       const value=raw as Record<string,unknown>;
       const key=String(value.key || '');
       const at=Math.trunc(Number(value.at));
-      if(!/^(progress:(A2|B1|B2|C1):[\w:-]+|lesson:[\w:-]+|day:\d{4}-\d{2}-\d{2}|wallet:(earned|spent|goals):[\w:-]+|legacy|draft)$/.test(key) || key.length>180 || !Number.isSafeInteger(at) || at<1 || at>Date.now()+86400000 || JSON.stringify(value.data ?? null).length>90000) throw new RequestError('Некорректная запись прогресса.');
+      // Some stable lesson IDs contain a real word such as “café”. Rejecting
+      // that one ID used to reject the learner's whole backup batch.
+      if(!/^(progress:(A2|B1|B2|C1):[\p{L}\p{N}_:-]+|lesson:[\w:-]+|day:\d{4}-\d{2}-\d{2}|wallet:(earned|spent|goals):[\w:-]+|legacy|draft|settings)$/u.test(key) || key.length>180 || !Number.isSafeInteger(at) || at<1 || at>Date.now()+86400000 || JSON.stringify(value.data ?? null).length>90000) throw new RequestError('Некорректная запись прогресса.');
       return {key,at,data:value.data ?? null};
     });
     const {error}=await db.rpc('eft_merge_private_records',{p_account_id:account.id,p_records:clean});

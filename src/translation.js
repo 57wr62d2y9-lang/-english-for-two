@@ -1,4 +1,4 @@
-const CACHE_PREFIX = 'eft:ru:';
+const CACHE_PREFIX = 'eft:ru:v4:';
 const memory = new Map();
 
 function decodeEntities(value) {
@@ -30,14 +30,20 @@ export async function translateToRussian(text) {
   const cached = readCache(clean);
   if (cached) return cached;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 5000);
+  const timer = setTimeout(() => controller.abort(), 12000);
   try {
-    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(clean.slice(0, 480))}&langpair=en|ru`;
-    const response = await fetch(url, { signal: controller.signal });
-    if (!response.ok) throw new Error('translation unavailable');
-    const data = await response.json();
-    const translated = decodeEntities(String(data?.responseData?.translatedText || '')).trim();
-    if (!translated || translated.toLowerCase() === clean.toLowerCase()) throw new Error('empty translation');
+    const parts=[];
+    for(const chunk of translationChunks(clean)) {
+      const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(chunk)}&langpair=en|ru`;
+      const response = await fetch(url, { signal: controller.signal });
+      if (!response.ok) throw new Error('translation unavailable');
+      const data = await response.json();
+      const value=decodeEntities(String(data?.responseData?.translatedText || '')).trim();
+      if(Number(data.responseStatus)!==200 || !value || /MYMEMORY WARNING|QUERY LENGTH LIMIT|USAGE LIMIT/i.test(value))throw new Error('translation unavailable');
+      parts.push(value);
+    }
+    const translated=parts.join(' ');
+    if(translated.toLowerCase()===clean.toLowerCase())throw new Error('empty translation');
     writeCache(clean, translated);
     return translated;
   } finally {
@@ -45,3 +51,13 @@ export async function translateToRussian(text) {
   }
 }
 
+export function translationChunks(text,maxBytes=450) {
+  const out=[];let current='';const encoder=new TextEncoder();
+  for(const word of String(text).trim().split(/\s+/)) {
+    if(encoder.encode(word).length>maxBytes)throw new Error('word exceeds translation limit');
+    const candidate=current?`${current} ${word}`:word;
+    if(encoder.encode(candidate).length>maxBytes){out.push(current);current=word;}else current=candidate;
+  }
+  if(current)out.push(current);
+  return out;
+}

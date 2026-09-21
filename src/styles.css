@@ -454,3 +454,31 @@ footer { display: flex; align-items: center; justify-content: center; gap: 7px; 
   .primary, .menuButton, .routeCard, .quickStats button { transition: transform .12s ease, box-shadow .12s ease; }
   .primary:active, .menuButton:active, .routeCard:active, .quickStats button:active { transform: scale(.985); }
 }
+
+/* Focused learning support: Russian first, optional English detail. */
+.ruleSupport { margin: 14px 0; }
+.ruleSupport .ruleHelp { margin-bottom: 9px; }
+.ruleLink { display: block; padding: 10px 2px; color: var(--pink-dark); font-size: 13px; line-height: 1.5; font-weight: 650; }
+.conditionalOverview { margin: 10px 0; padding: 14px; border: 1px solid #d8dbdf; border-radius: 16px; color: #42404a; background: #f8f9fb; font-size: 14px; line-height: 1.6; }
+.conditionalOverview summary { cursor: pointer; font-weight: 750; }
+.conditionalOverview article { padding: 12px 0; border-top: 1px solid #dde1e7; }
+.conditionalOverview h3 { font-size: 15px; margin: 8px 0; }
+.conditionalOverview code { display: block; padding: 10px; background: #edf0f5; border-radius: 9px; font-size: 13px; white-space: normal; overflow-wrap: anywhere; }
+.conditionalOverview .examplePair { padding: 0; margin-bottom: 0; }
+.englishExplanation { margin: 12px 0; font-size: 13px; color: #5c5961; }
+.englishExplanation summary { cursor: pointer; font-weight: 600; }
+.englishExplanation p { color: inherit; }
+.answerExplanation { color: #39343d; font-size: 15px; line-height: 1.65; }
+.answerExplanation h3 { font-size: 15px; margin: 18px 0 6px; }
+.answerExplanation .answerReveal { margin-top: 12px; color: #276b57; font-size: 19px; line-height: 1.5; }
+.chosenAnswer { font-size: 13px; color: #9c365a; }
+.sentenceTranslation { color: #62606a; margin-top: 6px; }
+.recoveryNotice { padding-top: 12px; font-size: 12px; line-height: 1.5; color: #6b5365; border-top: 1px solid #e6cdd6; }
+.manualSaveStatus { min-height: 2.8em; margin: 12px 0 0; font-size: 13px; line-height: 1.55; }
+.manualSaveStatus.saved { color: #21775e; }
+.manualSaveStatus.pending { color: #925622; }
+.manualSaveStatus.saving { color: #816076; }
+.taskStrategy { color: #4c4450; font-size: 14px; line-height: 1.6; }
+.optionalTranslation button { min-height: 40px; font-size: 13px; }
+.optionalTranslation p { color: #625362; line-height: 1.65; }
+.phraseMeaning.compact { margin: 12px 0; padding: 12px 0; }

@@ -212,20 +212,20 @@ test('one completed morning and evening session can each earn a one-time reward'
   assert.equal(awardRoutine(wallet, { ...session, spentSeconds: 60 }, evening + 1000).awarded, 0);
 });
 
-test('$1/$2/$3 rewards measure quality and recognition farming cannot earn more', () => {
+test('$1/$2/$3 rewards encourage learning; one repeated skill cannot earn the top bonus', () => {
   const base = { plannedMs:15*60000, spentSeconds:15*60, answers:45 };
   const farming = evaluateSessionReward({ ...base, correct:45, taskCounts:{recognition:45}, successByType:{recognition:45}, dueSuccess:0 });
   assert.equal(farming.amount, 1);
-  const strong = evaluateSessionReward({ ...base, answers:30,correct:29, taskCounts:{recognition:6,context:8,recall:8,grammar:8}, successByType:{recognition:6,context:8,recall:8,grammar:7},correctTaskKeys:Array.from({length:29},(_,i)=>`key-${i}`),unaidedCorrect:29 });
+  const strong = evaluateSessionReward({ ...base, answers:8,correct:4, taskCounts:{context:4,grammar:4},correctTaskKeys:['one','two','three','four'] });
   assert.equal(strong.amount, 2);
   const excellentInput = { ...base, correct:45, taskCounts:{recognition:8,context:8,recall:8,listening:6,grammar:9,ielts:6}, successByType:{recognition:8,context:8,recall:8,listening:6,grammar:9,ielts:6}, correctTaskKeys:Array.from({length:45},(_,i)=>`key-${i}`),unaidedCorrect:45,fastCorrect:30 };
   const excellent = evaluateSessionReward(excellentInput);
   assert.equal(excellent.amount, 3);
   const short = evaluateSessionReward({ ...excellentInput, plannedMs:5*60000, spentSeconds:5*60 });
   assert.equal(short.amount, 1);
-  assert.equal(evaluateSessionReward({...excellentInput,correct:30}).amount,0);
-  assert.equal(evaluateSessionReward({...excellentInput,unaidedCorrect:3}).amount,1);
-  assert.equal(evaluateSessionReward({...excellentInput,fastCorrect:3}).amount,2);
+  assert.equal(evaluateSessionReward({...excellentInput,correct:30}).amount,2);
+  assert.equal(evaluateSessionReward({...excellentInput,unaidedCorrect:0}).amount,3);
+  assert.equal(evaluateSessionReward({...excellentInput,fastCorrect:0}).amount,3);
 });
 
 test('collocations are level-aware and keep independent SRS records', () => {

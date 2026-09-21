@@ -21,8 +21,19 @@ export function optionsFor(item,pool,field='phrase') {
   return shuffle([answer,...alternatives]);
 }
 function leastUsed(pool, progress, session, maxVisits=1) {
+  const priority=item=>{
+    const p=progress[item.id];
+    // A due mistake must not be hidden behind hundreds of unseen items.
+    return p && isDue(p,session.now) ? (p.lastWrong > (p.lastCorrect || 0) ? 0 : 1) : !p ? 2 : 3;
+  };
   return [...pool].filter(item=>(session.visits[item.id] || 0) < maxVisits && !session.recent.slice(-5).includes(item.id))
-    .sort((a,b)=>(session.visits[a.id] || 0) - (session.visits[b.id] || 0) || (progress[a.id]?.l || 0) - (progress[b.id]?.l || 0))[0];
+    .sort((a,b)=>priority(a)-priority(b) || (session.visits[a.id] || 0) - (session.visits[b.id] || 0) || (progress[a.id]?.l || 0) - (progress[b.id]?.l || 0))[0];
+}
+function grammarTask(item,recovery=false) {
+  return {type:'grammar',category:'grammar',item,progressId:item.id,key:item.id,prompt:item.prompt,answer:item.answer,options:shuffle(item.options),guide:guideFor(item),explanation:item.explanation,ru:item.ru,recovery};
+}
+function ieltsTask(item,recovery=false) {
+  return {...item,type:'ielts',category:'ielts',item,progressId:item.id,key:item.id,options:item.options ? shuffle(item.options) : undefined,recovery};
 }
 function phraseTask(choice,pool,progress,session,forceType) {
   const item = choice.item;
@@ -49,7 +60,7 @@ function mediaQuestion(block) {
   const question = block.lesson.questions[block.index];
   const id = `${block.lesson.id}:q${block.index}`;
   return {type:block.lesson.kind,category:block.lesson.kind,item:block.lesson,lesson:block.lesson,questionIndex:block.index,questionCount:block.lesson.questions.length,
-    progressId:id,key:id,prompt:question.prompt,answer:question.options[question.answer],options:shuffle(question.options),explanation:question.explanation,ru:question.ru};
+    progressId:id,key:id,prompt:question.prompt,answer:question.options[question.answer],options:shuffle(question.options),explanation:question.explanation,ru:question.ru,recovery:Boolean(block.recovery)};
 }
 export function makeSession(level,minutes=15,lessonIndex=0,time=Date.now()) {
   return {version:3,id:globalThis.crypto?.randomUUID?.() || `lesson-${time}-${Math.random().toString(36).slice(2)}`,level,minutes,lessonIndex,
@@ -58,33 +69,50 @@ export function makeSession(level,minutes=15,lessonIndex=0,time=Date.now()) {
     unaidedCorrect:0,fastCorrect:0,recoveryQueue:[],recovered:0,dueSuccess:0,xp:0,mediaBlocks:0,done:false};
 }
 export function nextLessonTask(base,progress,time=Date.now()) {
-  const session = {...base,visits:base.visits || {},recent:base.recent || [],feedback:null,selected:null,hintUsed:false};
+  const session = {...base,now:time,visits:base.visits || {},recent:base.recent || [],feedback:null,selected:null,hintUsed:false};
   let task;
   if(session.mediaBlock && session.mediaBlock.index < session.mediaBlock.lesson.questions.length) task = mediaQuestion(session.mediaBlock);
   else {
     session.mediaBlock = null;
     const pool = PHRASES.filter(item=>item.level === session.level);
-    const recovery = (session.recoveryQueue || []).find(entry=>entry.dueStep <= session.step && !session.recent.slice(-5).includes(entry.id) && entry.attempts <= 2);
-    const recoveryItem = recovery && pool.find(item=>item.id === recovery.id);
     const category = cycle[session.cycleStep % cycle.length];
-    session.cycleStep++;
-    if(recoveryItem) task = phraseTask({item:recoveryItem,type:'context',recovery:true},pool,progress,session);
+    for(const recovery of session.recoveryQueue || []) {
+      if(recovery.dueStep > session.step || recovery.attempts > 2 || session.recent.slice(-5).includes(recovery.sourceId || recovery.id))continue;
+      const phrase=pool.find(item=>item.id===recovery.id);
+      const grammar=DAILY_GRAMMAR.find(item=>item.level===session.level && item.id===recovery.id);
+      const ielts=dailyIeltsForLevel(session.level).find(item=>item.id===recovery.id);
+      const collocation=COLLOCATIONS.find(item=>item.level===session.level && item.id===recovery.id);
+      if(phrase) task=phraseTask({item:phrase,type:'context',recovery:true},pool,progress,session);
+      else if(grammar) task=grammarTask(grammar,true);
+      else if(ielts) task=ieltsTask(ielts,true);
+      else if(collocation) task={...phraseTask({item:collocation,type:'context',recovery:true},COLLOCATIONS.filter(item=>item.level===session.level),progress,session),category:'collocation'};
+      else if(session.remainingMs>120000) {
+        const lesson=MEDIA_LESSONS.find(item=>item.level===session.level && recovery.id.startsWith(`${item.id}:q`));
+        if(lesson && !session.recent.slice(-5).includes(lesson.id)) {
+          session.mediaBlock={lesson,index:0,ready:false,recovery:true};task=mediaQuestion(session.mediaBlock);
+        }
+      }
+      if(task)break;
+    }
+    // A recovery supplements the normal programme; it does not skip its next category.
+    if(!task)session.cycleStep++;
     if(!task && category === 'media' && session.minutes >= 12 && session.mediaBlocks < 2 && session.remainingMs > 120000) {
       const kind = (session.lessonIndex + session.mediaBlocks) % 2 === 0 ? 'video' : 'listening';
       const mediaPool = MEDIA_LESSONS.filter(lesson=>lesson.level === session.level && lesson.kind === kind);
       const lesson = [...mediaPool].sort((a,b)=>{
+        const wrongDue=media=>media.questions.some((_,index)=>{const p=progress[`${media.id}:q${index}`];return p && isDue(p,time) && p.lastWrong>(p.lastCorrect || 0);});
         const last = media => Math.max(0,...media.questions.map((_,index)=>progress[`${media.id}:q${index}`]?.l || 0));
-        return last(a)-last(b);
+        return Number(wrongDue(b))-Number(wrongDue(a)) || last(a)-last(b);
       }).find(media=>!session.recent.includes(media.id)) || mediaPool[0];
       if(lesson) { session.mediaBlock={lesson,index:0,ready:false};session.mediaBlocks++;task=mediaQuestion(session.mediaBlock); }
     }
     if(!task && category === 'grammar') {
       const item = leastUsed(DAILY_GRAMMAR.filter(item=>item.level === session.level),progress,session);
-      if(item) task={type:'grammar',category:'grammar',item,progressId:item.id,key:item.id,prompt:item.prompt,answer:item.answer,options:shuffle(item.options),guide:guideFor(item),explanation:item.explanation,ru:item.ru};
+      if(item) task=grammarTask(item);
     }
     if(!task && ['Reading','Writing','Speaking'].includes(category)) {
       const item = leastUsed(dailyIeltsForLevel(session.level,category),progress,session);
-      if(item) task={...item,type:'ielts',category:'ielts',item,progressId:item.id,key:item.id,options:item.options ? shuffle(item.options) : undefined};
+      if(item) task=ieltsTask(item);
     }
     if(!task && category === 'collocation') {
       const collocations = COLLOCATIONS.filter(item=>item.level === session.level);
@@ -98,7 +126,7 @@ export function nextLessonTask(base,progress,time=Date.now()) {
     // A fast learner gets unused material, never an endless three-card loop.
     if(!task) {
       const item = leastUsed(DAILY_GRAMMAR.filter(item=>item.level === session.level),progress,session);
-      if(item) task={type:'grammar',category:'grammar',item,progressId:item.id,key:item.id,prompt:item.prompt,answer:item.answer,options:shuffle(item.options),guide:guideFor(item)};
+      if(item) task=grammarTask(item);
     }
   }
   if(!task) return {...session,exhausted:true};
@@ -114,10 +142,14 @@ export function applySessionEvidence(session,task,correct) {
   const category = task.category;
   const unique = !session.correctTaskKeys.includes(task.key);
   const unaided = scored && correct && !session.hintUsed && unique && elapsed >= .8;
-  let recoveryQueue = session.recoveryQueue;
-  if(PHRASES.some(item=>item.id === task.progressId)) recoveryQueue = task.recovery
-    ? settleRecovery(recoveryQueue,task.progressId,correct,task.type,session.step+2)
-    : !correct ? queueRecovery(recoveryQueue,task.progressId,task.type,session.step+2) : recoveryQueue;
+  const wasQueued=(session.recoveryQueue || []).some(entry=>entry.id===task.progressId);
+  let recoveryQueue = session.recoveryQueue || [];
+  if(scored) {
+    recoveryQueue = correct ? settleRecovery(recoveryQueue,task.progressId,true,task.type,session.step+2)
+      : queueRecovery(recoveryQueue,task.progressId,task.type,session.step+2);
+    // Keep source identity as well as question identity for audio/video blocks.
+    recoveryQueue=recoveryQueue.map(entry=>entry.id===task.progressId ? {...entry,sourceId:task.item.id} : entry);
+  }
   return {...session,
     answers:session.answers+(scored ? 1 : 0),correct:session.correct+(scored && correct ? 1 : 0),
     scoredAnswers:session.scoredAnswers+(scored ? 1 : 0),scoredCorrect:session.scoredCorrect+(scored && correct ? 1 : 0),
@@ -125,6 +157,6 @@ export function applySessionEvidence(session,task,correct) {
     successByType:{...session.successByType,...(scored && correct ? {[category]:(session.successByType[category] || 0)+1} : {})},
     correctTaskKeys:scored && correct ? [...new Set([...session.correctTaskKeys,task.key])] : session.correctTaskKeys,
     unaidedCorrect:session.unaidedCorrect+(unaided ? 1 : 0),fastCorrect:session.fastCorrect+(unaided && elapsed <= 18 ? 1 : 0),
-    dueSuccess:session.dueSuccess+(correct && task.wasDue ? 1 : 0),recovered:session.recovered+(correct && task.recovery ? 1 : 0),recoveryQueue,
+    dueSuccess:session.dueSuccess+(correct && task.wasDue ? 1 : 0),recovered:session.recovered+(scored && correct && wasQueued ? 1 : 0),recoveryQueue,
     mediaBlock:session.mediaBlock ? {...session.mediaBlock,index:session.mediaBlock.index+1} : null};
 }

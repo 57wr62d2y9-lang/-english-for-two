@@ -196,38 +196,37 @@ export function awardLevelCompletion(wallet, level, score, total = 20, time = Da
 export function routineRewardId(time = Date.now()) {
   return `routine:${dayKey(time)}:${studySlot(time)}`;
 }
+export function sessionCompletion(session = {}) {
+  const plannedSeconds = Math.max(60, Number(session.plannedMs || 900000) / 1000);
+  const answers = Math.max(0, Number(session.scoredAnswers ?? session.answers ?? 0));
+  const minAnswers = plannedSeconds <= 330 ? 3 : 5;
+  return { completed:Number(session.spentSeconds || 0) >= plannedSeconds * .8 && answers >= minAnswers, plannedSeconds, minAnswers };
+}
 export function evaluateSessionReward(session = {}) {
-  const plannedSeconds = Math.max(1, Number(session.plannedMs || 0) / 1000);
+  const {completed,plannedSeconds}=sessionCompletion(session);
   const spentSeconds = Math.max(0, Number(session.spentSeconds || 0));
   const answers = Math.max(0, Number(session.scoredAnswers ?? session.answers ?? 0));
   const correct = Math.max(0, Number(session.scoredCorrect ?? session.correct ?? 0));
   const accuracy = answers ? correct / answers : 0;
   const counts = session.taskCounts || {};
-  const successes = session.successByType || {};
   const diversity = Object.values(counts).filter(value => Number(value) > 0).length;
-  const hardSuccesses = ['context','recall','listening','video','grammar','collocation','order','ielts'].reduce((sum, type) => sum + Number(successes[type] || 0), 0);
   const minutes = plannedSeconds / 60;
-  const minAnswers = minutes <= 5.5 ? 6 : 15;
-  const completed = spentSeconds >= plannedSeconds * 0.9 && answers >= minAnswers;
   const unique = new Set(session.correctTaskKeys || []).size;
-  const unaided = Number(session.unaidedCorrect || 0);
-  const fast = Number(session.fastCorrect || 0);
-  if (!completed) return { amount: 0, accuracy, diversity, reasons: [`Нужно пройти 90% занятия и ответить хотя бы на ${minAnswers} проверяемых заданий.`] };
-  if (accuracy < .75) return { amount: 0, accuracy, diversity, reasons: ['Слишком много ошибок: для награды нужно не менее 75% верных ответов.'] };
-
+  // Reward learning, not exam performance. Reading explanations and using
+  // hints are useful study. Mistakes never cancel this effort reward.
+  const effort = spentSeconds >= Math.min(300, plannedSeconds * .8) && answers >= 3;
+  if (!effort) return { amount:0, accuracy, diversity, reasons:[`Для $1 позанимайся хотя бы ${minutes <= 5.5 ? 4 : 5} минут и ответь на 3 задания. Ошибки и подсказки разрешены.`] };
   let amount = 1;
-  const reasons = ['Урок пройден', `${Math.round(accuracy * 100)}% верных ответов`];
-  if (minutes >= 12 && answers >= 28 && accuracy >= .95 && diversity >= 4 && hardSuccesses >= 12 && unique >= 22 && unaided >= 22) {
+  const reasons = ['Награда за работу над английским — даже с ошибками'];
+  if (minutes >= 12 && completed && answers >= 8 && diversity >= 2 && (accuracy >= .5 || Number(session.recovered || 0) >= 2)) {
     amount = 2;
-    reasons.push('Уверенный темп и самостоятельные ответы');
+    reasons.push(accuracy >= .5 ? 'Не менее половины ответов верны' : 'Ты исправил ошибки в повторных заданиях');
   }
-  const transfer = Number(successes.recall || 0) + Number(successes.order || 0) >= 6;
-  const media = Number(successes.listening || 0) + Number(successes.video || 0) >= 3;
-  if (minutes >= 12 && answers >= 45 && accuracy >= .98 && diversity >= 6 && transfer && media && Number(successes.ielts || 0) >= 3 && unique >= 38 && unaided >= 40 && fast >= 28 && answers / (spentSeconds / 60) >= 2.8) {
+  if (minutes >= 12 && completed && answers >= 12 && accuracy >= .75 && diversity >= 3 && unique >= 8) {
     amount = 3;
-    reasons.push('Не менее 45 ответов, почти без ошибок, в быстром темпе');
+    reasons.push('12 ответов, точность от 75% и разные навыки — отличный урок');
   }
-  return { amount, accuracy, diversity, reasons: reasons.slice(0, 4) };
+  return { amount, accuracy, diversity, reasons };
 }
 export function awardRoutine(wallet, session, time = Date.now()) {
   const id = routineRewardId(time);
@@ -246,8 +245,8 @@ export function awardRoutine(wallet, session, time = Date.now()) {
 export const ROUTE_LESSONS = 80;
 export function lessonRecord(session, level, time = Date.now()) {
   const seconds = Math.max(0, Number(session.spentSeconds || 0));
-  const completed = seconds >= Number(session.plannedMs || 0) / 1000 * .9 && Number(session.scoredAnswers ?? session.answers ?? 0) >= (session.minutes <= 5 ? 6 : 15);
-  return { id:session.id, level, at:time, seconds, answers:session.answers || 0, correct:session.correct || 0, completed, climb:completed ? Math.min(1, seconds / 900) : 0, reward:session.routineReward || 0 };
+  const {completed,plannedSeconds} = sessionCompletion(session);
+  return { id:session.id, level, at:time, seconds, answers:session.answers || 0, correct:session.correct || 0, completed, climb:completed ? Math.min(1, plannedSeconds / 900) : 0, reward:session.routineReward || 0 };
 }
 export function ascentProgress(stats, level) {
   const lessons = Object.values(stats?.lessons || {}).filter(record => record.level === level && record.completed);

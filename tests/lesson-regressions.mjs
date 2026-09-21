@@ -75,9 +75,9 @@ test('private backup restores progress, lesson history, wallet and a paused exer
   const roundTrip=mergeBackup({...state,progress:{},stats:{byDay:{},lessons:{},legacy:{}},wallet:{},draft:null},backupRecords(restored));assert.equal(roundTrip.progress.p26.c,3);assert.equal(roundTrip.draft.data.id,'active');
 });
 test('equal-time updates retain the larger answer history',()=>{const merged=mergeItems({one:{l:10,c:1,w:0}},{one:{l:10,c:2,w:1}});assert.equal(merged.one.c,2);assert.equal(merged.one.w,1);});
-test('self-assessed speaking, repeated clicks and answer hints cannot farm top rewards',()=>{
+test('speaking is not auto-scored; hints support learning without cancelling rewards',()=>{
   const {session}=simulate('B1');assert.ok(session.scoredAnswers<65);
   const assisted={plannedMs:900000,spentSeconds:900,answers:50,correct:50,taskCounts:{recall:10,context:10,grammar:10,ielts:10,listening:5,order:5},successByType:{recall:10,context:10,grammar:10,ielts:10,listening:5,order:5},correctTaskKeys:Array.from({length:50},(_,i)=>String(i)),unaidedCorrect:0,fastCorrect:0};
-  assert.equal(evaluateSessionReward(assisted).amount,1);assert.equal(evaluateSessionReward({...assisted,correct:20}).amount,0);
+  assert.equal(evaluateSessionReward(assisted).amount,3);assert.equal(evaluateSessionReward({...assisted,correct:20}).amount,1);
 });
 console.log(`${count} lesson regression checks passed.`);

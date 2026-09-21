@@ -1,7 +1,7 @@
 import { invoke, coupleSyncConfigured } from './couple-sync.js';
 import { getLocalMeta, setLocalMeta, mergeItems, summariseStats } from './storage-v3.js';
 
-export function backupRecords({level,progress,stats,wallet,draft}) {
+export function backupRecords({level,progress,stats,wallet,draft,settings}) {
   const out=[];
   const add=(key,data,at)=>out.push({key,data,at:Math.max(1,Number(at)||1)});
   for(const [id,item] of Object.entries(progress || {})) add(`progress:${level}:${id}`,item,item.l);
@@ -10,6 +10,7 @@ export function backupRecords({level,progress,stats,wallet,draft}) {
   if(stats?.legacy) add('legacy',stats.legacy,1);
   for(const kind of ['earned','spent','goals']) for(const [id,item] of Object.entries(wallet?.[kind] || {})) add(`wallet:${kind}:${id}`,item,item.resolvedAt || item.updatedAt || item.at);
   if(draft) add('draft',draft.data,draft.at);
+  if(settings) add('settings',settings,settings.updatedAt);
   return out;
 }
 export function mergeBackup(state,records) {
@@ -27,17 +28,18 @@ export function mergeBackup(state,records) {
       const [,kind,...parts]=key.split(':');const id=parts.join(':');
       if(['earned','spent','goals'].includes(kind)) next.wallet[kind][id]=pick(next.wallet[kind][id],data,at);
     } else if(key === 'draft' && at > (next.draft?.at || 0)) next.draft={at,data};
+    else if(key === 'settings' && data && at > (next.settings?.updatedAt || 0)) next.settings={...data,updatedAt:at};
   }
   next.stats=summariseStats(next.stats);
   return next;
 }
 let writing=Promise.resolve();
-export function saveBackup(state) {
+export function saveBackup(state,{force=false}={}) {
   if(!coupleSyncConfigured()) return Promise.resolve({ok:false,disabled:true});
   const records=backupRecords(state);
   const job=writing.catch(()=>{}).then(async()=>{
     const ack=getLocalMeta('backupAck') || {};
-    const dirty=records.filter(record=>ack[record.key] !== JSON.stringify(record));
+    const dirty=force ? records : records.filter(record=>ack[record.key] !== JSON.stringify(record));
     for(let i=0;i<dirty.length;i+=120) {
       const batch=dirty.slice(i,i+120);
       const result=await invoke('save_state',{records:batch});
@@ -45,7 +47,7 @@ export function saveBackup(state) {
       for(const record of batch) ack[record.key]=JSON.stringify(record);
       setLocalMeta('backupAck',ack);
     }
-    return {ok:true};
+    return {ok:true,saved:dirty.length};
   });
   writing=job;return job;
 }

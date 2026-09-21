@@ -89,7 +89,7 @@ export async function loadSettings() {
   const a = localRead(prefix() + 'settings');
   const remote = parse((await cloudCall('getItem','eft3_settings')).value);
   const current = choose(a, remote);
-  if (current) { localWrite(prefix()+'settings',current); return current.data; }
+  if (current) { localWrite(prefix()+'settings',current); return {...current.data,updatedAt:current.data?.updatedAt || current.at}; }
   return parse((await cloudCall('getItem','eft2_settings')).value) || localRead(legacyPrefix()+'settings');
 }
 export async function saveSettings(data) {
