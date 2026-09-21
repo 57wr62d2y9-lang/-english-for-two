@@ -1,4 +1,4 @@
-# English for Two · 0.4
+# English for Two · 0.4.1
 
 Private English practice for Artur and Anna: https://english-for-two.onrender.com.
 
@@ -66,6 +66,21 @@ Private English practice for Artur and Anna: https://english-for-two.onrender.co
 - UUID + random 256-bit secret authenticates the device; only SHA-256 is stored.
   RLS and explicit deny policies block direct browser database access.
 
+## Quiet study (0.4.1)
+
+- The default is "В автобусе · без голоса"; "Дома · вслух" remains available.
+  The preference and optional answer notes are included in existing backups.
+- A quiet media block contains three checked questions followed by unscored
+  silent rehearsal. It remains intact when lesson time expires or the app reloads.
+  Old saved Speaking tasks can be completed silently or replaced with a video.
+- Added short creator vlogs about London (B1), Berlin (B2) and Manchester (C1),
+  with original questions grounded in the publisher's public transcripts.
+  Videos remain on YouTube; no media or full transcripts are copied into the app.
+- Playback is opt-in. An unavailable video / no-headphones action switches to
+  independent response preparation, without grading unheard material.
+- Silent responses are not pronunciation scores. Only checked questions count
+  towards accuracy and rewards; the optional practice timer never blocks progress.
+
 ## Development
 
 Run npm ci, npm run validate, then npm run dev.
@@ -73,7 +88,8 @@ Set VITE_COUPLE_SYNC_URL at frontend build time.
 The backend is supabase/functions/english-for-two-sync/index.ts; migrations are
 versioned under supabase/migrations.
 
-Tests include 33 original checks, 9 lesson regressions and 14 v0.4 checks. The opt-in
+Tests include 33 original checks, 9 lesson regressions, 14 v0.4 checks, 11 quiet-mode
+checks and a component interaction suite. The opt-in
 tests/backend-smoke.mjs requires EFT_LIVE_TEST_URL and checks live backups,
 stale-write protection, identity isolation, notifications/deduplication and gifts.
 It creates fresh QA accounts and writes their exact disposable IDs to
@@ -83,5 +99,5 @@ Personal daily morning/evening reminder times are saved through the original
 Sites backend at /api/reminders/settings. It verifies Telegram init data, selects
 the already linked member server-side and patches only that person's schedule.
 Settings survive reloads and work every day, including weekends. The UI supports
-timezones and disabling reminders. The existing cron-job.org two-minute tick and
+timezones and disabling reminders. The existing cron-job.org tick and
 delivery deduplication are preserved; no extra scheduler or paid service is added.

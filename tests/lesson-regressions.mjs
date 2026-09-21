@@ -48,7 +48,8 @@ test('all new tasks include correct choices and authored bilingual explanations'
     if(!task.practice){assert.ok(task.options.includes(task.answer),task.id);assert.equal(new Set(task.options).size,task.options.length,task.id);assert.ok(task.explanation&&task.ru,task.id);}
   }
   assert.ok(MEDIA_LESSONS.every(lesson=>lesson.questions.length>=3));
-  assert.equal(MEDIA_LESSONS.filter(l=>l.kind==='video').length,8);
+  assert.equal(MEDIA_LESSONS.filter(l=>l.kind==='video'&&l.format!=='vlog').length,8);
+  assert.equal(MEDIA_LESSONS.filter(l=>l.format==='vlog').length,3);
 });
 test('depend has twelve distinct contexts with Russian support and its own construction',()=>{
   const item=PHRASES.find(p=>p.phrase==='It depends.');const examples=examplesFor(item);

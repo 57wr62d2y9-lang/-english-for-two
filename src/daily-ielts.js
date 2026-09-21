@@ -95,8 +95,8 @@ const speakingRows = [
 ];
 export const DAILY_IELTS = [...readingTasks,...writingTasks,...speakingRows.map(([level,slug,prompt,model,ru,structure]) => ({
   id:`ielts-${level}-speaking-${slug}`,level,skill:'Speaking',taskType:level === 'A2' ? 'Part 1 foundation' : level === 'B1' ? 'Part 2 practice' : 'Part 3 practice',
-  title:'IELTS: говорим связно',prompt,model,ru,structure,practice:true,seconds:level === 'A2' ? 30 : level === 'B1' ? 45 : 60,
-  strategyEn:'Speak aloud. Check your own answer against the structure; there is no automatic speaking score here.',
-  strategyRu:'Ответь вслух и сверь структуру. Это речевая практика: приложение не выставляет балл за произношение и не засчитывает её как проверенный правильный ответ.'
+  title:'IELTS: готовим связный ответ',prompt,model,ru,structure,practice:true,seconds:level === 'A2' ? 30 : level === 'B1' ? 45 : 60,
+  strategyEn:'Rehearse silently, write notes or speak aloud. Check the structure of your answer; pronunciation is not automatically assessed.',
+  strategyRu:'Ответь про себя, запиши опорные слова или говори вслух, если удобно. Затем сверь структуру. Самопроверка не считается проверенным правильным ответом и не уменьшает точность.'
 }))];
 export const dailyIeltsForLevel = (level,skill) => DAILY_IELTS.filter(task => task.level === level && (!skill || task.skill === skill));

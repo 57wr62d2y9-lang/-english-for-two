@@ -1,4 +1,5 @@
 import { LISTENING_LESSONS } from './catalog.js';
+import { VLOG_LESSONS } from './vlog-lessons.js';
 
 const followups = {
   'listen-a2-briefing':['What is the speaker mainly doing?','Giving practical instructions to staff','Booking a holiday|Interviewing a customer','The points concern parking and canteen payments.','Речь идёт о рабочих инструкциях: парковке и оплате в столовой.'],
@@ -65,4 +66,4 @@ export const VIDEO_LESSONS = videoRows.map(([level,sourceLevel,id,title,slug,row
   note:level === 'C1' ? 'Источник B2; вопросы C1 проверяют подтекст, намерение и аргументацию.' : 'Короткая учебная сцена. Смотри диалог, затем ответь на три вопроса.',
   verifiedAt:'2026-09-21',questions:rows.map(row=>({prompt:row[0],options:[row[1],...row[2].split('|')],answer:0,explanation:row[3],ru:row[4]}))
 }));
-export const MEDIA_LESSONS = [...AUDIO_LESSONS,...VIDEO_LESSONS];
+export const MEDIA_LESSONS = [...AUDIO_LESSONS,...VIDEO_LESSONS,...VLOG_LESSONS];
