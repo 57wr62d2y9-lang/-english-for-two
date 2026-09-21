@@ -181,7 +181,11 @@ test('checkpoint measures several skills rather than one repeated choice format'
   assert.equal(tasks.length, 10);
   assert.ok(new Set(tasks.map(task => task.type)).size >= 5);
   assert.equal(tasks.filter(task => task.type === 'recall').length, 2);
-  assert.equal(tasks.filter(task => task.type === 'listening').length, 2);
+  const audio=tasks.filter(task => task.type === 'listening');
+  assert.equal(audio.length, 3);
+  assert.equal(new Set(audio.map(task=>task.lesson.id)).size,1);
+  assert.deepEqual(tasks.slice(-3).map(task=>task.questionIndex),[0,1,2]);
+  assert.ok(tasks.every(task=>task.item.level==='B1'));
 });
 
 test('gift requests spend only earned virtual credit and are idempotent', () => {

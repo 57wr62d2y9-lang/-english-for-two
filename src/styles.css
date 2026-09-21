@@ -15,7 +15,7 @@
 }
 
 /* v0.3: the daily lesson and its permanent ascent are the main experience. */
-.v5App {padding-bottom:110px;background:#fffdfb;}
+.app.v5App {padding-bottom:110px;background:#fffdfb;}
 .v5App .brandbar {margin-bottom:18px;}
 .v5App .brandbar strong {font-size:20px;letter-spacing:-.5px;}
 .v5App .todayTop h1 {font-size:26px;line-height:1.12;}
