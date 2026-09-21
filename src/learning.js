@@ -104,7 +104,9 @@ export function weaknessScore(raw, time = Date.now()) {
   return p.w * 3 + recentFailure + unresolved + recallGap - Math.min(8, p.ctx + p.rcl + p.lis);
 }
 
-const recoveryType = type => type === 'recognition' ? 'recall' : type === 'recall' ? 'context' : 'recall';
+const recoveryType = type => type === 'recognition' ? 'recall'
+  : type === 'recall' ? 'context'
+    : ['grammar','irregular','listening'].includes(type) ? type : 'recall';
 export function queueRecovery(queue = [], itemId, failedType, step) {
   if (!itemId) return queue;
   const old = queue.find(entry => entry.id === itemId);
@@ -136,14 +138,17 @@ export function chooseTask(items, progress, session, time = Date.now()) {
   const fresh = items.filter(x => !progress[x.id] || (progress[x.id].s === 'NEW' && !progress[x.id].known));
   const recentNew = items.filter(x => progress[x.id] && !progress[x.id].rec && !progress[x.id].known);
   const recentRecall = items.filter(x => progress[x.id]?.rec && !progress[x.id]?.days?.length && !progress[x.id]?.known);
+  const newLimit = newItemLimit(session);
+  const morningNewWindow = session.slot !== 'evening' && (session.step === 0 || (session.newCount === 1 && session.step >= 6));
+  const eveningNewWindow = session.slot === 'evening' && session.newCount === 0 && session.step >= 8 && due.length < 3;
   let pool;
   if (recentNew.length && session.step % 3 === 1) pool = recentNew;
   else if (recentRecall.length && session.step % 3 === 2) pool = recentRecall;
+  else if (fresh.length && session.newCount < newLimit && (morningNewWindow || eveningNewWindow)) pool = fresh;
   else if (due.length) pool = due;
-  // Two new units per 15-minute session is deliberately conservative: with
-  // two commutes a day it produces about 80–120 new units a month while
-  // leaving enough time for the growing review queue.
-  else if (fresh.length && session.newCount < (session.minutes === 5 ? 1 : 2)) pool = fresh;
+  // Morning sessions introduce up to two units. Evening sessions primarily
+  // consolidate the day and introduce at most one when the due queue is light.
+  else if (fresh.length && session.newCount < newLimit) pool = fresh;
   else pool = items.filter(x => progress[x.id] && !progress[x.id].known).sort((a,b) => weaknessScore(progress[b.id], time) - weaknessScore(progress[a.id], time) || (progress[a.id].l || 0) - (progress[b.id].l || 0));
   if (!pool.length) pool = fresh;
   const item = pool.find(x => !seen.slice(-3).includes(x.id)) || pool[0];
@@ -151,6 +156,10 @@ export function chooseTask(items, progress, session, time = Date.now()) {
   const p = progress[item.id];
   const type = !p || p.s === 'NEW' ? 'intro' : p.known ? 'recall' : !p.rec ? 'recognition' : session.step % 2 === 0 && item.cloze ? 'context' : 'recall';
   return { item, type, early: p && !isDue(p, time) };
+}
+export function newItemLimit(session = {}) {
+  if (Number(session.minutes) <= 5) return 1;
+  return session.slot === 'evening' ? 1 : 2;
 }
 export function courseProgress(items, progress) {
   const current = items.filter(x => progress[x.id]?.v && progress[x.id]?.s === 'MASTERED');
@@ -165,6 +174,22 @@ export function awardMilestone(wallet, level, quarter, score, verified, time = D
   const id = `${COURSE_VERSION}:${level}:${quarter}`;
   if (quarter < 1 || quarter > 4 || score < 8 || verified < quarter * 100 || wallet.earned?.[id]) return wallet;
   return { ...wallet, earned: { ...wallet.earned, [id]: { at: time, level, quarter, amount: 100, score } } };
+}
+export function levelCompletionId(level) {
+  return `${COURSE_VERSION}:${level}:complete`;
+}
+export function finalLevelReady(items, progress, wallet, level) {
+  const route = courseProgress(items, progress);
+  const milestones = [1, 2, 3, 4].every(quarter => Boolean(wallet?.earned?.[`${COURSE_VERSION}:${level}:${quarter}`]));
+  return items.length >= COURSE_SIZE && route.verified >= COURSE_SIZE && milestones;
+}
+export function awardLevelCompletion(wallet, level, score, total = 20, time = Date.now()) {
+  const id = levelCompletionId(level);
+  if (total < 1 || score / total < .8 || wallet.earned?.[id]) return wallet;
+  return {
+    ...wallet,
+    earned: { ...wallet.earned, [id]: { at: time, level, amount: 0, kind: 'level-completion', score, total } }
+  };
 }
 export function routineRewardId(time = Date.now()) {
   return `routine:${dayKey(time)}:${studySlot(time)}`;

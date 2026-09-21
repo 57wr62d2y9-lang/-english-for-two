@@ -1,10 +1,12 @@
+import { loadPairIdentity } from './storage-v3.js';
+
 const ENDPOINT = String(import.meta.env?.VITE_COUPLE_SYNC_URL || '').trim().replace(/\/+$/, '');
 
 const telegram = () => typeof window !== 'undefined' ? window.Telegram?.WebApp : null;
 const initData = () => String(telegram()?.initData || '');
 
 export const coupleSyncConfigured = () => Boolean(ENDPOINT);
-export const coupleSyncAvailable = () => Boolean(ENDPOINT && initData());
+export const coupleSyncAvailable = () => Boolean(ENDPOINT && globalThis.crypto?.getRandomValues);
 export const normalisePairCode = value => String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
 
 function stamp(value) {
@@ -77,15 +79,21 @@ export function mergeCoupleSnapshot(wallet, data = {}) {
 
 async function invoke(action, payload = {}) {
   if (!ENDPOINT) return { ok: false, disabled: true, error: 'Синхронизация пары ещё не подключена.' };
-  const auth = initData();
-  if (!auth) return { ok: false, telegramOnly: true, error: 'Открой приложение внутри Telegram.' };
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 8000);
   try {
+    const identity = await loadPairIdentity();
+    const telegramAuth = initData();
+    const requestHeaders = {
+      'content-type': 'application/json',
+      'x-pair-id': identity.id,
+      'x-pair-secret': identity.secret
+    };
+    if (telegramAuth) requestHeaders['x-telegram-init-data'] = telegramAuth;
     const response = await fetch(ENDPOINT, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-telegram-init-data': auth },
+      headers: requestHeaders,
       body: JSON.stringify({ action, payload }),
       signal: controller.signal
     });

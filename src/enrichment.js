@@ -138,6 +138,96 @@ export const PHRASE_VARIATIONS = {
     'Something about his story doesn’t add up.',
     'That explanation doesn’t quite make sense.',
     'If that is true, the timeline still doesn’t add up.'
+  ],
+  'Let’s take a step back.': [
+    'Could we take a step back for a moment?',
+    'Taking a step back may help us see the real issue.',
+    'Let’s step back and look at the bigger picture.',
+    'We stepped back before making the final decision.'
+  ],
+  'I’m having second thoughts.': [
+    'I’m starting to have second thoughts about it.',
+    'Did you have second thoughts after accepting?',
+    'She never had any second thoughts about leaving.',
+    'On second thought, I’d rather wait.'
+  ],
+  'Could you walk me through it?': [
+    'Could you walk me through the process?',
+    'She walked us through each stage of the calculation.',
+    'Let me walk you through what happened.',
+    'I need someone to take me through it step by step.'
+  ],
+  'We’re on the same page.': [
+    'I just want to make sure we’re on the same page.',
+    'Are we all on the same page about the deadline?',
+    'The meeting helped get everyone on the same page.',
+    'We agree on the goal but not yet on the method.'
+  ],
+  'Let’s clear the air.': [
+    'I think we need to clear the air.',
+    'They met to clear the air after the disagreement.',
+    'An honest conversation could clear up the tension.',
+    'Let’s talk openly and put the misunderstanding behind us.'
+  ],
+  'I need some time to process this.': [
+    'Give me a little time to process what you’ve said.',
+    'She needed a day to take everything in.',
+    'I understand the words, but I’m still processing the news.',
+    'Can we return to this after I’ve had time to think?'
+  ],
+  'It caught me off guard.': [
+    'The question caught me completely off guard.',
+    'I was not prepared for the announcement.',
+    'Her reaction took me by surprise.',
+    'The timing was what caught us off guard.'
+  ],
+  'Looking back, ...': [
+    'Looking back on it now, I would choose differently.',
+    'When I look back, the warning signs seem obvious.',
+    'In retrospect, asking for help was the turning point.',
+    'With hindsight, we should have allowed more time.'
+  ],
+  'We should distinguish between...': [
+    'It is important to distinguish between the two cases.',
+    'The report draws a distinction between cost and value.',
+    'These ideas are related, but they are not the same.',
+    'We need to keep short-term pressure separate from long-term risk.'
+  ],
+  'We need to put this in context.': [
+    'The number looks high until you put it in context.',
+    'Seen in context, the decision is easier to understand.',
+    'The quote was taken out of context.',
+    'Let’s compare it with the longer-term trend.'
+  ],
+  'We should proceed with caution.': [
+    'We can move forward, but we need to proceed cautiously.',
+    'The findings are promising, although caution is still warranted.',
+    'Let’s take a careful, staged approach.',
+    'They proceeded carefully until the risks were clearer.'
+  ],
+  'I remain open to persuasion.': [
+    'I could still be persuaded by stronger evidence.',
+    'She was sceptical but kept an open mind.',
+    'My current view is not fixed.',
+    'Make the case — I’m willing to reconsider.'
+  ],
+  'The situation calls for a rethink.': [
+    'We need to rethink the way this is organised.',
+    'The latest results call the original strategy into question.',
+    'A few minor changes will not be enough.',
+    'It may be time to reconsider the entire approach.'
+  ],
+  'I’m cautiously optimistic.': [
+    'There are reasons for cautious optimism.',
+    'I’m hopeful, but I do not want to get ahead of myself.',
+    'The outlook is encouraging rather than certain.',
+    'Things appear to be moving in the right direction.'
+  ],
+  'Ultimately, the responsibility lies with...': [
+    'Final responsibility rests with the board.',
+    'The decision is ultimately management’s responsibility.',
+    'Several people advised us, but the final choice was ours.',
+    'Accountability lies with whoever approved the change.'
   ]
 };
 

@@ -42,3 +42,31 @@ export function buildCheckpoint(items, progress, quarter, collocations, lessons,
   });
   return shuffle([...phraseTasks, ...collocationTasks, ...listeningTasks]);
 }
+
+export function buildFinalCheck(items, progress, collocations, lessons, grammar, level) {
+  const candidates = shuffle(items.filter(item => progress[item.id]?.v && progress[item.id]?.s === 'MASTERED' && item.cloze));
+  if (items.length < 400 || candidates.length < 400) return [];
+
+  const phraseTasks = [
+    ...candidates.slice(0, 4).map(item => ({ type:'recognition', item, prompt:item.phrase, answer:item.ru, options:optionsFor(item, items, 'ru') })),
+    ...candidates.slice(4, 8).map((item, index) => ({ type:'context', item, prompt:cloze(item, index + 7), answer:item.phrase, options:optionsFor(item, items, 'phrase') })),
+    ...candidates.slice(8, 12).map(item => ({ type:'recall', item, prompt:item.ru, answer:item.phrase }))
+  ];
+  const levelPosition = LEVELS.indexOf(level);
+  const collocationPool = collocations.filter(item => LEVELS.indexOf(item.level) <= levelPosition);
+  const collocationTasks = shuffle(collocationPool).slice(0, 2).map((item, index) => ({
+    type:'collocation', item, prompt:cloze(item, index + 11), answer:item.phrase, options:optionsFor(item, collocationPool, 'phrase')
+  }));
+  const exactLessons = lessons.filter(item => item.level === level);
+  const lessonPool = exactLessons.length ? exactLessons : lessons.filter(item => LEVELS.indexOf(item.level) <= levelPosition);
+  const listeningTasks = shuffle(lessonPool).slice(0, 2).map((lesson, index) => {
+    const question = lesson.questions[index % lesson.questions.length];
+    return { type:'listening', item:lesson, lesson, question, prompt:question.prompt, answer:question.options[question.answer], options:shuffle(question.options) };
+  });
+  const grammarPool = grammar.filter(item => LEVELS.indexOf(item.level) <= levelPosition);
+  const grammarTasks = shuffle(grammarPool).slice(0, 4).map(item => ({
+    type:'grammar', item, prompt:item.prompt, answer:item.answer, options:shuffle(item.options)
+  }));
+  const tasks = [...phraseTasks, ...collocationTasks, ...listeningTasks, ...grammarTasks];
+  return tasks.length === 20 ? shuffle(tasks) : [];
+}

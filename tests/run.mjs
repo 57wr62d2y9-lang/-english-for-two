@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
-import { AVAILABLE_BY_LEVEL, COLLOCATIONS, LISTENING_LESSONS, PHRASES } from '../src/catalog.js';
+import { AVAILABLE_BY_LEVEL, COLLOCATIONS, GRAMMAR_TASKS, LISTENING_LESSONS, PHRASES } from '../src/catalog.js';
 import {
   COURSE_SIZE,
   DAY,
   addGoal,
+  awardLevelCompletion,
   awardMilestone,
   awardRoutine,
   balanceOf,
@@ -12,17 +13,19 @@ import {
   courseProgress,
   dayKey,
   evaluateSessionReward,
+  finalLevelReady,
   isDue,
+  newItemLimit,
   queueRecovery,
   redeem,
   reviewItem,
   rotatingExample
 } from '../src/learning.js';
-import { packItems, unpackItems } from '../src/storage-v3.js';
+import { packItems, summariseStats, unpackItems } from '../src/storage-v3.js';
 import { mergeCoupleSnapshot, normalisePairCode } from '../src/couple-sync.js';
-import { IELTS_TASKS, tasksForMode } from '../src/ielts.js';
+import { IELTS_TASKS, recommendTaskType, tasksForMode } from '../src/ielts.js';
 import { chooseListeningLesson } from '../src/scheduler.js';
-import { buildCheckpoint } from '../src/checkpoint.js';
+import { buildCheckpoint, buildFinalCheck } from '../src/checkpoint.js';
 
 let checks = 0;
 function test(name, fn) {
@@ -36,8 +39,8 @@ test('published catalogue has stable IDs and two complete route blocks', () => {
   assert.equal(PHRASES[99].id, 'p100');
   assert.ok(PHRASES.some(item => item.id === 'a2_200'));
   assert.ok(PHRASES.some(item => item.id === 'b1_200'));
-  assert.deepEqual(AVAILABLE_BY_LEVEL, { A2: 200, B1: 200, B2: 25, C1: 20 });
-  assert.equal(PHRASES.length, 445);
+  assert.deepEqual(AVAILABLE_BY_LEVEL, { A2: 200, B1: 200, B2: 100, C1: 100 });
+  assert.equal(PHRASES.length, 600);
 });
 
 test('every published phrase has three real-life examples and complete metadata', () => {
@@ -51,7 +54,7 @@ test('every published phrase has three real-life examples and complete metadata'
 
 test('route blocks do not repeat the same learning phrase', () => {
   const normalise = value => value.toLocaleLowerCase('en').replace(/[’']/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
-  for (const level of ['A2', 'B1']) {
+  for (const level of ['A2', 'B1', 'B2', 'C1']) {
     const phrases = PHRASES.filter(item => item.level === level).map(item => normalise(item.phrase));
     assert.equal(new Set(phrases).size, phrases.length, level);
   }
@@ -227,6 +230,22 @@ test('collocations are level-aware and keep independent SRS records', () => {
   assert.notDeepEqual(phrase, collocation);
 });
 
+test('grammar diagnostics are level-aware and keep separate SRS records', () => {
+  assert.ok(GRAMMAR_TASKS.length >= 16);
+  for (const level of ['A2','B1','B2','C1']) assert.ok(GRAMMAR_TASKS.some(item => item.level === level));
+  assert.ok(GRAMMAR_TASKS.every(item => item.id.startsWith('gr_') && item.options.includes(item.answer)));
+  assert.ok(GRAMMAR_TASKS.every(item => !PHRASES.some(phrase => phrase.id === item.id)));
+  const correct = reviewItem(undefined, 'context', 1000, 'grammar-correct').item;
+  const wrong = reviewItem(undefined, 'wrong', 1000, 'grammar-wrong').item;
+  assert.notDeepEqual(correct, wrong);
+});
+
+test('morning and evening sessions have distinct new-material limits', () => {
+  assert.equal(newItemLimit({ minutes:15, slot:'morning' }), 2);
+  assert.equal(newItemLimit({ minutes:15, slot:'evening' }), 1);
+  assert.equal(newItemLimit({ minutes:5, slot:'morning' }), 1);
+});
+
 test('B1 listening rotates across B1 lessons instead of falling back to A2', () => {
   const first = chooseListeningLesson(LISTENING_LESSONS, 'B1', {}, []);
   const second = chooseListeningLesson(LISTENING_LESSONS, 'B1', {}, [first.id]);
@@ -235,12 +254,60 @@ test('B1 listening rotates across B1 lessons instead of falling back to A2', () 
   assert.notEqual(first.id, second.id);
 });
 
+test('every route has several verified human listening lessons', () => {
+  for (const level of ['A2','B1','B2','C1']) {
+    const lessons = LISTENING_LESSONS.filter(item => item.level === level);
+    assert.ok(lessons.length >= 3, level);
+    assert.ok(lessons.every(item => item.url.startsWith('https://learnenglish.britishcouncil.org/')));
+    assert.ok(lessons.every(item => item.questions.length >= 2));
+  }
+});
+
 test('IELTS data is original app content, mode-safe and separate from CEFR cards', () => {
-  assert.ok(IELTS_TASKS.length >= 10);
+  assert.ok(IELTS_TASKS.length >= 16);
   assert.ok(IELTS_TASKS.every(task => ['Both','Academic','General'].includes(task.mode)));
   assert.ok(tasksForMode('Academic','Writing').every(task => task.mode !== 'General'));
   assert.ok(tasksForMode('General','Writing').every(task => task.mode !== 'Academic'));
   assert.ok(IELTS_TASKS.every(task => !PHRASES.some(item => item.id === task.id)));
+});
+
+test('IELTS recommendation prioritises an unpractised or weak task type', () => {
+  const tasks = tasksForMode('Academic', 'Reading');
+  const stats = { taskTypes: {
+    'True / False / Not Given': { attempts:3, scored:3, correct:3 },
+    'Matching heading': { attempts:2, scored:2, correct:1 }
+  } };
+  const result = recommendTaskType(tasks, stats);
+  assert.equal(result.type, 'Sentence completion');
+  const weak = recommendTaskType(tasks.filter(task => task.taskType !== 'Sentence completion'), stats);
+  assert.equal(weak.type, 'Matching heading');
+});
+
+test('legacy and detailed IELTS type stats merge without losing accuracy', () => {
+  const stats = summariseStats({
+    legacy:{},
+    byDay:{
+      '2026-09-20':{ ielts:{ Reading:{ attempts:2, correct:1, scored:2, taskTypes:{ 'Matching heading':1 } } } },
+      '2026-09-21':{ ielts:{ Reading:{ attempts:1, correct:1, scored:1, taskTypes:{ 'Matching heading':{ attempts:1, correct:1, scored:1 } } } } }
+    }
+  });
+  assert.equal(stats.ielts.Reading.taskTypes['Matching heading'].attempts, 2);
+  assert.equal(stats.ielts.Reading.taskTypes['Matching heading'].correct, 1);
+});
+
+test('final level check stays locked until 400 verified units and all milestones', () => {
+  const source = PHRASES.find(item => item.level === 'B1');
+  const items = Array.from({ length:400 }, (_, index) => ({ ...source, id:`final-${index}` }));
+  const progress = Object.fromEntries(items.map(item => [item.id, { s:'MASTERED', v:true }]));
+  const incompleteWallet = { earned:{}, spent:{} };
+  assert.equal(finalLevelReady(items, progress, incompleteWallet, 'B1'), false);
+  const earned = Object.fromEntries([1,2,3,4].map(quarter => [`route-2026-1:B1:${quarter}`, { amount:100 }]));
+  const wallet = { earned, spent:{} };
+  assert.equal(finalLevelReady(items, progress, wallet, 'B1'), true);
+  assert.equal(buildFinalCheck(items, progress, COLLOCATIONS, LISTENING_LESSONS, GRAMMAR_TASKS, 'B1').length, 20);
+  assert.equal(awardLevelCompletion(wallet, 'B1', 15, 20), wallet);
+  const completed = awardLevelCompletion(wallet, 'B1', 16, 20, 1000);
+  assert.equal(completed.earned['route-2026-1:B1:complete'].score, 16);
 });
 
 test('a learner can add a bounded personal reward goal', () => {

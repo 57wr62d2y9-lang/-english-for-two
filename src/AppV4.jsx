@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { COLLOCATIONS, LISTENING_LESSONS, PHRASES, RULES, VERBS, VIDEOS } from './catalog.js';
+import { COLLOCATIONS, GRAMMAR_TASKS, LISTENING_LESSONS, PHRASES, RULES, VERBS, VIDEOS } from './catalog.js';
 import {
-  COURSE_SIZE, LEVELS, addGoal, awardMilestone, awardRoutine, balanceOf,
-  checkpointCandidates, chooseTask, courseProgress, dayKey, isDue, queueRecovery,
-  redeem, resolveRequest, reviewItem, routineRewardId, settleRecovery, shuffle,
+  COURSE_SIZE, LEVELS, addGoal, awardLevelCompletion, awardMilestone, awardRoutine,
+  balanceOf, checkpointCandidates, chooseTask, courseProgress, dayKey,
+  finalLevelReady, isDue, levelCompletionId, queueRecovery, redeem,
+  resolveRequest, reviewItem, routineRewardId, settleRecovery, shuffle,
   rotatingExample, studySlot
 } from './learning.js';
 import {
@@ -17,9 +18,9 @@ import {
   syncCouple
 } from './couple-sync.js';
 import { translateToRussian } from './translation.js';
-import { IELTS_SKILLS, tasksForMode } from './ielts.js';
+import { IELTS_SKILLS, recommendTaskType, tasksForMode } from './ielts.js';
 import { chooseListeningLesson, leastRecentlyUsed } from './scheduler.js';
-import { buildCheckpoint } from './checkpoint.js';
+import { buildCheckpoint, buildFinalCheck } from './checkpoint.js';
 
 const DEFAULT_SETTINGS = { level: 'B1', minutes: 15, dailyGoal: 30, profileName: '', partnerName: '', examType: 'Academic' };
 const EMPTY_STATS = { totalMinutes: 0, sessions: 0, correct: 0, answers: 0, byDay: {}, ielts: {}, legacy: { totalMinutes: 0, sessions: 0, correct: 0, answers: 0 } };
@@ -75,9 +76,19 @@ function availableCollocations(level) {
   const lower = COLLOCATIONS.filter(item => levelIndex(item.level) < levelIndex(level));
   return exact.length ? [...exact, ...lower] : lower;
 }
+function availableGrammar(level) {
+  const position = levelIndex(level);
+  return GRAMMAR_TASKS.filter(item => levelIndex(item.level) <= position);
+}
 function mixedTask(base, level, progress) {
   if (base.step < 2) return null;
   const counts = base.taskCounts || {};
+  const grammarTarget = base.minutes >= 15 ? 2 : 1;
+  if ((counts.grammar || 0) < grammarTarget && base.step >= 3) {
+    const pool = availableGrammar(level);
+    const item = leastRecentlyUsed(pool, progress, base.recentSpecial || []);
+    if (item) return { type:'grammar', family:'grammar', progressId:item.id, item, answer:item.answer, options:shuffle(item.options) };
+  }
   const listeningTarget = base.minutes >= 15 ? 1 : 0;
   if ((counts.listening || 0) < listeningTarget && base.step >= 5) {
     const lesson = chooseListeningLesson(LISTENING_LESSONS, level, progress, base.recentListening || []);
@@ -107,8 +118,10 @@ function mixedTask(base, level, progress) {
 
 function withTask(base, items, progress, level) {
   const dueRecovery = (base.recoveryQueue || []).find(entry => entry.dueStep <= base.step && !(base.recent || []).slice(-2).includes(entry.id));
-  const recoveryItem = dueRecovery && [...items, ...availableCollocations(level)].find(item => item.id === dueRecovery.id);
-  const recovery = recoveryItem ? { item:recoveryItem, progressId:recoveryItem.id, type:dueRecovery.nextType, family:COLLOCATIONS.some(item => item.id === recoveryItem.id) ? 'collocation' : 'phrase', recovery:true, early:true } : null;
+  const recoveryItem = dueRecovery && [...items, ...availableCollocations(level), ...availableGrammar(level)].find(item => item.id === dueRecovery.id);
+  const recoveryFamily = recoveryItem && GRAMMAR_TASKS.some(item => item.id === recoveryItem.id) ? 'grammar'
+    : recoveryItem && COLLOCATIONS.some(item => item.id === recoveryItem.id) ? 'collocation' : 'phrase';
+  const recovery = recoveryItem ? { item:recoveryItem, progressId:recoveryItem.id, type:dueRecovery.nextType, family:recoveryFamily, answer:recoveryFamily === 'grammar' ? recoveryItem.answer : recoveryItem.phrase, recovery:true, early:true } : null;
   const phraseChoice = recovery || chooseTask(items, progress, base);
   const mixed = recovery ? null : mixedTask(base, level, progress);
   const choice = mixed || phraseChoice;
@@ -117,7 +130,8 @@ function withTask(base, items, progress, level) {
     ...choice,
     options: choice.type === 'recognition'
       ? taskOptions(choice.item, items, 'ru')
-      : choice.type === 'context' ? taskOptions(choice.item, choice.family === 'collocation' ? availableCollocations(level) : items, 'phrase') : []
+      : choice.type === 'context' ? taskOptions(choice.item, choice.family === 'collocation' ? availableCollocations(level) : items, 'phrase')
+        : choice.type === 'grammar' ? shuffle(choice.item.options) : []
   };
   const progressId = task.progressId || task.item?.id;
   const previous = progress[progressId];
@@ -128,7 +142,7 @@ function withTask(base, items, progress, level) {
     newCount: base.newCount + (task.type === 'intro' && !progress[task.item.id] ? 1 : 0),
     recent: task.item?.id ? [...base.recent, task.item.id].slice(-5) : base.recent,
     recentListening: task.type === 'listening' ? [...(base.recentListening || []), task.lesson.id].slice(-4) : base.recentListening || [],
-    recentSpecial: ['collocation','irregular'].includes(task.family) ? [...(base.recentSpecial || []), task.item.id].slice(-6) : base.recentSpecial || [],
+    recentSpecial: ['collocation','irregular','grammar'].includes(task.family) ? [...(base.recentSpecial || []), task.item.id].slice(-6) : base.recentSpecial || [],
     task: { ...task, progressId, exampleIndex, wasDue:Boolean(previous && isDue(previous)), verification:Boolean(previous?.known) },
     selected: null, feedback: null
   };
@@ -145,7 +159,7 @@ function sessionEvidence(current, task, correct) {
   if (correct) successByType[category] = Number(successByType[category] || 0) + 1;
   let recoveryQueue = current.recoveryQueue || [];
   let recovered = Number(current.recovered || 0);
-  const retrievable = ['recognition','context','recall'].includes(task.type) && ['phrase','collocation'].includes(task.family || 'phrase');
+  const retrievable = (['recognition','context','recall'].includes(task.type) && ['phrase','collocation'].includes(task.family || 'phrase')) || task.type === 'grammar';
   if (task.recovery) {
     recoveryQueue = settleRecovery(recoveryQueue, task.progressId, correct, task.type, current.step);
     if (correct) recovered += 1;
@@ -383,6 +397,7 @@ function App() {
     const base = {
       id: uniqueId('session'), minutes, plannedMs: minutes * 60000,
       remainingMs: minutes * 60000, step: 0, newCount: 0, recent: [],
+      slot: studySlot(),
       recentListening: [], recentSpecial: [], recoveryQueue: [],
       taskCounts: {}, successByType: {}, recovered: 0, dueSuccess: 0,
       answers: 0, correct: 0, xp: 0, done: false
@@ -411,6 +426,10 @@ function App() {
       const before = current.byDay?.[key] || {};
       const beforeSkill = before.ielts?.[skill] || { attempts:0, correct:0, scored:0, last:0, taskTypes:{} };
       const scored = typeof correct === 'boolean';
+      const oldTypeRaw = beforeSkill.taskTypes?.[taskType];
+      const oldType = typeof oldTypeRaw === 'number'
+        ? { attempts:oldTypeRaw, correct:0, scored:0 }
+        : { attempts:0, correct:0, scored:0, ...(oldTypeRaw || {}) };
       return {
         ...current,
         byDay: {
@@ -425,7 +444,14 @@ function App() {
                 correct:(beforeSkill.correct || 0) + (correct === true ? 1 : 0),
                 scored:(beforeSkill.scored || 0) + (scored ? 1 : 0),
                 last:Date.now(),
-                taskTypes:{ ...beforeSkill.taskTypes, [taskType]:(beforeSkill.taskTypes?.[taskType] || 0) + 1 }
+                taskTypes:{
+                  ...beforeSkill.taskTypes,
+                  [taskType]:{
+                    attempts:oldType.attempts + 1,
+                    correct:oldType.correct + (correct === true ? 1 : 0),
+                    scored:oldType.scored + (scored ? 1 : 0)
+                  }
+                }
               }
             },
             at:Date.now()
@@ -535,6 +561,14 @@ function App() {
     setScreen('checkpoint');
   }
 
+  function openFinalCheck() {
+    if (!finalLevelReady(items, progress, wallet, settings.level)) return;
+    const tasks = buildFinalCheck(items, progress, COLLOCATIONS, LISTENING_LESSONS, GRAMMAR_TASKS, settings.level);
+    if (tasks.length < 20) return;
+    setCheckpoint({ kind:'final', quarter:0, items:tasks, index:0, score:0, selected:null, revealed:false, done:false, awarded:false });
+    setScreen('checkpoint');
+  }
+
   function answerCheckpoint(value) {
     if (!checkpoint || checkpoint.selected) return;
     const task = checkpoint.items[checkpoint.index];
@@ -553,7 +587,9 @@ function App() {
       setCheckpoint({ ...checkpoint, index: checkpoint.index + 1, selected: null, revealed:false });
       return;
     }
-    const nextWallet = awardMilestone(walletRef.current, settings.level, checkpoint.quarter, checkpoint.score, path.verified);
+    const nextWallet = checkpoint.kind === 'final'
+      ? awardLevelCompletion(walletRef.current, settings.level, checkpoint.score, checkpoint.items.length)
+      : awardMilestone(walletRef.current, settings.level, checkpoint.quarter, checkpoint.score, path.verified);
     const awarded = nextWallet !== walletRef.current;
     if (awarded) persistWallet(nextWallet);
     setCheckpoint({ ...checkpoint, done: true, awarded });
@@ -637,12 +673,12 @@ function App() {
   if (!ready) return <div className="splash"><img src="/suslik-logo.jpeg" alt=""/><span>English for Two</span><small>Возвращаю твой прогресс…</small></div>;
 
   if (screen === 'session' && session) return <SessionScreen session={session} level={settings.level} onIntro={applyIntro} onAnswer={answerTask} onRecall={answerRecall} onNext={() => nextTask()} onFinish={() => finishSession(session)} onLeave={leaveSession} onMore={startSession} onShare={shareProgress} />;
-  if (screen === 'progress') return <Page title="Мой прогресс" onBack={() => setScreen('home')}><ProgressScreen level={settings.level} path={path} progress={progress} practiceXp={practiceXp} stats={stats} wallet={wallet} items={items} onCheckpoint={openCheckpoint} /></Page>;
+  if (screen === 'progress') return <Page title="Мой прогресс" onBack={() => setScreen('home')}><ProgressScreen level={settings.level} path={path} progress={progress} practiceXp={practiceXp} stats={stats} wallet={wallet} items={items} onCheckpoint={openCheckpoint} onFinal={openFinalCheck} /></Page>;
   if (screen === 'rewards') return <Page title="Подарки" onBack={() => setScreen('home')}><RewardsScreen profileName={settings.profileName} wallet={wallet} couple={couple} ideas={GIFT_IDEAS} onCreate={createGoal} onRequest={requestGoal} onResend={sendRequest} onResolve={resolveIncoming} onShareProgress={shareProgress} onRefresh={() => refreshCouple()} /></Page>;
   if (screen === 'rules') return <Page title="Справочник" onBack={() => setScreen('home')}><RulesScreen level={settings.level} /></Page>;
   if (screen === 'exam') return <Page title="IELTS · Exam Prep" onBack={() => setScreen('home')}><ExamPrepScreen mode={settings.examType} stats={stats.ielts || {}} onMode={examType => updateSettings({examType})} onComplete={recordIelts}/></Page>;
   if (screen === 'settings') return <Page title="Личный кабинет" onBack={() => setScreen('home')}><SettingsScreen settings={settings} couple={couple} onLevel={changeLevel} onChange={updateSettings} onCreatePairCode={generatePairCode} onJoinPair={connectPartner} onRefreshPair={() => refreshCouple()} /></Page>;
-  if (screen === 'checkpoint' && checkpoint) return <Page title="Проверка этапа" onBack={() => setScreen('progress')}><CheckpointScreen checkpoint={checkpoint} onAnswer={answerCheckpoint} onReveal={revealCheckpoint} onNext={advanceCheckpoint} onDone={() => setScreen(checkpoint.awarded ? 'rewards' : 'progress')} /></Page>;
+  if (screen === 'checkpoint' && checkpoint) return <Page title={checkpoint.kind === 'final' ? 'Итоговая проверка' : 'Проверка этапа'} onBack={() => setScreen('progress')}><CheckpointScreen checkpoint={checkpoint} onAnswer={answerCheckpoint} onReveal={revealCheckpoint} onNext={advanceCheckpoint} onDone={() => setScreen(checkpoint.kind === 'final' ? 'progress' : checkpoint.awarded ? 'rewards' : 'progress')} /></Page>;
 
   const slot = studySlot();
   const slotDone = slot === 'morning' ? morningDone : eveningDone;
@@ -660,7 +696,7 @@ function App() {
 
     <section className="todayCard">
       <div className="todayTop">
-        <div><div className="eyebrow">СЕГОДНЯ · {slot === 'morning' ? 'УТРО' : 'ВЕЧЕР'}</div><h1>{Math.max(0, settings.dailyGoal - todayMinutes)} минут</h1><p>{todayMinutes} из {settings.dailyGoal} · повторений: {dueCount}</p></div>
+        <div><div className="eyebrow">СЕГОДНЯ · {slot === 'morning' ? 'УТРО' : 'ВЕЧЕР'}</div><h1>{Math.max(0, settings.dailyGoal - todayMinutes)} минут</h1><p>{todayMinutes} из {settings.dailyGoal} · повторений: {dueCount}</p><small>{slot === 'morning' ? 'Фокус: важные повторы и до двух новых единиц.' : 'Фокус: закрепить утреннее, ошибки и живую речь.'}</small></div>
         <div className="dayRing" style={{ '--done': `${Math.min(100, todayMinutes / settings.dailyGoal * 100)}%` }}><span>{Math.min(100, Math.round(todayMinutes / settings.dailyGoal * 100))}%</span></div>
       </div>
       <div className="slotRow"><span className={morningDone ? 'done' : ''}>☀ Утро {morningDone ? `+$${morningReward} ✓` : '$1–$3'}</span><span className={eveningDone ? 'done' : ''}>☾ Вечер {eveningDone ? `+$${eveningReward} ✓` : '$1–$3'}</span></div>
@@ -704,7 +740,7 @@ function SessionScreen({ session, level, onIntro, onAnswer, onRecall, onNext, on
   const mm = Math.floor(totalSeconds / 60);
   const ss = String(totalSeconds % 60).padStart(2, '0');
   return <div className="app sessionApp">
-    <div className="topbar"><button className="back" onClick={onLeave}>×</button><strong>{level} · ежедневный микс</strong><button className="timer" onClick={onFinish}>{mm}:{ss}</button></div>
+    <div className="topbar"><button className="back" onClick={onLeave}>×</button><strong>{level} · {session.slot === 'morning' ? 'новое + повторы' : 'вечернее закрепление'}</strong><button className="timer" onClick={onFinish}>{mm}:{ss}</button></div>
     <div className="sessionProgress"><i style={{ width: `${100 - session.remainingMs / session.plannedMs * 100}%` }} /></div>
     <main className="exercise">
       {task.early && <div className="earlyTag">ДОПОЛНИТЕЛЬНЫЙ ПОВТОР · БЕЗ НОВЫХ ОЧКОВ</div>}
@@ -727,20 +763,21 @@ function SessionScreen({ session, level, onIntro, onAnswer, onRecall, onNext, on
       {task.type === 'recall' && <RecallTask task={task} onAnswer={onRecall} />}
       {task.type === 'collocation' && <ChoiceTask eyebrow="СЛОВА ВМЕСТЕ" title={task.item.ru} prompt={task.item.explanation} task={task} answer={task.answer} onAnswer={onAnswer} onNext={onNext} session={session} />}
       {task.type === 'irregular' && <ChoiceTask eyebrow="НЕПРАВИЛЬНЫЙ ГЛАГОЛ" title={task.form === 'participle' ? `I have _____ it. · ${task.item.base}` : `Yesterday I _____ it. · ${task.item.base}`} prompt={task.form === 'participle' ? 'Выбери Past Participle.' : 'Выбери Past Simple.'} task={task} answer={task.answer} onAnswer={onAnswer} onNext={onNext} session={session} />}
+      {task.type === 'grammar' && <ChoiceTask eyebrow={`ГРАММАТИКА ПО ОШИБКАМ · ${task.item.level}`} title={task.item.prompt} prompt={task.item.title} task={task} answer={task.answer} onAnswer={onAnswer} onNext={onNext} session={session} />}
       {task.type === 'listening' && <ListeningTask task={task} session={session} onAnswer={onAnswer} onNext={onNext} />}
     </main>
   </div>;
 }
 
 function ChoiceTask({ eyebrow, title, prompt, task, answer, onAnswer, onNext, session }) {
-  return <><div className="eyebrow">{eyebrow}</div><h1 className={eyebrow.includes('СИТУАЦИИ') ? 'contextTitle' : 'phrase'}>{title}</h1><p className="prompt">{prompt}</p><div className="options">{task.options.map(option => <button key={option} className={session.feedback ? option === answer ? 'correct' : session.selected === option ? 'wrong' : '' : ''} onClick={() => onAnswer(option)}>{option}</button>)}</div>{session.feedback && <div className={`feedback ${session.feedback}`}><strong>{session.feedback === 'correct' ? 'Верно.' : 'Пока нет — вот правильный ответ.'}</strong><span>{answer}</span>{task.item?.explanation && <TranslatedText text={task.item.explanation}/>} {task.item?.examples?.length > 0 && <TranslatedExample text={exampleAt(task.item, task.exampleIndex + 1)}/>}<button className="primary" onClick={onNext}>Далее</button></div>}</>;
+  return <><div className="eyebrow">{eyebrow}</div><h1 className={eyebrow.includes('СИТУАЦИИ') || task.type === 'grammar' ? 'contextTitle' : 'phrase'}>{title}</h1><p className="prompt">{prompt}</p><div className="options">{task.options.map(option => <button key={option} className={session.feedback ? option === answer ? 'correct' : session.selected === option ? 'wrong' : '' : ''} onClick={() => onAnswer(option)}>{option}</button>)}</div>{session.feedback && <div className={`feedback ${session.feedback}`}><strong>{session.feedback === 'correct' ? 'Верно.' : 'Пока нет — вот правильный ответ.'}</strong><span>{answer}</span>{task.item?.explanation && <TranslatedText text={task.item.explanation}/>} {task.item?.examples?.length > 0 && <TranslatedExample text={exampleAt(task.item, task.exampleIndex + 1)}/>} {task.item?.videoRefs?.length > 0 && <WatchInContext item={task.item}/>}<button className="primary" onClick={onNext}>Далее</button></div>}</>;
 }
 
 function RecallTask({ task, onAnswer }) {
   const { item } = task;
   const [revealed, setRevealed] = useState(false);
   const situation = task.exampleIndex % 2 === 1;
-  return <><div className="eyebrow">СКАЖИ ВСЛУХ</div><p className="prompt">{situation ? 'Какая фраза естественно подходит к ситуации?' : 'Как сказать по-английски?'}</p>{situation ? <TranslatedText text={item.explanation}/> : <h1 className="recallCue">{item.ru}</h1>}{!revealed ? <button className="primary big" onClick={() => setRevealed(true)}>Показать ответ</button> : <><div className="reveal">{item.phrase}</div><TranslatedExample text={exampleAt(item, task.exampleIndex)} />{item.variations?.length > 0 && <div className="recallVariation">Ещё вариант: <strong>{item.variations[task.exampleIndex % item.variations.length]}</strong></div>}<div className="actions twoActions"><button className="secondary" onClick={() => onAnswer(false)}>Не вспомнил</button><button className="primary" onClick={() => onAnswer(true)}>Вспомнил</button></div></>}</>;
+  return <><div className="eyebrow">СКАЖИ ВСЛУХ</div><p className="prompt">{situation ? 'Какая фраза естественно подходит к ситуации?' : 'Как сказать по-английски?'}</p>{situation ? <TranslatedText text={item.explanation}/> : <h1 className="recallCue">{item.ru}</h1>}{!revealed ? <button className="primary big" onClick={() => setRevealed(true)}>Показать ответ</button> : <><div className="reveal">{item.phrase}</div><TranslatedExample text={exampleAt(item, task.exampleIndex)} />{item.variations?.length > 0 && <div className="recallVariation">Ещё вариант: <strong>{item.variations[task.exampleIndex % item.variations.length]}</strong></div>}{item.videoRefs?.length > 0 && <WatchInContext item={item}/>}<div className="actions twoActions"><button className="secondary" onClick={() => onAnswer(false)}>Не вспомнил</button><button className="primary" onClick={() => onAnswer(true)}>Вспомнил</button></div></>}</>;
 }
 
 function WatchInContext({ item }) {
@@ -774,19 +811,24 @@ function TranslatedText({ text }) {
   return <div className="listeningPrompt"><strong>{text}</strong><span>{ru}</span></div>;
 }
 
-function ProgressScreen({ level, path, progress, practiceXp, stats, wallet, items, onCheckpoint }) {
+function ProgressScreen({ level, path, progress, practiceXp, stats, wallet, items, onCheckpoint, onFinal }) {
   const earned = wallet.earned || {};
   const accuracy = stats.answers ? Math.round(stats.correct / stats.answers * 100) : 0;
   const nextQuarter = [1, 2, 3, 4].find(quarter => !earned[`route-2026-1:${level}:${quarter}`]);
   const checkpointReady = nextQuarter && checkpointCandidates(items, progress, nextQuarter).length === 10;
+  const completed = Boolean(earned[levelCompletionId(level)]);
+  const finalReady = finalLevelReady(items, progress, wallet, level);
   const nextLevel = { A2: 'B1', B1: 'B2', B2: 'C1', C1: 'Свободное владение' }[level];
   return <>
-    <section className="courseHero"><div className="eyebrow">МАРШРУТ {level} → {nextLevel}</div><h1>{path.points.toLocaleString()} <small>/ {path.targetPoints.toLocaleString()}</small></h1><p>очков курса · {path.verified} единиц закреплено</p><div className="routeBar"><i style={{ width: `${path.percent}%` }} /></div><div className="routeMeta"><span>{path.percent}% маршрута</span><span>ещё {Math.max(0, COURSE_SIZE - path.verified)}</span></div></section>
-    <section className="explainCard"><strong>Понятная ближайшая цель</strong><p>Каждые 20 новых единиц — маленький этап. Два новых элемента за поездку дают устойчивый темп около 80–120 в месяц; точное число зависит от очереди повторений.</p></section>
+    <section className="courseHero"><div className="eyebrow">ВЫБРАН МАРШРУТ {level} → {nextLevel}</div><h1>{path.points.toLocaleString()} <small>/ {path.targetPoints.toLocaleString()}</small></h1><p>{completed ? `Уровень ${level} подтверждён итоговой проверкой` : `${path.verified} единиц закреплено · уровень ещё не подтверждён`}</p><div className="routeBar"><i style={{ width: `${path.percent}%` }} /></div><div className="routeMeta"><span>{path.percent}% маршрута</span><span>опубликовано {path.available} из {COURSE_SIZE}</span></div></section>
+    <section className="explainCard"><strong>Понятная ближайшая цель</strong><p>Каждые 20 новых единиц — маленький этап. Утром появляются до двух новых элементов, вечером — преимущественно закрепление. Точный темп зависит от очереди повторений.</p></section>
     <div className="statsGrid"><Stat value={practiceXp} label="Очки практики"/><Stat value={`${accuracy}%`} label="Точность"/><Stat value={Math.round(stats.totalMinutes || 0)} label="Всего минут"/><Stat value={Math.round(stats.sessions || 0)} label="Занятий"/></div>
     <section className="milestones">{[1,2,3,4].map(quarter => { const event = earned[`route-2026-1:${level}:${quarter}`]; const needed = Math.max(0, quarter * 100 - path.verified); return <div className={event ? 'milestone earned' : 'milestone'} key={quarter}><span>{quarter * 25}%</span><div><strong>{event ? '$100 уже начислены' : `Ещё ${needed} закреплённых единиц`}</strong><small>{quarter * 100} единиц + проверка 8/10</small></div><b>{event ? '✓' : '$100'}</b></div>; })}</section>
     {checkpointReady && <button className="primary big" onClick={() => onCheckpoint(nextQuarter)}>Пройти проверку этапа {nextQuarter * 25}%</button>}
     {!checkpointReady && nextQuarter && <div className="lockedNote">Проверка откроется после {nextQuarter * 100} действительно закреплённых единиц. Повторение одной лёгкой карточки не накручивает прогресс.</div>}
+    {completed ? <div className="lockedNote">Итоговая проверка пройдена: {level} подтверждён внутри English for Two. Это не официальный сертификат CEFR.</div>
+      : finalReady ? <button className="primary big" onClick={onFinal}>Итоговая проверка уровня · 20 заданий</button>
+        : <div className="lockedNote">Итоговая проверка 16/20 откроется после 400 опубликованных и закреплённых единиц и всех четырёх этапов. Сейчас опубликовано {path.available} из {COURSE_SIZE}.</div>}
   </>;
 }
 
@@ -832,14 +874,16 @@ function ExamPrepScreen({ mode, stats, onMode, onComplete }) {
   const [skill, setSkill] = useState('Reading');
   const [index, setIndex] = useState(0);
   const tasks = tasksForMode(mode, skill);
-  const task = tasks[index % Math.max(1, tasks.length)];
   const current = stats[skill] || {attempts:0,correct:0,scored:0,taskTypes:{}};
+  const recommended = recommendTaskType(tasks, current);
+  const orderedTasks = recommended ? [...tasks].sort((a, b) => Number(b.taskType === recommended.type) - Number(a.taskType === recommended.type)) : tasks;
+  const task = orderedTasks[index % Math.max(1, orderedTasks.length)];
   const accuracy = current.scored ? Math.round(current.correct / current.scored * 100) : null;
   function changeSkill(next) { setSkill(next); setIndex(0); }
   return <>
     <section className="examHero"><div className="eyebrow">ОТДЕЛЬНО ОТ УРОВНЯ CEFR</div><h1>Готовимся к формату IELTS</h1><p>Оригинальные тренировочные задания. Здесь нет «официального band score» — только честная практика навыков и формата экзамена.</p><div className="segmented two">{['Academic','General'].map(type => <button className={mode === type ? 'active' : ''} onClick={() => {onMode(type);setIndex(0);}} key={type}>{type}</button>)}</div></section>
     <div className="examStats">{IELTS_SKILLS.map(name => { const value=stats[name] || {}; const scored=value.scored || 0; const result=scored ? `${Math.round((value.correct || 0)/scored*100)}%` : '—'; return <button className={skill === name ? 'active' : ''} onClick={() => changeSkill(name)} key={name}><span>{name}</span><strong>{result}</strong><small>{value.attempts || 0} практик</small></button>; })}</div>
-    <section className="examRecommendation"><span>Сейчас</span><strong>{skill}</strong><small>{accuracy === null ? 'Начни с короткого задания.' : accuracy < 70 ? 'Повтори этот тип: точность пока ниже 70%.' : 'Хороший результат — попробуй следующий формат.'}</small></section>
+    <section className="examRecommendation"><span>Сейчас · {skill}</span><strong>{recommended?.type || 'Первое задание'}</strong><small>{recommended?.attempts === 0 ? 'Этот формат ещё не практиковался.' : recommended?.accuracy !== null && recommended.accuracy < .7 ? `Слабый формат: ${Math.round(recommended.accuracy * 100)}% точности.` : accuracy === null ? 'Начни с короткого задания.' : 'Балансируем форматы, начиная с наименее отработанного.'}</small></section>
     {task ? <ExamTask key={`${mode}:${task.id}:${index}`} task={task} onComplete={(correct) => { onComplete(skill, task.taskType, correct); setIndex(value => value + 1); }}/>: <div className="lockedNote">Для этого режима задания готовятся.</div>}
   </>;
 }
@@ -882,7 +926,7 @@ function SettingsScreen({ settings, couple, onLevel, onChange, onCreatePairCode,
 function PairingCard({ profileName, partnerName, couple, onCreate, onJoin, onRefresh }) {
   const [code, setCode] = useState('');
   const busy = couple.mode === 'syncing';
-  if (couple.mode === 'telegram') return <section className="settingsCard pairCard"><label>Связь {profileName} + {partnerName}</label><p>Открой личный кабинет внутри Telegram, чтобы безопасно связать два аккаунта.</p></section>;
+  if (couple.mode === 'telegram') return <section className="settingsCard pairCard"><label>Связь {profileName} + {partnerName}</label><p>Не удалось создать защищённый ключ этого кабинета. Обнови страницу и попробуй снова.</p></section>;
   if (couple.paired) return <section className="settingsCard pairCard connected"><label>{profileName} + {couple.partnerName || partnerName} связаны ✓</label><p>Уровень, процент, копилка и подарочные запросы синхронизируются автоматически. Учебные ответы остаются раздельными.</p><button className="secondary big" onClick={onRefresh} disabled={busy}>{busy ? 'Обновляю…' : 'Обновить сейчас'}</button></section>;
   function submit(event) {
     event.preventDefault();
@@ -892,10 +936,13 @@ function PairingCard({ profileName, partnerName, couple, onCreate, onJoin, onRef
 }
 
 function CheckpointScreen({ checkpoint, onAnswer, onReveal, onNext, onDone }) {
-  if (checkpoint.done) return <section className="finishCard"><div className={checkpoint.awarded ? 'finishIcon' : 'finishIcon retry'}>{checkpoint.awarded ? '$' : '↻'}</div><div className="eyebrow">РЕЗУЛЬТАТ ПРОВЕРКИ</div><h1>{checkpoint.score}/10</h1><p>{checkpoint.awarded ? '$100 добавлены в личную копилку один раз.' : 'Нужно 8/10. Повтори фразы и вернись к проверке.'}</p><button className="primary big" onClick={onDone}>{checkpoint.awarded ? 'Открыть подарки' : 'К прогрессу'}</button></section>;
+  const total = checkpoint.items.length;
+  const required = Math.ceil(total * .8);
+  const final = checkpoint.kind === 'final';
+  if (checkpoint.done) return <section className="finishCard"><div className={checkpoint.awarded ? 'finishIcon' : 'finishIcon retry'}>{checkpoint.awarded ? final ? '✓' : '$' : '↻'}</div><div className="eyebrow">РЕЗУЛЬТАТ ПРОВЕРКИ</div><h1>{checkpoint.score}/{total}</h1><p>{checkpoint.awarded ? final ? 'Уровень подтверждён внутри курса. Результат сохранён.' : '$100 добавлены в личную копилку один раз.' : `Нужно ${required}/${total}. Повтори слабые места и вернись к проверке.`}</p><button className="primary big" onClick={onDone}>{checkpoint.awarded && !final ? 'Открыть подарки' : 'К прогрессу'}</button></section>;
   const task = checkpoint.items[checkpoint.index];
-  const labels = {recognition:'ЗНАЧЕНИЕ',context:'НОВЫЙ КОНТЕКСТ',recall:'АКТИВНОЕ ВОСПОМИНАНИЕ',collocation:'КОЛЛОКАЦИЯ',listening:'АУДИРОВАНИЕ'};
-  return <section className="checkpointCard"><div className="eyebrow">ВОПРОС {checkpoint.index + 1} ИЗ 10 · {labels[task.type]}</div>{task.type === 'listening' && <a className="audioLink" href={task.lesson.url} target="_blank" rel="noreferrer">Открыть живую запись ↗</a>}<h2>{task.prompt}</h2>{task.type === 'recall' ? <>{!checkpoint.revealed ? <button className="primary big" onClick={onReveal}>Показать ответ</button> : <><div className="reveal">{task.answer}</div><TranslatedExample text={exampleAt(task.item, checkpoint.index)}/>{!checkpoint.selected && <div className="actions twoActions"><button className="secondary" onClick={() => onAnswer(false)}>Не вспомнил</button><button className="primary" onClick={() => onAnswer(true)}>Вспомнил</button></div>}</>}</> : <div className="options">{task.options.map(option => <button key={option} className={checkpoint.selected ? option === task.answer ? 'correct' : checkpoint.selected === option ? 'wrong' : '' : ''} onClick={() => onAnswer(option)}>{option}</button>)}</div>}{checkpoint.selected && <button className="primary big" onClick={onNext}>{checkpoint.index === 9 ? 'Завершить' : 'Далее'}</button>}</section>;
+  const labels = {recognition:'ЗНАЧЕНИЕ',context:'НОВЫЙ КОНТЕКСТ',recall:'АКТИВНОЕ ВОСПОМИНАНИЕ',collocation:'КОЛЛОКАЦИЯ',listening:'АУДИРОВАНИЕ',grammar:'ГРАММАТИКА'};
+  return <section className="checkpointCard"><div className="eyebrow">ВОПРОС {checkpoint.index + 1} ИЗ {total} · {labels[task.type]}</div>{task.type === 'listening' && <a className="audioLink" href={task.lesson.url} target="_blank" rel="noreferrer">Открыть живую запись ↗</a>}<h2>{task.prompt}</h2>{task.type === 'recall' ? <>{!checkpoint.revealed ? <button className="primary big" onClick={onReveal}>Показать ответ</button> : <><div className="reveal">{task.answer}</div><TranslatedExample text={exampleAt(task.item, checkpoint.index)}/>{!checkpoint.selected && <div className="actions twoActions"><button className="secondary" onClick={() => onAnswer(false)}>Не вспомнил</button><button className="primary" onClick={() => onAnswer(true)}>Вспомнил</button></div>}</>}</> : <div className="options">{task.options.map(option => <button key={option} className={checkpoint.selected ? option === task.answer ? 'correct' : checkpoint.selected === option ? 'wrong' : '' : ''} onClick={() => onAnswer(option)}>{option}</button>)}</div>}{checkpoint.selected && <button className="primary big" onClick={onNext}>{checkpoint.index === total - 1 ? 'Завершить' : 'Далее'}</button>}</section>;
 }
 
 export default App;

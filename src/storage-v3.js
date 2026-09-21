@@ -38,6 +38,7 @@ const hash = id => [...id].reduce((n,c) => (n * 31 + c.charCodeAt(0)) >>> 0, 0) 
 const queues = new Map();
 const dirtyStatsMonths = new Set();
 let statsJob = null;
+let pairIdentityJob = null;
 async function setRemote(key, value) {
   const text = JSON.stringify(value);
   if (text.length > 4096) { status('error'); return false; }
@@ -46,6 +47,34 @@ async function setRemote(key, value) {
   const r = await cloudCall('setItem', key, text);
   status(r.ok ? 'synced' : 'pending');
   return r.ok;
+}
+const validPairIdentity = value => Boolean(
+  value && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value.id || ''))
+  && /^[A-Za-z0-9_-]{43}$/.test(String(value.secret || ''))
+);
+function createPairIdentity() {
+  if (!globalThis.crypto?.randomUUID || !globalThis.crypto?.getRandomValues) throw new Error('Secure browser identity is unavailable.');
+  const bytes = globalThis.crypto.getRandomValues(new Uint8Array(32));
+  let binary = '';
+  bytes.forEach(byte => { binary += String.fromCharCode(byte); });
+  return { id:globalThis.crypto.randomUUID(), secret:btoa(binary).replaceAll('+','-').replaceAll('/','_').replaceAll('=',''), at:Date.now() };
+}
+export function loadPairIdentity() {
+  if (pairIdentityJob) return pairIdentityJob;
+  pairIdentityJob = (async () => {
+    const localKey = prefix() + 'pairIdentity';
+    const local = localRead(localKey);
+    const remote = parse((await cloudCall('getItem', 'eft3_pair_identity')).value);
+    let identity = choose(validPairIdentity(local) ? local : null, validPairIdentity(remote) ? remote : null);
+    if (!identity) identity = createPairIdentity();
+    localWrite(localKey, identity);
+    if (!validPairIdentity(remote) || remote.id !== identity.id || remote.secret !== identity.secret) await setRemote('eft3_pair_identity', identity);
+    return identity;
+  })().catch(error => {
+    pairIdentityJob = null;
+    throw error;
+  });
+  return pairIdentityJob;
 }
 // 64 bounded buckets per level leave enough room for a full 400-unit route.
 // New fields are only appended, so every existing compact CloudStorage record
@@ -138,7 +167,16 @@ export function summariseStats(stats) {
       out.ielts[skill].correct += value.correct || 0;
       out.ielts[skill].scored += value.scored || 0;
       out.ielts[skill].last = Math.max(out.ielts[skill].last || 0, value.last || 0);
-      for (const [type,count] of Object.entries(value.taskTypes || {})) out.ielts[skill].taskTypes[type] = (out.ielts[skill].taskTypes[type] || 0) + count;
+      for (const [type,raw] of Object.entries(value.taskTypes || {})) {
+        const incoming = typeof raw === 'number' ? { attempts:raw, correct:0, scored:0 } : (raw || {});
+        const existingRaw = out.ielts[skill].taskTypes[type];
+        const existing = typeof existingRaw === 'number' ? { attempts:existingRaw, correct:0, scored:0 } : (existingRaw || {});
+        out.ielts[skill].taskTypes[type] = {
+          attempts:Number(existing.attempts || 0) + Number(incoming.attempts || 0),
+          correct:Number(existing.correct || 0) + Number(incoming.correct || 0),
+          scored:Number(existing.scored || 0) + Number(incoming.scored || 0)
+        };
+      }
     }
   }
   return out;

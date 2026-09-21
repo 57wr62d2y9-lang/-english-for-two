@@ -26,6 +26,14 @@ export const IELTS_READING_TASKS = [
     question:'What must members show at the alternative branch?',
     options:['A membership card','A passport','A payment receipt','A medical form'], answer:'A membership card',
     explanation:'The notice directly says to show a membership card at reception.'
+  },
+  {
+    id:'ielts-read-4', mode:'Both', skill:'Reading', taskType:'Sentence completion',
+    title:'A neighbourhood tool library', minutes:4,
+    passage:'A tool library allows residents to borrow equipment they use only occasionally. Members pay a small annual fee and book items online. Volunteers inspect every returned tool before it becomes available again. The scheme reduces household spending and keeps rarely used equipment out of landfill.',
+    question:'Before another member can borrow a returned tool, it is _____.',
+    options:['inspected by volunteers','sold online','sent to landfill','kept for one year'], answer:'inspected by volunteers',
+    explanation:'The completion paraphrases the sentence about volunteers checking each returned item.'
   }
 ];
 
@@ -49,6 +57,16 @@ export const IELTS_LISTENING_TASKS = [
     question:'New meeting time: _____.',
     options:['9:00','10:00','11:00','12:00'], answer:'9:00',
     explanation:'Numbers and corrected details are common traps in completion tasks.'
+  },
+  {
+    id:'ielts-listen-3', mode:'Both', skill:'Listening', taskType:'Matching information',
+    title:'Challenges at work', minutes:6,
+    source:'British Council',
+    url:'https://learnenglish.britishcouncil.org/free-resources/listening/c1/challenges-work',
+    instruction:'Listen to the four speakers and match the solution to the relevant challenge.',
+    question:'Which solution helped the international virtual team?',
+    options:['A written team charter','A cash reward','A new airport route','A formal handshake'], answer:'A written team charter',
+    explanation:'Speaker B says the team documented communication norms, meetings and deadlines in a charter.'
   }
 ];
 
@@ -73,6 +91,20 @@ export const IELTS_WRITING_TASKS = [
     prompt:'Some people think cities should spend more on public transport than on new roads. To what extent do you agree or disagree?',
     checklist:['Take a clear position','Plan two distinct main ideas','Add a specific example to each idea','Check that the conclusion matches the position'],
     structure:'Introduction + position → main idea 1 → main idea 2 → conclusion.'
+  },
+  {
+    id:'ielts-write-a2', mode:'Academic', skill:'Writing', taskType:'Academic Task 1 overview',
+    title:'Library visits by age group', minutes:7, words:'Overview only · full task: 150+ words',
+    prompt:'A line chart shows monthly library visits by three age groups from January to June. Visits by 18–30s rise steadily, visits by 31–50s stay broadly stable, and visits by over-50s fall slightly. Write a two-sentence overview without detailed figures.',
+    checklist:['Identify the main rise','Identify the stable and falling groups','Do not explain causes','Avoid listing invented numbers'],
+    structure:'Overall trend sentence → strongest comparison.'
+  },
+  {
+    id:'ielts-write-g2', mode:'General', skill:'Writing', taskType:'General Task 1 tone',
+    title:'Changing a course booking', minutes:7, words:'Plan only · full task: 150+ words',
+    prompt:'You booked an evening course but your work schedule has changed. Plan an email to the course administrator explaining the change, requesting another class and asking about any fee.',
+    checklist:['Use a polite semi-formal tone','Explain the reason briefly','Make both requests explicit','Close appropriately'],
+    structure:'Purpose → changed circumstances → requested class → fee question → closing.'
   }
 ];
 
@@ -94,6 +126,12 @@ export const IELTS_SPEAKING_TASKS = [
     title:'Learning throughout life', minutes:4,
     questions:['Why do some adults stop learning new skills?','Should employers give staff time to study?','How might education change in the next twenty years?'],
     checklist:['Give an opinion','Explain why','Consider another side','Use an example where useful']
+  },
+  {
+    id:'ielts-speak-4', mode:'Both', skill:'Speaking', taskType:'Part 2',
+    title:'A decision that saved time', minutes:3,
+    prompt:'Describe a decision that saved you time. Say what the situation was, what you decided, why you chose it and what happened afterwards.',
+    checklist:['Use the full minute to plan','Tell a clear past story','Explain the result','Speak until the timer reaches two minutes']
   }
 ];
 
@@ -101,4 +139,21 @@ export const IELTS_TASKS = [...IELTS_LISTENING_TASKS, ...IELTS_READING_TASKS, ..
 
 export function tasksForMode(mode, skill) {
   return IELTS_TASKS.filter(task => task.skill === skill && (task.mode === 'Both' || task.mode === mode));
+}
+
+export function recommendTaskType(tasks, stats = {}) {
+  const types = [...new Set(tasks.map(task => task.taskType))];
+  if (!types.length) return null;
+  return types.map(type => {
+    const raw = stats.taskTypes?.[type];
+    const value = typeof raw === 'number' ? { attempts:raw, scored:0, correct:0 } : (raw || {});
+    const scored = Number(value.scored || 0);
+    const accuracy = scored ? Number(value.correct || 0) / scored : null;
+    return { type, attempts:Number(value.attempts || 0), scored, accuracy };
+  }).sort((a, b) => {
+    if (a.attempts !== b.attempts) return a.attempts - b.attempts;
+    if (a.accuracy === null && b.accuracy !== null) return -1;
+    if (b.accuracy === null && a.accuracy !== null) return 1;
+    return (a.accuracy ?? 1) - (b.accuracy ?? 1);
+  })[0];
 }

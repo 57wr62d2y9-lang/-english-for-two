@@ -5,11 +5,13 @@ const APP_ORIGIN = Deno.env.get('APP_ORIGIN') || 'https://english-for-two.onrend
 const APP_URL = Deno.env.get('APP_URL') || 'https://english-for-two.onrender.com/';
 const BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN') || '';
 const CODE_ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const SECRET_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 
 function adminKey() {
   const modern = Deno.env.get('SUPABASE_SECRET_KEYS');
   if (modern) {
-    try { return String(JSON.parse(modern).default || ''); } catch { /* use legacy fallback */ }
+    try { return String(JSON.parse(modern).default || ''); } catch { /* legacy fallback */ }
   }
   return Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 }
@@ -28,7 +30,10 @@ class RequestError extends Error {
   }
 }
 
-function headers(request: Request) {
+type TelegramUser = { id: string; firstName: string; username: string };
+type Account = { id: string; telegram: TelegramUser | null };
+
+function corsHeaders(request: Request) {
   const origin = request.headers.get('origin') || '';
   const allowed = !origin || origin === APP_ORIGIN || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
   return {
@@ -36,7 +41,7 @@ function headers(request: Request) {
     value: {
       'access-control-allow-origin': allowed && origin ? origin : APP_ORIGIN,
       'access-control-allow-methods': 'POST, OPTIONS',
-      'access-control-allow-headers': 'content-type, x-telegram-init-data',
+      'access-control-allow-headers': 'content-type, x-pair-id, x-pair-secret, x-telegram-init-data',
       'access-control-max-age': '86400',
       'content-type': 'application/json; charset=utf-8',
       'vary': 'origin'
@@ -45,7 +50,7 @@ function headers(request: Request) {
 }
 
 function response(request: Request, body: Record<string, unknown>, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: headers(request).value });
+  return new Response(JSON.stringify(body), { status, headers: corsHeaders(request).value });
 }
 
 async function hmac(key: Uint8Array, value: string) {
@@ -57,6 +62,10 @@ function hex(bytes: Uint8Array) {
   return [...bytes].map(byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
+async function sha256(value: string) {
+  return hex(new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(value))));
+}
+
 function constantTimeEqual(left: string, right: string) {
   if (left.length !== right.length) return false;
   let result = 0;
@@ -64,10 +73,10 @@ function constantTimeEqual(left: string, right: string) {
   return result === 0;
 }
 
-async function telegramUser(request: Request) {
-  if (!BOT_TOKEN) throw new RequestError('Сервер синхронизации ещё не настроен.', 503);
+async function optionalTelegramUser(request: Request): Promise<TelegramUser | null> {
   const raw = request.headers.get('x-telegram-init-data') || '';
-  if (!raw || raw.length > 8192) throw new RequestError('Открой приложение внутри Telegram.', 401);
+  if (!BOT_TOKEN || !raw) return null;
+  if (raw.length > 8192) throw new RequestError('Telegram session is too large.', 401);
   const params = new URLSearchParams(raw);
   const receivedHash = params.get('hash') || '';
   params.delete('hash');
@@ -75,21 +84,50 @@ async function telegramUser(request: Request) {
   const secret = await hmac(encoder.encode('WebAppData'), BOT_TOKEN);
   const expectedHash = hex(await hmac(secret, checkString));
   if (!receivedHash || !constantTimeEqual(expectedHash, receivedHash)) throw new RequestError('Telegram не подтвердил пользователя.', 401);
-
   const authDate = Number(params.get('auth_date') || 0);
   const now = Math.floor(Date.now() / 1000);
-  if (!authDate || authDate > now + 60 || now - authDate > 86400) throw new RequestError('Сессия устарела. Закрой и снова открой приложение.', 401);
+  if (!authDate || authDate > now + 60 || now - authDate > 86400) throw new RequestError('Сессия Telegram устарела.', 401);
   let user: { id?: number; first_name?: string; username?: string };
   try { user = JSON.parse(params.get('user') || '{}'); } catch { throw new RequestError('Не удалось прочитать профиль Telegram.', 401); }
   if (!user.id || !/^\d+$/.test(String(user.id))) throw new RequestError('Telegram не передал пользователя.', 401);
-  return {
-    id: String(user.id),
-    firstName: String(user.first_name || '').slice(0, 64),
-    username: String(user.username || '').slice(0, 64)
-  };
+  return { id:String(user.id), firstName:String(user.first_name || '').slice(0, 64), username:String(user.username || '').slice(0, 64) };
 }
 
-function cleanProfile(payload: Record<string, unknown>, user: { firstName: string; username: string }) {
+async function authenticate(request: Request): Promise<Account> {
+  const accountId = String(request.headers.get('x-pair-id') || '');
+  const secret = String(request.headers.get('x-pair-secret') || '');
+  if (!UUID_PATTERN.test(accountId) || !SECRET_PATTERN.test(secret)) throw new RequestError('Защищённый ключ кабинета не найден. Обнови страницу.', 401);
+  const secretHash = await sha256(secret);
+  const telegram = await optionalTelegramUser(request);
+  const { data: existing, error: lookupError } = await db.from('eft_users').select('secret_hash').eq('account_id', accountId).maybeSingle();
+  if (lookupError) throw lookupError;
+  if (existing) {
+    if (!constantTimeEqual(String(existing.secret_hash || ''), secretHash)) throw new RequestError('Ключ кабинета не совпадает.', 401);
+  } else {
+    const row = {
+      account_id:accountId,
+      secret_hash:secretHash,
+      telegram_id:telegram ? Number(telegram.id) : null,
+      display_name:telegram?.firstName || 'Learner',
+      username:telegram?.username || null
+    };
+    let { error } = await db.from('eft_users').insert(row);
+    if (error?.code === '23505' && telegram) {
+      ({ error } = await db.from('eft_users').insert({ ...row, telegram_id:null, username:null }));
+    }
+    if (error?.code === '23505') {
+      const { data: raced, error: raceError } = await db.from('eft_users').select('secret_hash').eq('account_id', accountId).maybeSingle();
+      if (raceError || !raced || !constantTimeEqual(String(raced.secret_hash || ''), secretHash)) throw new RequestError('Этот кабинет уже зарегистрирован.', 409);
+    } else if (error) throw error;
+  }
+  if (telegram) {
+    const { error } = await db.from('eft_users').update({ telegram_id:Number(telegram.id), username:telegram.username || null }).eq('account_id', accountId).is('telegram_id', null);
+    if (error?.code !== '23505' && error) throw error;
+  }
+  return { id:accountId, telegram };
+}
+
+function cleanProfile(payload: Record<string, unknown>, telegram: TelegramUser | null) {
   const requested = String(payload.displayName || '');
   const rawGoals = Array.isArray(payload.goals) ? payload.goals.slice(0, 12) : [];
   const goals = rawGoals.map(value => {
@@ -103,60 +141,54 @@ function cleanProfile(payload: Record<string, unknown>, user: { firstName: strin
     };
   }).filter(goal => goal.id.length >= 4 && goal.title);
   return {
-    display_name: ['Artur', 'Anna'].includes(requested) ? requested : user.firstName || 'Learner',
-    username: user.username || null,
-    level: ['A2', 'B1', 'B2', 'C1'].includes(String(payload.level)) ? String(payload.level) : 'A2',
-    percent: Math.max(0, Math.min(100, Math.round(Number(payload.percent) || 0))),
-    balance: Math.max(0, Math.min(10000, Math.round(Number(payload.balance) || 0))),
-    today_minutes: Math.max(0, Math.min(1440, Math.round(Number(payload.todayMinutes) || 0))),
-    routines: { morning:payload.morningDone === true, evening:payload.eveningDone === true },
+    display_name:['Artur', 'Anna'].includes(requested) ? requested : telegram?.firstName || 'Learner',
+    username:telegram?.username || null,
+    level:['A2', 'B1', 'B2', 'C1'].includes(String(payload.level)) ? String(payload.level) : 'A2',
+    percent:Math.max(0, Math.min(100, Math.round(Number(payload.percent) || 0))),
+    balance:Math.max(0, Math.min(10000, Math.round(Number(payload.balance) || 0))),
+    today_minutes:Math.max(0, Math.min(1440, Math.round(Number(payload.todayMinutes) || 0))),
+    routines:{ morning:payload.morningDone === true, evening:payload.eveningDone === true },
     goals,
-    updated_at: new Date().toISOString()
+    updated_at:new Date().toISOString()
   };
 }
 
 function mapGift(row: Record<string, unknown>, from = '') {
   return {
-    id: row.id,
-    title: row.title,
-    cost: row.cost,
-    status: row.status,
-    from,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-    resolvedAt: row.resolved_at
+    id:row.id, title:row.title, cost:row.cost, status:row.status, from,
+    createdAt:row.created_at, updatedAt:row.updated_at, resolvedAt:row.resolved_at
   };
 }
 
-async function snapshot(userId: string) {
-  const { data: pair, error: pairError } = await db.from('eft_pairs').select('partner_id').eq('user_id', userId).maybeSingle();
+async function snapshot(accountId: string) {
+  const { data: pair, error: pairError } = await db.from('eft_pairs').select('partner_id').eq('user_id', accountId).maybeSingle();
   if (pairError) throw pairError;
-  if (!pair?.partner_id) return { paired: false, partner: null, incoming: [], outgoing: [] };
+  if (!pair?.partner_id) return { paired:false, partner:null, incoming:[], outgoing:[] };
   const partnerId = String(pair.partner_id);
   const [partnerResult, incomingResult, outgoingResult] = await Promise.all([
-    db.from('eft_users').select('display_name, level, percent, balance, today_minutes, routines, goals, updated_at').eq('telegram_id', partnerId).maybeSingle(),
-    db.from('eft_gift_requests').select('id, title, cost, status, created_at, updated_at, resolved_at').eq('recipient_id', userId).order('updated_at', { ascending: false }).limit(25),
-    db.from('eft_gift_requests').select('id, title, cost, status, created_at, updated_at, resolved_at').eq('requester_id', userId).order('updated_at', { ascending: false }).limit(25)
+    db.from('eft_users').select('display_name, level, percent, balance, today_minutes, routines, goals, updated_at').eq('account_id', partnerId).maybeSingle(),
+    db.from('eft_gift_requests').select('id, title, cost, status, created_at, updated_at, resolved_at').eq('recipient_id', accountId).order('updated_at', { ascending:false }).limit(25),
+    db.from('eft_gift_requests').select('id, title, cost, status, created_at, updated_at, resolved_at').eq('requester_id', accountId).order('updated_at', { ascending:false }).limit(25)
   ]);
   if (partnerResult.error) throw partnerResult.error;
   if (incomingResult.error) throw incomingResult.error;
   if (outgoingResult.error) throw outgoingResult.error;
   const partner = partnerResult.data ? {
-    displayName: partnerResult.data.display_name,
-    level: partnerResult.data.level,
-    percent: partnerResult.data.percent,
-    balance: partnerResult.data.balance,
-    todayMinutes: partnerResult.data.today_minutes,
-    morningDone: partnerResult.data.routines?.morning === true,
-    eveningDone: partnerResult.data.routines?.evening === true,
-    goals: Array.isArray(partnerResult.data.goals) ? partnerResult.data.goals : [],
-    updatedAt: partnerResult.data.updated_at
+    displayName:partnerResult.data.display_name,
+    level:partnerResult.data.level,
+    percent:partnerResult.data.percent,
+    balance:partnerResult.data.balance,
+    todayMinutes:partnerResult.data.today_minutes,
+    morningDone:partnerResult.data.routines?.morning === true,
+    eveningDone:partnerResult.data.routines?.evening === true,
+    goals:Array.isArray(partnerResult.data.goals) ? partnerResult.data.goals : [],
+    updatedAt:partnerResult.data.updated_at
   } : null;
   return {
-    paired: true,
+    paired:true,
     partner,
-    incoming: (incomingResult.data || []).map(row => mapGift(row, String(partner?.displayName || 'Partner'))),
-    outgoing: (outgoingResult.data || []).map(row => mapGift(row))
+    incoming:(incomingResult.data || []).map(row => mapGift(row, String(partner?.displayName || 'Partner'))),
+    outgoing:(outgoingResult.data || []).map(row => mapGift(row))
   };
 }
 
@@ -169,48 +201,57 @@ function escapeHtml(value: string) {
   return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 }
 
-async function notify(chatId: string, text: string) {
-  if (!BOT_TOKEN) return;
-  try {
-    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text,
-        parse_mode: 'HTML',
-        disable_web_page_preview: true,
-        reply_markup: { inline_keyboard: [[{ text: 'Открыть English for Two', web_app: { url: APP_URL } }]] }
-      })
-    });
-  } catch (error) {
-    console.error('Telegram notification failed', error);
-  }
+async function telegramIdFor(accountId: string) {
+  const { data } = await db.from('eft_users').select('telegram_id').eq('account_id', accountId).maybeSingle();
+  return data?.telegram_id ? String(data.telegram_id) : '';
 }
 
-async function pairFor(userId: string) {
-  const { data, error } = await db.from('eft_pairs').select('partner_id').eq('user_id', userId).maybeSingle();
+async function notify(accountId: string, text: string) {
+  if (!BOT_TOKEN) return;
+  const chatId = await telegramIdFor(accountId);
+  if (!chatId) return;
+  try {
+    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+      method:'POST', headers:{ 'content-type':'application/json' },
+      body:JSON.stringify({
+        chat_id:chatId, text, parse_mode:'HTML', disable_web_page_preview:true,
+        reply_markup:{ inline_keyboard:[[{ text:'Открыть English for Two', web_app:{ url:APP_URL } }]] }
+      })
+    });
+  } catch (error) { console.error('Telegram notification failed', error); }
+}
+
+async function pairFor(accountId: string) {
+  const { data, error } = await db.from('eft_pairs').select('partner_id').eq('user_id', accountId).maybeSingle();
   if (error) throw error;
   if (!data?.partner_id) throw new RequestError('Сначала свяжи кабинеты в настройках.', 409);
   return String(data.partner_id);
 }
 
-async function handle(action: string, payload: Record<string, unknown>, user: { id: string; firstName: string; username: string }) {
+async function guardJoinAttempts(accountId: string) {
+  const cutoff = new Date(Date.now() - 15 * 60000).toISOString();
+  await db.from('eft_pair_join_attempts').delete().lt('attempted_at', new Date(Date.now() - 86400000).toISOString());
+  const { count, error } = await db.from('eft_pair_join_attempts').select('id', { count:'exact', head:true }).eq('account_id', accountId).gte('attempted_at', cutoff);
+  if (error) throw error;
+  if ((count || 0) >= 10) throw new RequestError('Слишком много попыток. Попробуй через 15 минут.', 429);
+  const { error: insertError } = await db.from('eft_pair_join_attempts').insert({ account_id:accountId });
+  if (insertError) throw insertError;
+}
+
+async function handle(action: string, payload: Record<string, unknown>, account: Account) {
   if (action === 'sync') {
-    const profile = cleanProfile((payload.profile || {}) as Record<string, unknown>, user);
-    const { error } = await db.from('eft_users').upsert({ telegram_id: user.id, ...profile }, { onConflict: 'telegram_id' });
+    const profile = cleanProfile((payload.profile || {}) as Record<string, unknown>, account.telegram);
+    const { error } = await db.from('eft_users').update(profile).eq('account_id', account.id);
     if (error) throw error;
-    return snapshot(user.id);
+    return snapshot(account.id);
   }
 
   if (action === 'create_pair_code') {
-    const { error: userError } = await db.from('eft_users').upsert({ telegram_id:user.id, display_name:user.firstName || 'Learner', username:user.username || null, updated_at:new Date().toISOString() }, { onConflict:'telegram_id' });
-    if (userError) throw userError;
     await db.from('eft_pair_codes').delete().lt('expires_at', new Date().toISOString());
-    await db.from('eft_pair_codes').delete().eq('owner_id', user.id);
+    await db.from('eft_pair_codes').delete().eq('owner_id', account.id);
     for (let attempt = 0; attempt < 5; attempt += 1) {
       const code = randomCode();
-      const { error } = await db.from('eft_pair_codes').insert({ code, owner_id: user.id, expires_at: new Date(Date.now() + 15 * 60000).toISOString() });
+      const { error } = await db.from('eft_pair_codes').insert({ code, owner_id:account.id, expires_at:new Date(Date.now() + 15 * 60000).toISOString() });
       if (!error) return { code };
       if (error.code !== '23505') throw error;
     }
@@ -218,19 +259,19 @@ async function handle(action: string, payload: Record<string, unknown>, user: { 
   }
 
   if (action === 'join_pair') {
+    await guardJoinAttempts(account.id);
     const code = String(payload.code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
     if (code.length !== 6) throw new RequestError('Введи код из 6 символов.');
-    const { data: invitation, error: invitationError } = await db.from('eft_pair_codes').select('owner_id, expires_at').eq('code', code).gt('expires_at', new Date().toISOString()).maybeSingle();
-    if (invitationError) throw invitationError;
+    const { data: invitation, error } = await db.from('eft_pair_codes').select('owner_id').eq('code', code).gt('expires_at', new Date().toISOString()).maybeSingle();
+    if (error) throw error;
     if (!invitation?.owner_id) throw new RequestError('Код неверный или уже истёк.', 404);
     const ownerId = String(invitation.owner_id);
-    if (ownerId === user.id) throw new RequestError('Этот код нужно ввести во втором аккаунте.');
-    const { error: profileError } = await db.from('eft_users').upsert({ telegram_id: user.id, display_name: user.firstName || 'Learner', username: user.username || null, updated_at: new Date().toISOString() }, { onConflict: 'telegram_id' });
-    if (profileError) throw profileError;
-    const { error: pairError } = await db.rpc('eft_pair_users', { p_owner_id: ownerId, p_joiner_id: user.id });
+    if (ownerId === account.id) throw new RequestError('Этот код нужно ввести во втором кабинете.');
+    const { error: pairError } = await db.rpc('eft_pair_users', { p_owner_id:ownerId, p_joiner_id:account.id });
     if (pairError) throw pairError;
-    await notify(ownerId, `✅ ${escapeHtml(user.firstName || 'Партнёр')} связал(а) кабинет с твоим English for Two.`);
-    return snapshot(user.id);
+    const { data: joiner } = await db.from('eft_users').select('display_name').eq('account_id', account.id).maybeSingle();
+    await notify(ownerId, `✅ ${escapeHtml(String(joiner?.display_name || 'Партнёр'))} связал(а) кабинет с твоим English for Two.`);
+    return snapshot(account.id);
   }
 
   if (action === 'create_request') {
@@ -239,50 +280,61 @@ async function handle(action: string, payload: Record<string, unknown>, user: { 
     const title = String(request.title || '').trim().slice(0, 60);
     const cost = Math.round(Number(request.cost));
     if (!/^[A-Za-z0-9:_-]{4,100}$/.test(id) || !title || !Number.isInteger(cost) || cost < 1 || cost > 10000) throw new RequestError('Некорректный запрос подарка.');
-    const partnerId = await pairFor(user.id);
-    const { data: requester } = await db.from('eft_users').select('display_name').eq('telegram_id', user.id).maybeSingle();
-    const { error } = await db.from('eft_gift_requests').insert({ id, requester_id: user.id, recipient_id: partnerId, title, cost });
-    if (error && error.code !== '23505') throw error;
-    await notify(partnerId, `🎁 <b>${escapeHtml(String(requester?.display_name || user.firstName || 'Партнёр'))}</b> накопил(а) $${cost} и хочет «${escapeHtml(title)}». Открой приложение, чтобы решить.`);
-    return { created: true, ...(await snapshot(user.id)) };
+    const partnerId = await pairFor(account.id);
+    const { data: requester, error: requesterError } = await db.from('eft_users').select('display_name, balance').eq('account_id', account.id).single();
+    if (requesterError) throw requesterError;
+    if (cost > Number(requester.balance || 0)) throw new RequestError('В общей копилке пока недостаточно баллов.', 409);
+    const { data: existing, error: existingError } = await db.from('eft_gift_requests').select('requester_id').eq('id', id).maybeSingle();
+    if (existingError) throw existingError;
+    if (existing && String(existing.requester_id) !== account.id) throw new RequestError('Такой запрос уже существует.', 409);
+    if (!existing) {
+      const { error } = await db.from('eft_gift_requests').insert({ id, requester_id:account.id, recipient_id:partnerId, title, cost });
+      if (error) throw error;
+      await notify(partnerId, `🎁 <b>${escapeHtml(String(requester.display_name || 'Партнёр'))}</b> накопил(а) $${cost} и хочет «${escapeHtml(title)}». Открой приложение, чтобы решить.`);
+    }
+    return { created:true, ...(await snapshot(account.id)) };
   }
 
   if (action === 'resolve_request') {
     const id = String(payload.id || '').slice(0, 100);
     const status = String(payload.status || '');
     if (!/^[A-Za-z0-9:_-]{4,100}$/.test(id) || !['approved', 'rejected'].includes(status)) throw new RequestError('Некорректное решение.');
-    const { data: gift, error: giftError } = await db.from('eft_gift_requests').select('id, title, requester_id, status').eq('id', id).eq('recipient_id', user.id).maybeSingle();
-    if (giftError) throw giftError;
+    const { data: gift, error } = await db.from('eft_gift_requests').select('id, title, requester_id, status').eq('id', id).eq('recipient_id', account.id).maybeSingle();
+    if (error) throw error;
     if (!gift) throw new RequestError('Запрос не найден.', 404);
     if (gift.status === 'pending') {
       const now = new Date().toISOString();
-      const { error } = await db.from('eft_gift_requests').update({ status, resolved_at: now, updated_at: now }).eq('id', id).eq('recipient_id', user.id).eq('status', 'pending');
-      if (error) throw error;
-      const verb = status === 'approved' ? 'согласован' : 'отклонён, баллы возвращены';
-      await notify(String(gift.requester_id), `🎁 Запрос «${escapeHtml(String(gift.title))}» ${verb}.`);
+      const { error: updateError } = await db.from('eft_gift_requests').update({ status, resolved_at:now, updated_at:now }).eq('id', id).eq('recipient_id', account.id).eq('status', 'pending');
+      if (updateError) throw updateError;
+      await notify(String(gift.requester_id), `🎁 Запрос «${escapeHtml(String(gift.title))}» ${status === 'approved' ? 'согласован' : 'отклонён, баллы возвращены'}.`);
     }
-    return { resolved: true, ...(await snapshot(user.id)) };
+    return { resolved:true, ...(await snapshot(account.id)) };
   }
 
   throw new RequestError('Неизвестное действие.', 404);
 }
 
 Deno.serve(async (request: Request) => {
-  const cors = headers(request);
-  if (!cors.allowed) return response(request, { ok: false, error: 'Недопустимый источник запроса.' }, 403);
-  if (request.method === 'OPTIONS') return response(request, { ok: true });
-  if (request.method !== 'POST') return response(request, { ok: false, error: 'Используй POST.' }, 405);
-  if (!databaseUrl || !databaseKey) return response(request, { ok: false, error: 'База синхронизации ещё не настроена.' }, 503);
+  const cors = corsHeaders(request);
+  if (!cors.allowed) return response(request, { ok:false, error:'Недопустимый источник запроса.' }, 403);
+  if (request.method === 'OPTIONS') return response(request, { ok:true });
+  if (request.method !== 'POST') return response(request, { ok:false, error:'Используй POST.' }, 405);
+  if (!databaseUrl || !databaseKey) return response(request, { ok:false, error:'База синхронизации ещё не настроена.' }, 503);
   try {
-    const user = await telegramUser(request);
-    const body = await request.json();
-    const action = String(body?.action || '');
-    const payload = body?.payload && typeof body.payload === 'object' ? body.payload : {};
-    const data = await handle(action, payload, user);
-    return response(request, { ok: true, ...data });
+    const contentLength = Number(request.headers.get('content-length') || 0);
+    if (contentLength > 50000) throw new RequestError('Запрос слишком большой.', 413);
+    const raw = await request.text();
+    if (raw.length > 50000) throw new RequestError('Запрос слишком большой.', 413);
+    let body: Record<string, unknown>;
+    try { body = JSON.parse(raw || '{}'); } catch { throw new RequestError('Некорректный JSON.'); }
+    const account = await authenticate(request);
+    const action = String(body.action || '');
+    const payload = body.payload && typeof body.payload === 'object' ? body.payload as Record<string, unknown> : {};
+    const data = await handle(action, payload, account);
+    return response(request, { ok:true, ...data });
   } catch (error) {
     const status = error instanceof RequestError ? error.status : 500;
     if (status >= 500) console.error(error);
-    return response(request, { ok: false, error: error instanceof RequestError ? error.message : 'Синхронизация временно недоступна.' }, status);
+    return response(request, { ok:false, error:error instanceof RequestError ? error.message : 'Синхронизация временно недоступна.' }, status);
   }
 });

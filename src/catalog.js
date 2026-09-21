@@ -3,7 +3,9 @@ import { B1_EXTRA, THIRD_EXAMPLES } from './content-extra.js';
 import { A2_EXTRA } from './content-a2.js';
 import { A2_BLOCK_2 } from './content-a2-2.js';
 import { B1_BLOCK_2 } from './content-b1-2.js';
+import { B2_BLOCK_100, C1_BLOCK_100 } from './content-advanced.js';
 import { PHRASE_VARIATIONS, PHRASE_VIDEO_REFS } from './enrichment.js';
+export { GRAMMAR_TASKS } from './grammar.js';
 
 const fromRow = (row, id, level, set = 'Everyday 100') => ({
   id,
@@ -36,7 +38,9 @@ export const PHRASES = [
   ...A2_EXTRA.map((row, index) => fromRow(row, `a2_${String(index + 1).padStart(3, '0')}`, 'A2')),
   ...B1_EXTRA.map((row, index) => fromRow(row, `b1_${String(index + 1).padStart(3, '0')}`, 'B1')),
   ...A2_BLOCK_2.map((row, index) => fromRow(row, `a2_${String(index + 101).padStart(3, '0')}`, 'A2', 'Everyday 200')),
-  ...B1_BLOCK_2.map((row, index) => fromRow(row, `b1_${String(index + 101).padStart(3, '0')}`, 'B1', 'Everyday 200'))
+  ...B1_BLOCK_2.map((row, index) => fromRow(row, `b1_${String(index + 101).padStart(3, '0')}`, 'B1', 'Everyday 200')),
+  ...B2_BLOCK_100.map((row, index) => fromRow(row, `b2_${String(index + 26).padStart(3, '0')}`, 'B2', 'Advanced 100')),
+  ...C1_BLOCK_100.map((row, index) => fromRow(row, `c1_${String(index + 21).padStart(3, '0')}`, 'C1', 'Advanced 100'))
 ];
 
 export const AVAILABLE_BY_LEVEL = Object.fromEntries(['A2', 'B1', 'B2', 'C1'].map(level => [level, PHRASES.filter(item => item.level === level).length]));
@@ -98,12 +102,39 @@ export const RULES = [
 
 export const LISTENING_LESSONS = [
   {
+    id:'listen-a2-briefing', level:'A2', title:'A morning briefing', source:'British Council',
+    url:'https://learnenglish.britishcouncil.org/free-resources/listening/a2/morning-briefing',
+    note:'A short workplace briefing about staff, parking and payments.',
+    questions:[
+      { prompt:'Where should staff park if they arrive after 8:30?', options:['At the church car park','On Brown Street','Behind the canteen'], answer:0 },
+      { prompt:'How can staff pay in the canteen?', options:['By smartphone or company ID card','Only with cash','Only by bank transfer'], answer:0 }
+    ]
+  },
+  {
     id:'listen-a2', level:'A2', title:'Changing a meeting time', source:'British Council',
     url:'https://learnenglish.britishcouncil.org/free-resources/listening/a2/changing-meeting-time',
     note:'A short practical conversation. Open the human recording, complete its preparation, then answer here.',
     questions:[
       { prompt:'What change does Lucy request?', options:['Move the meeting from eleven to nine','Move the meeting from nine to eleven','Cancel the meeting'], answer:0 },
       { prompt:'Why is the earlier time useful for Lucy?', options:['She has another important meeting later','She wants to leave the company','She has not prepared an agenda'], answer:0 }
+    ]
+  },
+  {
+    id:'listen-a2-message', level:'A2', title:'Leaving a message', source:'British Council',
+    url:'https://learnenglish.britishcouncil.org/free-resources/listening/a2/leaving-message',
+    note:'Listen for names, corrected numbers and the purpose of a phone message.',
+    questions:[
+      { prompt:'Why does Peter want Maria to call him back?', options:['He needs the new project figures','He wants to cancel lunch','He needs her home address'], answer:0 },
+      { prompt:'What is Maria doing when Peter calls?', options:['She is on her lunch break','She is in a meeting','She is working from home'], answer:0 }
+    ]
+  },
+  {
+    id:'listen-b1-call', level:'B1', title:'A phone call from a customer', source:'British Council',
+    url:'https://learnenglish.britishcouncil.org/free-resources/listening/b1/phone-call-customer',
+    note:'A customer negotiates a one-off change to payment terms.',
+    questions:[
+      { prompt:'What extension does Andrea request?', options:['From 30 to 60 days','From 60 to 90 days','From 15 to 30 days'], answer:0 },
+      { prompt:'Why does Junko finally agree?', options:['A new order should solve the cash-flow problem','The first order was damaged','Andrea offers to pay a fee'], answer:0 }
     ]
   },
   {
@@ -125,6 +156,24 @@ export const LISTENING_LESSONS = [
     ]
   },
   {
+    id:'listen-b1-balance', level:'B1', title:'Work–life balance', source:'British Council',
+    url:'https://learnenglish.britishcouncil.org/free-resources/listening/b1/work-life-balance',
+    note:'A radio interview contrasts fixed hours with flexible work.',
+    questions:[
+      { prompt:'What makes it easier to access work outside the office?', options:['Mobile phones and laptops','Shorter holidays','Paper calendars'], answer:0 },
+      { prompt:'What advantage of flexible work does Chris mention?', options:['People can choose different times and locations','Nobody needs to answer email','All overtime disappears'], answer:0 }
+    ]
+  },
+  {
+    id:'listen-b2-business', level:'B2', title:'A business interview', source:'British Council',
+    url:'https://learnenglish.britishcouncil.org/free-resources/listening/b2/business-interview',
+    note:'An entrepreneur explains the problem her tutoring app solves.',
+    questions:[
+      { prompt:'How does HomeworX make tutoring more accessible?', options:['It connects students with pre-approved tutors online','It replaces tutors with automated tests','It sends tutors to every student’s home'], answer:0 },
+      { prompt:'What does Anna plan after securing funding?', options:['Expand the range of services','Close the tutor database','Serve only one town'], answer:0 }
+    ]
+  },
+  {
     id:'listen-b2', level:'B2', title:'A digital detox podcast', source:'British Council',
     url:'https://learnenglish.britishcouncil.org/free-resources/listening/b2/digital-detox-podcast',
     note:'Listen for the speakers’ reasons, evidence, and contrasting opinions rather than every word.',
@@ -134,12 +183,39 @@ export const LISTENING_LESSONS = [
     ]
   },
   {
+    id:'listen-b2-motivation', level:'B2', title:'A talk about motivation', source:'British Council',
+    url:'https://learnenglish.britishcouncil.org/free-resources/listening/b2/talk-about-motivation',
+    note:'A talk examines why incentives affect simple and complex work differently.',
+    questions:[
+      { prompt:'What happened to the group offered a reward in Glucksberg’s experiment?', options:['They took longer to solve the problem','They finished three minutes faster','They refused to attempt it'], answer:0 },
+      { prompt:'What does the speaker recommend for creative work?', options:['Give workers freedom over how they work','Increase every financial reward','Use only strict fixed schedules'], answer:0 }
+    ]
+  },
+  {
+    id:'listen-c1-interview', level:'C1', title:'A job interview', source:'British Council',
+    url:'https://learnenglish.britishcouncil.org/free-resources/listening/c1/job-interview',
+    note:'Follow how a candidate frames experience, motivation and a possible weakness.',
+    questions:[
+      { prompt:'Why does Maria want to join the larger company?', options:['It gives her scope to specialise in learning and development','She wants to leave human resources','She wants a role without performance goals'], answer:0 },
+      { prompt:'What would success in the role require?', options:['Designing and implementing an L&D strategy','Reducing the HR team to one person','Replacing the performance system immediately'], answer:0 }
+    ]
+  },
+  {
     id:'listen-c1', level:'C1', title:'A project management meeting', source:'British Council',
     url:'https://learnenglish.britishcouncil.org/free-resources/listening/c1/project-management-meeting',
     note:'Focus on implied agreement, disagreement, priorities, and how speakers manage the meeting.',
     questions:[
       { prompt:'Who agrees to lead the customer questionnaire?', options:['Akiko','John','Matteo'], answer:0 },
       { prompt:'How does the team free Matteo’s time for the designs?', options:['Barbara temporarily helps with his regular work','They cancel the customer survey','John removes Matteo from the project'], answer:0 }
+    ]
+  },
+  {
+    id:'listen-c1-challenges', level:'C1', title:'Challenges at work', source:'British Council',
+    url:'https://learnenglish.britishcouncil.org/free-resources/listening/c1/challenges-work',
+    note:'Four speakers reflect on cultural assumptions, virtual teams, workload and travel disruption.',
+    questions:[
+      { prompt:'What helped the international virtual team work effectively?', options:['A written project charter with shared norms','Using four different project languages','Avoiding deadlines and meetings'], answer:0 },
+      { prompt:'How did the overloaded speaker regain control?', options:['By using SMART goals to prioritise or drop tasks','By accepting every target','By changing to a different airport'], answer:0 }
     ]
   }
 ];
