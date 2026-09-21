@@ -3,6 +3,7 @@ import { DAILY_GRAMMAR, examplesFor, guideFor } from './lesson-notes.js';
 import { dailyIeltsForLevel } from './daily-ielts.js';
 import { MEDIA_LESSONS } from './media-lessons.js';
 import { chooseTask, isDue, queueRecovery, settleRecovery, shuffle, studySlot } from './learning.js';
+import { normaliseSpeakingMode, quietRehearsalTask, quietMediaCandidates, mediaBlockHasNext } from './quiet-speaking.js';
 
 const cycle = ['phrase','grammar','phrase','Reading','phrase','media','phrase','collocation','phrase','grammar','phrase','Writing','phrase','order','phrase','Speaking'];
 const escapes = text => text.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
@@ -60,18 +61,30 @@ function mediaQuestion(block) {
   const question = block.lesson.questions[block.index];
   const id = `${block.lesson.id}:q${block.index}`;
   return {type:block.lesson.kind,category:block.lesson.kind,item:block.lesson,lesson:block.lesson,questionIndex:block.index,questionCount:block.lesson.questions.length,
-    progressId:id,key:id,prompt:question.prompt,answer:question.options[question.answer],options:shuffle(question.options),explanation:question.explanation,ru:question.ru,recovery:Boolean(block.recovery)};
+    progressId:id,key:id,prompt:question.prompt,answer:question.options[question.answer],options:shuffle(question.options),explanation:question.explanation,ru:question.ru,recovery:Boolean(block.recovery),quiet:Boolean(block.quiet)};
 }
-export function makeSession(level,minutes=15,lessonIndex=0,time=Date.now()) {
+function pickMedia(pool,progress,session,time) {
+  const last=lesson=>Math.max(0,...lesson.questions.map((_,index)=>progress[`${lesson.id}:q${index}`]?.l||0));
+  const due=lesson=>lesson.questions.some((_,index)=>{const p=progress[`${lesson.id}:q${index}`];return p&&isDue(p,time)&&p.lastWrong>(p.lastCorrect||0);});
+  return pool.filter(lesson=>!session.visits[lesson.id]).sort((a,b)=>Number(due(b))-Number(due(a))||last(a)-last(b)||Number(b.format==='vlog')-Number(a.format==='vlog'))[0];
+}
+export function replaceSpeakingWithVideo(base,progress,time=Date.now()) {
+  const lesson=pickMedia(quietMediaCandidates(base.level),progress,base,time);
+  if(!lesson)return null;
+  const mediaBlock={lesson,index:0,ready:false,quiet:true};
+  return {...base,speakingMode:'quiet',mediaBlock,mediaBlocks:(base.mediaBlocks||0)+1,task:mediaQuestion(mediaBlock),feedback:null,selected:null,
+    recent:[...(base.recent||[]),lesson.id].slice(-12),visits:{...base.visits,[lesson.id]:1},taskStartedRemaining:base.remainingMs};
+}
+export function makeSession(level,minutes=15,lessonIndex=0,time=Date.now(),speakingMode='quiet') {
   return {version:3,id:globalThis.crypto?.randomUUID?.() || `lesson-${time}-${Math.random().toString(36).slice(2)}`,level,minutes,lessonIndex,
-    slot:studySlot(time),startedAt:time,plannedMs:minutes*60000,remainingMs:minutes*60000,step:0,cycleStep:0,newCount:0,
+    speakingMode:normaliseSpeakingMode(speakingMode),slot:studySlot(time),startedAt:time,plannedMs:minutes*60000,remainingMs:minutes*60000,step:0,cycleStep:0,newCount:0,
     recent:[],visits:{},taskCounts:{},successByType:{},answers:0,correct:0,scoredAnswers:0,scoredCorrect:0,correctTaskKeys:[],
     unaidedCorrect:0,fastCorrect:0,recoveryQueue:[],recovered:0,dueSuccess:0,xp:0,mediaBlocks:0,done:false};
 }
 export function nextLessonTask(base,progress,time=Date.now()) {
   const session = {...base,now:time,visits:base.visits || {},recent:base.recent || [],feedback:null,selected:null,hintUsed:false};
   let task;
-  if(session.mediaBlock && session.mediaBlock.index < session.mediaBlock.lesson.questions.length) task = mediaQuestion(session.mediaBlock);
+  if(mediaBlockHasNext(session.mediaBlock)) task = session.mediaBlock.index < session.mediaBlock.lesson.questions.length ? mediaQuestion(session.mediaBlock) : quietRehearsalTask(session.mediaBlock);
   else {
     session.mediaBlock = null;
     const pool = PHRASES.filter(item=>item.level === session.level);
@@ -99,20 +112,20 @@ export function nextLessonTask(base,progress,time=Date.now()) {
     if(!task && category === 'media' && session.minutes >= 12 && session.mediaBlocks < 2 && session.remainingMs > 120000) {
       const kind = (session.lessonIndex + session.mediaBlocks) % 2 === 0 ? 'video' : 'listening';
       const mediaPool = MEDIA_LESSONS.filter(lesson=>lesson.level === session.level && lesson.kind === kind);
-      const lesson = [...mediaPool].sort((a,b)=>{
-        const wrongDue=media=>media.questions.some((_,index)=>{const p=progress[`${media.id}:q${index}`];return p && isDue(p,time) && p.lastWrong>(p.lastCorrect || 0);});
-        const last = media => Math.max(0,...media.questions.map((_,index)=>progress[`${media.id}:q${index}`]?.l || 0));
-        return Number(wrongDue(b))-Number(wrongDue(a)) || last(a)-last(b);
-      }).find(media=>!session.recent.includes(media.id)) || mediaPool[0];
-      if(lesson) { session.mediaBlock={lesson,index:0,ready:false};session.mediaBlocks++;task=mediaQuestion(session.mediaBlock); }
+      const lesson = pickMedia(mediaPool,progress,session,time);
+      if(lesson) { session.mediaBlock={lesson,index:0,ready:false,quiet:normaliseSpeakingMode(session.speakingMode)==='quiet'};session.mediaBlocks++;task=mediaQuestion(session.mediaBlock); }
     }
     if(!task && category === 'grammar') {
       const item = leastUsed(DAILY_GRAMMAR.filter(item=>item.level === session.level),progress,session);
       if(item) task=grammarTask(item);
     }
     if(!task && ['Reading','Writing','Speaking'].includes(category)) {
+      if(category==='Speaking'&&normaliseSpeakingMode(session.speakingMode)==='quiet'&&session.minutes>=12&&session.mediaBlocks<2&&session.remainingMs>150000) {
+        const lesson=pickMedia(quietMediaCandidates(session.level),progress,session,time);
+        if(lesson){session.mediaBlock={lesson,index:0,ready:false,quiet:true};session.mediaBlocks++;task=mediaQuestion(session.mediaBlock);}
+      }
       const item = leastUsed(dailyIeltsForLevel(session.level,category),progress,session);
-      if(item) task=ieltsTask(item);
+      if(item&&!task) task=ieltsTask(item);
     }
     if(!task && category === 'collocation') {
       const collocations = COLLOCATIONS.filter(item=>item.level === session.level);
