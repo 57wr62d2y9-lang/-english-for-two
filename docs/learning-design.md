@@ -8,7 +8,7 @@ This document records why the product behaves as it does. The app is for two rea
 2. **No daily lock.** Reaching the target is a success state, not a reason to stop. Extra practice remains available.
 3. **Activity is not mastery.** Practice XP gives immediate feedback. Course points require retained knowledge.
 4. **Recognition is only the beginning.** A phrase moves from meaning recognition to spoken recall and then contextual choice.
-5. **Translations are optional.** Russian stays hidden until requested and resets for every card.
+5. **Meaning is never hidden.** The Russian meaning is visible before practice; real-life examples show a cached Russian translation as well.
 6. **Grammar is a reference.** It does not appear as unrelated rule questions inside phrase sessions.
 7. **Rewards are earned slowly.** A quarter-route reward needs 100 verified units and a checkpoint, not repeated tapping.
 8. **Claims stay honest.** The 400-unit route is an internal curriculum target. Published content and planned content are shown separately, and neither is called an official CEFR certificate.
@@ -24,13 +24,14 @@ An item is course-verified when all of the following are true:
 - at least 30 days have passed since first exposure;
 - its current state has not been demoted by a later error.
 
-The “already know” button is useful for placement but cannot verify itself. It keeps the item out of routine practice until a 30-day control. A failed control returns it to learning.
+The “Очень хорошо знаю” button permanently removes the item from practice. It does not verify the unit and cannot award course points.
 
 ## Route and reward economics
 
 | Measure | Meaning |
 |---|---|
 | Practice XP | Immediate activity feedback; cannot be spent |
+| $1 routine credit | Once for a completed morning session and once for a completed evening session |
 | 10 course points | One currently verified knowledge unit |
 | 1,000 course points | 100 units, or 25% of a 400-unit route |
 | $100 gift credit | Awarded once after an 8/10 quarter checkpoint |
@@ -60,7 +61,8 @@ The design borrows principles, not proprietary content or visual copies.
 
 ## Technical boundaries
 
-- Each Telegram user has independent CloudStorage; the static app cannot read another learner’s balance.
+- Each Telegram user has independent CloudStorage; each learner therefore has a genuinely separate cabinet.
 - Sync is best effort and bounded by Telegram’s per-key storage limits. Progress uses 64 compact buckets per level.
-- The gift ledger is suitable for two people who trust each other. A real shared wallet, approvals, or tamper-proof rewards would require an authenticated backend.
+- Partner progress, reward requests, and decisions are exchanged by explicit Mini App links in Telegram. This keeps the system free but requires one send/open action from each person; it is not a tamper-proof financial ledger.
+- Example translations use MyMemory’s small anonymous free allowance and are cached on the phone. The authored phrase meaning remains available if that service is temporarily unreachable.
 - External listening remains on the publisher’s page, keeping human audio and source rights intact.

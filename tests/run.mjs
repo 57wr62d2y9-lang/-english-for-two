@@ -3,11 +3,14 @@ import { AVAILABLE_BY_LEVEL, PHRASES } from '../src/catalog.js';
 import {
   COURSE_SIZE,
   DAY,
+  addGoal,
   awardMilestone,
+  awardRoutine,
   balanceOf,
   checkpointCandidates,
   courseProgress,
   dayKey,
+  isDue,
   redeem,
   reviewItem
 } from '../src/learning.js';
@@ -69,16 +72,17 @@ test('verified mastery requires distinct days, context evidence and long retenti
   assert.ok(state.ctx >= 2);
 });
 
-test('self-reported knowledge stays mastered but receives no instant course credit', () => {
+test('very well known items leave practice forever and receive no course credit', () => {
   const start = Date.parse('2026-02-01T12:00:00Z');
   const known = reviewItem(undefined, 'known', start, 'known');
   assert.equal(known.item.s, 'MASTERED');
   assert.equal(known.item.v, false);
   assert.equal(known.xp, 0);
+  assert.equal(isDue(known.item, start + 3000 * DAY), false);
   const control = reviewItem(known.item, 'recall', start + 30 * DAY + 1000, 'control');
   assert.equal(control.item.s, 'MASTERED');
   assert.equal(control.item.v, false);
-  assert.equal(control.xp, 5);
+  assert.equal(control.xp, 0);
 });
 
 test('course points count verified knowledge, not clicks or practice XP', () => {
@@ -123,6 +127,26 @@ test('gift requests spend only earned virtual credit and are idempotent', () => 
   assert.deepEqual(same, wallet);
   const tooExpensive = redeem(wallet, { title: 'Trip', cost: 400 }, 'request-2', 4000);
   assert.deepEqual(tooExpensive, wallet);
+});
+
+test('one completed morning and evening session can each earn one gift dollar', () => {
+  const morning = Date.parse('2026-09-20T05:15:00Z');
+  const evening = Date.parse('2026-09-20T16:15:00Z');
+  const session = { plannedMs: 15 * 60000, spentSeconds: 12 * 60, answers: 5 };
+  let wallet = { earned:{}, spent:{}, goals:{}, incoming:{} };
+  wallet = awardRoutine(wallet, session, morning).wallet;
+  wallet = awardRoutine(wallet, session, morning + 1000).wallet;
+  wallet = awardRoutine(wallet, session, evening).wallet;
+  assert.equal(balanceOf(wallet), 2);
+  assert.equal(Object.keys(wallet.earned).length, 2);
+  assert.equal(awardRoutine(wallet, { ...session, spentSeconds: 60 }, evening + 1000).awarded, 0);
+});
+
+test('a learner can add a bounded personal reward goal', () => {
+  const wallet = addGoal({ earned:{}, spent:{}, goals:{}, incoming:{} }, 'Наушники', 40, 'goal-1', 1000);
+  assert.equal(wallet.goals['goal-1'].title, 'Наушники');
+  assert.equal(wallet.goals['goal-1'].cost, 40);
+  assert.equal(addGoal(wallet, '', 0, 'bad'), wallet);
 });
 
 test('compact cloud format round-trips defaults without undefined corruption', () => {

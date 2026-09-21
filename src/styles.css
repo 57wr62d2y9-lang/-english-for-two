@@ -24,6 +24,7 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 
 .splash { min-height: 100vh; display: grid; place-content: center; text-align: center; gap: 8px; font-size: 28px; font-weight: 850; color: var(--pink); }
 .splash small { font-size: 14px; font-weight: 600; color: var(--muted); }
+.splash img { width: 92px; height: 92px; margin: 0 auto 8px; border-radius: 30px; object-fit: cover; object-position: 52% 42%; box-shadow: 0 12px 35px #c5567c38; }
 .eyebrow { color: #938a92; font-size: 11px; line-height: 1.2; letter-spacing: 1.35px; font-weight: 850; }
 .brandbar { display: grid; grid-template-columns: 48px 1fr 46px; align-items: center; gap: 11px; min-height: 58px; margin-bottom: 16px; }
 .brandbar > div:nth-child(2) { min-width: 0; }
@@ -31,8 +32,12 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 .brandbar strong { font-size: 19px; line-height: 1.15; }
 .brandbar span { color: var(--muted); font-size: 12px; margin-top: 3px; }
 .brandmark { width: 46px; height: 46px; border-radius: 16px; display: grid; place-items: center; color: white; font-weight: 900; background: linear-gradient(145deg, #f05c93, #d92e74); box-shadow: 0 8px 22px #df397d35; }
+.brandmark.photo { object-fit: cover; object-position: 52% 42%; border: 2px solid #fff; box-shadow: 0 7px 22px #5f35451f; }
 .iconButton, .back { width: 44px; height: 44px; border: 1px solid var(--line); border-radius: 15px; background: white; color: #4f4750; font-size: 20px; }
 .notice { width: 100%; border: 1px solid #f3b6ce; border-radius: 15px; padding: 12px 14px; margin-bottom: 12px; text-align: left; color: #a42159; background: var(--pink-soft); }
+.profileLine { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: -4px 2px 12px; color: var(--muted); font-size: 11px; }
+.profileLine b { display: inline-grid; place-items: center; min-width: 32px; min-height: 25px; margin-right: 5px; border-radius: 9px; color: var(--pink-dark); background: var(--pink-soft); }
+.profileLine button { border: 0; padding: 5px 0; color: var(--pink-dark); background: transparent; font-weight: 750; }
 
 .levelStrip, .segmented { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; padding: 4px; border-radius: 16px; background: var(--soft); }
 .levelStrip { margin-bottom: 12px; }
@@ -64,6 +69,9 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 .big { width: 100%; margin-top: 12px; }
 .quietButton, .textButton { border: 0; background: transparent; color: var(--pink-dark); font-weight: 800; min-height: 44px; padding: 9px 4px; }
 .todayCard > small { display: block; color: #8a828a; line-height: 1.4; text-align: center; font-size: 11px; }
+.slotRow { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin: 13px 0 2px; }
+.slotRow span { padding: 9px 10px; border-radius: 12px; color: #7d7279; background: var(--soft); text-align: center; font-size: 11px; font-weight: 800; }
+.slotRow span.done { color: var(--green); background: var(--green-soft); }
 
 .routeCard { width: 100%; margin-bottom: 12px; text-align: left; color: var(--ink); }
 .routeHeader { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -79,6 +87,14 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 .quickStats span, .quickStats strong { display: block; }
 .quickStats span { color: var(--muted); font-size: 10px; }
 .quickStats strong { margin-top: 4px; font-size: 21px; }
+.partnerCard { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; padding: 14px 15px; border: 1px solid #f0d8e2; border-radius: 19px; background: #fffafd; }
+.partnerCard span, .partnerCard strong, .partnerCard small { display: block; }
+.partnerCard span { color: var(--pink-dark); font-size: 11px; font-weight: 850; }
+.partnerCard strong { margin-top: 2px; font-size: 18px; }
+.partnerCard small { margin-top: 3px; color: var(--muted); font-size: 10px; }
+.partnerCard button { min-height: 38px; padding: 7px 10px; border: 1px solid #edbfd1; border-radius: 12px; color: var(--pink-dark); background: white; font-size: 11px; font-weight: 800; }
+.referenceButton { width: 100%; min-height: 52px; display: flex; align-items: center; justify-content: space-between; padding: 12px 15px; border: 1px solid var(--line); border-radius: 17px; color: var(--ink); background: white; font-weight: 800; }
+.referenceButton b { color: var(--pink); font-size: 20px; }
 
 .menuList { display: grid; gap: 8px; }
 .menuButton { width: 100%; min-height: 70px; display: grid; grid-template-columns: 44px 1fr 20px; align-items: center; gap: 12px; padding: 11px 13px; text-align: left; color: var(--ink); border: 1px solid var(--line); border-radius: 19px; background: white; }
@@ -106,6 +122,11 @@ footer { display: flex; align-items: center; justify-content: center; gap: 7px; 
 .examples { display: grid; gap: 8px; margin: 10px 0 6px; }
 .examples > div, .exampleAfter { padding: 12px 14px; border-radius: 14px; background: var(--soft); line-height: 1.4; font-size: 14px; }
 .translation { padding: 12px 14px; margin: 2px 0 12px; border-radius: 14px; color: var(--green); background: var(--green-soft); }
+.mainTranslation { margin-top: 12px; font-size: 17px; font-weight: 800; line-height: 1.4; }
+.examplePair strong, .examplePair span { display: block; }
+.examplePair strong { font-size: 14px; line-height: 1.4; }
+.examplePair span { margin-top: 6px; padding-top: 6px; border-top: 1px solid #e7e1e5; color: #71686e; font-size: 12px; line-height: 1.4; }
+.dangerText { color: #8d5368; }
 .actions { margin-top: 18px; }
 .twoActions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
 .helper { display: block; margin-top: 10px; color: #8c848b; font-size: 10px; line-height: 1.35; }
@@ -126,6 +147,13 @@ footer { display: flex; align-items: center; justify-content: center; gap: 7px; 
 .finishIcon.retry { background: #a09099; }
 .finishCard h1 { margin: 8px 0; font-size: 42px; letter-spacing: -1px; }
 .finishCard p { margin: 0 0 16px; color: var(--muted); line-height: 1.45; }
+.rewardWon, .rewardHint { margin: 12px 0; padding: 12px 14px; border-radius: 14px; font-size: 12px; line-height: 1.4; }
+.rewardWon { color: var(--green); background: var(--green-soft); font-weight: 850; }
+.rewardHint { color: #786e74; background: var(--soft); }
+.audioLink { display: block; width: 100%; min-height: 50px; margin: 15px 0; padding: 14px; border-radius: 15px; color: white; background: var(--pink); text-align: center; text-decoration: none; font-weight: 850; }
+.listeningPrompt { margin: 12px 0; padding: 13px 14px; border-radius: 14px; background: var(--soft); }
+.listeningPrompt strong, .listeningPrompt span { display: block; font-size: 13px; line-height: 1.45; }
+.listeningPrompt span { margin-top: 6px; color: var(--green); }
 
 .courseHero { margin-bottom: 12px; background: linear-gradient(150deg, #fff, #fff4f8); }
 .courseHero h1 { margin: 7px 0 0; color: var(--pink-dark); font-size: 45px; letter-spacing: -1px; }
@@ -159,6 +187,21 @@ footer { display: flex; align-items: center; justify-content: center; gap: 7px; 
 .giftCard p { margin: 5px 0 0; color: var(--muted); font-size: 11px; line-height: 1.4; }
 .giftCard > span { color: var(--pink-dark); font-size: 23px; font-weight: 900; }
 .giftCard > button { grid-column: 1/-1; min-height: 43px; border: 0; border-radius: 13px; color: white; background: var(--pink); font-weight: 800; }
+.goalForm { margin-bottom: 12px; padding: 17px; border: 1px solid var(--line); border-radius: 20px; background: white; }
+.goalForm h2 { margin: 0; font-size: 19px; }
+.goalForm p { margin: 5px 0 12px; color: var(--muted); font-size: 11px; }
+.goalForm input { width: 100%; min-height: 48px; padding: 0 13px; border: 1px solid var(--line); border-radius: 13px; outline: none; font-size: 16px; }
+.goalForm > div { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 8px; }
+.goalForm > div button { min-width: 108px; }
+.goalBar { grid-column: 1/-1; height: 7px; overflow: hidden; border-radius: 99px; background: #f0ebef; }
+.goalBar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #f05491, var(--pink)); }
+.ideaBox { margin-top: 12px; border: 1px solid var(--line); border-radius: 18px; background: white; }
+.ideaBox summary { padding: 15px; color: var(--pink-dark); font-weight: 850; cursor: pointer; }
+.ideaBox .giftList { padding: 0 10px 10px; }
+.giftCard.compact { padding: 13px; }
+.incomingRequest { align-items: flex-start !important; flex-direction: column; }
+.incomingRequest > div { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.incomingRequest > div button { width: 100%; }
 .history { margin-top: 20px; }
 .history h2 { font-size: 18px; }
 .history > div { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--line); }
@@ -190,6 +233,10 @@ footer { display: flex; align-items: center; justify-content: center; gap: 7px; 
 .rulesList p { color: var(--muted); font-size: 12px; line-height: 1.5; }
 .rulesList em { display: block; margin-top: 6px; padding: 9px 10px; border-radius: 10px; background: var(--soft); font-style: normal; font-size: 12px; }
 .rulesList small { display: block; margin-top: 9px; color: #806b75; line-height: 1.4; }
+.rulesList .listeningPrompt { margin: 8px 0; }
+.ruleExample { margin-top: 8px; padding: 1px 9px 8px; border-radius: 12px; background: var(--soft); }
+.ruleExample em { background: transparent; padding: 8px 0 0; }
+.ruleExample .listeningPrompt { padding: 0; background: transparent; }
 .drillCard { margin-top: 12px; }
 .drillCard h2, .checkpointCard h2 { font-size: 25px; line-height: 1.25; }
 .listeningCard { padding: 17px; border: 1px solid var(--line); border-radius: 19px; }

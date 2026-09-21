@@ -1,6 +1,12 @@
 import { normaliseItem } from './learning.js';
 const tg = () => typeof window !== 'undefined' ? window.Telegram?.WebApp : null;
 export const inTelegram = () => Boolean(tg()?.initData && tg()?.initDataUnsafe?.user?.id);
+export const telegramProfile = () => {
+  const user = tg()?.initDataUnsafe?.user;
+  if (!user) return null;
+  return { id: String(user.id || ''), firstName: String(user.first_name || ''), username: String(user.username || '') };
+};
+export const startParameter = () => String(tg()?.initDataUnsafe?.start_param || new URLSearchParams(globalThis.location?.search || '').get('startapp') || '');
 const userId = () => inTelegram() ? String(tg().initDataUnsafe.user.id) : 'browser';
 const prefix = () => `eft3:${userId()}:`;
 const legacyPrefix = () => `eft2:${userId()}:`;
@@ -136,19 +142,33 @@ export function saveStats(stats) {
   return statsJob;
 }
 export async function loadWallet() {
-  const local = localRead(prefix()+'wallet') || { earned:{},spent:{} };
+  const local = { earned:{}, spent:{}, goals:{}, incoming:{}, partner:null, ...(localRead(prefix()+'wallet') || {}) };
   const keys = (await cloudCall('getKeys')).value || [];
   const relevant = keys.filter(k=>/^eft3_(earned|spent)_/.test(k)).slice(0,80);
   const remote = relevant.length ? await cloudCall('getItems',relevant) : {value:{}};
-  for (const value of Object.values(remote.value||{})) { const x=parse(value); if(['earned','spent'].includes(x?.kind) && x.id && x.data) local[x.kind][x.id] = x.data; }
+  for (const value of Object.values(remote.value||{})) {
+    const x=parse(value);
+    if (!['earned','spent'].includes(x?.kind) || !x.id || !x.data) continue;
+    const old = local[x.kind][x.id];
+    if (!old || (x.data.resolvedAt || x.data.at || 0) >= (old.resolvedAt || old.at || 0)) local[x.kind][x.id] = x.data;
+  }
+  const remoteMeta = parse((await cloudCall('getItem','eft3_wallet_meta')).value);
+  if (remoteMeta) {
+    local.goals = { ...(remoteMeta.goals || {}), ...(local.goals || {}) };
+    local.incoming = { ...(remoteMeta.incoming || {}), ...(local.incoming || {}) };
+    local.partner = choose(local.partner, remoteMeta.partner);
+  }
   localWrite(prefix()+'wallet',local); return local;
 }
 export async function saveWallet(wallet) {
-  const before = localRead(prefix()+'wallet') || {earned:{},spent:{}};
+  const before = localRead(prefix()+'wallet') || {earned:{},spent:{},goals:{},incoming:{},partner:null};
   localWrite(prefix()+'wallet',wallet);
-  for (const kind of ['earned','spent']) for (const [id,data] of Object.entries(wallet[kind])) {
-    if (before[kind]?.[id] && localRead(prefix()+`ack:${kind}:${id}`)) continue;
+  for (const kind of ['earned','spent']) for (const [id,data] of Object.entries(wallet[kind] || {})) {
+    const fingerprint = JSON.stringify(data);
+    if (before[kind]?.[id] && localRead(prefix()+`ack:${kind}:${id}`) === fingerprint) continue;
     const ok=await setRemote(`eft3_${kind}_${id.replaceAll(':','_')}`,{kind,id,data});
-    if(ok) localWrite(prefix()+`ack:${kind}:${id}`,true);
+    if(ok) localWrite(prefix()+`ack:${kind}:${id}`,fingerprint);
   }
+  const incoming = Object.fromEntries(Object.entries(wallet.incoming || {}).sort((a,b)=>(b[1].at||0)-(a[1].at||0)).slice(0,12));
+  await setRemote('eft3_wallet_meta',{ goals:wallet.goals||{}, incoming, partner:wallet.partner||null });
 }
