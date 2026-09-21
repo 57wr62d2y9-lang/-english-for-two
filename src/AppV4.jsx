@@ -84,7 +84,8 @@ function mixedTask(base, level, progress) {
   if (base.step < 2) return null;
   const counts = base.taskCounts || {};
   const grammarTarget = base.minutes >= 15 ? 2 : 1;
-  if ((counts.grammar || 0) < grammarTarget && base.step >= 3) {
+  const grammarWindow = (counts.grammar || 0) === 0 ? base.step >= 3 : base.step >= 8;
+  if ((counts.grammar || 0) < grammarTarget && grammarWindow) {
     const pool = availableGrammar(level);
     const item = leastRecentlyUsed(pool, progress, base.recentSpecial || []);
     if (item) return { type:'grammar', family:'grammar', progressId:item.id, item, answer:item.answer, options:shuffle(item.options) };
@@ -312,7 +313,7 @@ function App() {
   async function refreshCouple({ quiet = false } = {}) {
     if (!coupleSyncConfigured()) return null;
     if (!coupleSyncAvailable()) {
-      setCouple(current => ({ ...current, mode: 'telegram', error: 'Автоматическая связь работает только внутри Telegram.' }));
+      setCouple(current => ({ ...current, mode: 'telegram', error: 'Браузер не смог создать защищённый ключ кабинета.' }));
       return null;
     }
     if (coupleBusyRef.current) return null;
@@ -855,7 +856,7 @@ function RewardsScreen({ profileName, wallet, couple, ideas, onCreate, onRequest
     <details className="ideaBox"><summary>Идеи целей</summary><div className="giftList">{ideas.map(idea => <section className="giftCard compact" key={idea.id}><div><strong>{idea.title}</strong><p>{idea.detail}</p></div><span>${idea.cost}</span><button onClick={() => onCreate(idea.title, idea.cost)}>Добавить цель</button></section>)}</div></details>
     {incoming.length > 0 && <section className="history"><h2>Нужно согласовать</h2>{incoming.map(([id, entry]) => <div className="incomingRequest" key={id}><span><strong>{entry.from}: {entry.title} · ${entry.cost}</strong><small>{entry.status === 'pending' ? 'Ожидает твоего решения' : entry.status === 'approved' ? 'Согласовано' : 'Отклонено'}</small></span>{entry.status === 'pending' && <div><button onClick={() => onResolve(id,'approved')}>Да</button><button onClick={() => onResolve(id,'rejected')}>Нет</button></div>}</div>)}</section>}
     {history.length > 0 && <section className="history"><h2>Мои запросы</h2>{history.map(([id, entry]) => <div key={id}><span><strong>{entry.title} · ${entry.cost}</strong><small>{entry.status === 'approved' ? 'Согласовано' : entry.status === 'rejected' ? 'Отклонено, баллы возвращены' : entry.automatic ? 'Отправлено автоматически' : 'Отправь ссылку партнёру'}</small></span>{entry.status === 'pending' && !entry.automatic && <button onClick={() => onResend(id, entry)}>Отправить</button>}</div>)}</section>}
-    <div className="lockedNote">{couple.paired ? 'Кабинеты связаны: запросы и решения обновляются автоматически, а партнёру приходит сообщение в Telegram.' : 'Пока кабинеты не связаны, запрос передаётся бесплатной ссылкой через Telegram. Связать кабинеты можно в настройках.'}</div>
+    <div className="lockedNote">{couple.paired ? 'Кабинеты связаны: запросы и решения появляются у партнёра автоматически. Push-сообщения не требуются.' : 'Пока кабинеты не связаны, запрос передаётся бесплатной ссылкой через Telegram. Связать кабинеты можно в настройках.'}</div>
   </>;
 }
 
@@ -914,7 +915,7 @@ function SpeakingTimer({ part }) {
 
 function SettingsScreen({ settings, couple, onLevel, onChange, onCreatePairCode, onJoinPair, onRefreshPair }) {
   return <>
-    <section className="settingsCard"><label>Чей это кабинет</label><div className="segmented two">{['Artur','Anna'].map(name => <button key={name} className={settings.profileName === name ? 'active' : ''} onClick={() => onChange({profileName:name,partnerName:otherName(name)})}>{name}</button>)}</div><p>В Telegram прогресс всё равно привязан к личному аккаунту каждого человека.</p></section>
+    <section className="settingsCard"><label>Чей это кабинет</label><div className="segmented two">{['Artur','Anna'].map(name => <button key={name} className={settings.profileName === name ? 'active' : ''} onClick={() => onChange({profileName:name,partnerName:otherName(name)})}>{name}</button>)}</div><p>У каждого устройства свой защищённый кабинет; внутри Telegram его ключ сохраняется в личном CloudStorage.</p></section>
     {couple.mode !== 'off' && <PairingCard profileName={settings.profileName} partnerName={settings.partnerName} couple={couple} onCreate={onCreatePairCode} onJoin={onJoinPair} onRefresh={onRefreshPair} />}
     <section className="settingsCard"><label>Текущий маршрут</label><div className="segmented">{LEVELS.map(level => <button key={level} className={settings.level === level ? 'active' : ''} onClick={() => onLevel(level)}>{level}</button>)}</div></section>
     <section className="settingsCard"><label>Обычное занятие</label><div className="segmented two">{[5,15].map(minutes => <button key={minutes} className={settings.minutes === minutes ? 'active' : ''} onClick={() => onChange({minutes})}>{minutes} мин</button>)}</div></section>
