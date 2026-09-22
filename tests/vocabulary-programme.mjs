@@ -150,16 +150,16 @@ test('expanded progress round trips in bounded Telegram buckets',()=>{
     for(let n=0;n<64;n++)for(const chunk of progressChunks(Object.fromEntries(Object.entries(progress).filter(([id])=>hash(id)===n))))assert.ok(JSON.stringify(chunk).length<4096,level+' bucket '+n);
   }
 });
-test('vocabulary-only lessons can earn the normal top reward without any media or grammar',()=>{
+test('vocabulary-only lessons earn the fixed completion reward without any media or grammar',()=>{
   const {session}=study('B1',{},start,{answers:48});
   assert.ok(session.scoredAnswers>=12);
-  assert.equal(evaluateSessionReward({...session,spentSeconds:900}).amount,3);
+  assert.equal(evaluateSessionReward({...session,spentSeconds:900}).amount,1);
 });
 test('checkpoint and final use lexical evidence only, with no recordings',()=>{
   const pool=lexiconForLevel('B1'),progress=Object.fromEntries(pool.map(item=>[item.id,{s:'MASTERED',v:true}]));
   const tasks=buildCheckpoint(pool,progress,1);
   assert.equal(tasks.length,10);assert.ok(tasks.every(t=>!t.lesson && ['meaning','recognition','recall'].includes(t.type)));
-  const full=LEXICON.slice(0,400),all=Object.fromEntries(full.map(item=>[item.id,{s:'MASTERED',v:true}]));
+  const full=lexiconForLevel('A2'),all=Object.fromEntries(full.map(item=>[item.id,{s:'MASTERED',v:true}]));
   assert.equal(buildFinalCheck(full,all).length,20);
   assert.ok(courseProgress(full,all).percent<=100);
 });

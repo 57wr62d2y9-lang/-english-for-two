@@ -13,19 +13,19 @@ import { translationChunks, translateToRussian } from '../src/translation.js';
 let count=0;
 const test=async(name,fn)=>{await fn();count++;console.log(`✓ ${name}`);};
 const full={plannedMs:900000,spentSeconds:900,answers:10,correct:0,taskCounts:{grammar:5,ielts:5}};
-await test('effort earns $1 even when every checked answer was wrong',()=>{
+await test('completion earns $1 even when every checked answer was wrong',()=>{
   assert.equal(evaluateSessionReward(full).amount,1);
-  assert.equal(evaluateSessionReward({...full,spentSeconds:300,answers:3}).amount,1);
+  assert.equal(evaluateSessionReward({...full,spentSeconds:300,answers:3}).amount,0);
   assert.equal(evaluateSessionReward({...full,spentSeconds:299,answers:3}).amount,0);
   assert.equal(evaluateSessionReward({...full,answers:2}).amount,0);
   assert.equal(evaluateSessionReward({...full,answers:0}).amount,0);
 });
-await test('ordinary learning and improvement earn $2; a good unhurried lesson earns $3',()=>{
-  assert.equal(evaluateSessionReward({...full,answers:8,correct:4}).amount,2);
-  assert.equal(evaluateSessionReward({...full,answers:8,correct:3,recovered:2}).amount,2);
+await test('ordinary, improving and excellent completed lessons all earn $1',()=>{
+  assert.equal(evaluateSessionReward({...full,answers:8,correct:4}).amount,1);
+  assert.equal(evaluateSessionReward({...full,answers:8,correct:3,recovered:2}).amount,1);
   const good={...full,answers:12,correct:9,taskCounts:{grammar:4,context:4,ielts:4},correctTaskKeys:Array.from({length:9},(_,i)=>`unique-${i}`),unaidedCorrect:0,fastCorrect:0};
-  assert.equal(evaluateSessionReward(good).amount,3);
-  assert.equal(evaluateSessionReward({...good,correctTaskKeys:['same']}).amount,2);
+  assert.equal(evaluateSessionReward(good).amount,1);
+  assert.equal(evaluateSessionReward({...good,correctTaskKeys:['same']}).amount,1);
   assert.equal(evaluateSessionReward({...good,plannedMs:300000,spentSeconds:300}).amount,1);
 });
 await test('slow reading and mistakes still count as a completed lesson',()=>{

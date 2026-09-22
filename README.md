@@ -1,4 +1,30 @@
-# English for Two · 0.5.0
+# English for Two · 0.5.1
+
+## Fixed rewards (0.5.1)
+
+- $1 per completed morning lesson and $1 per completed evening lesson,
+  regardless of accuracy, hints or speed. The existing completion rule remains:
+  12 active minutes and five checked answers, or four minutes and three answers
+  for a short lesson. Incomplete practice is saved, but not paid as completion.
+- $5 per distinct passed checkpoint (8/10), with the original milestone IDs.
+- $100 once for completing the published A2 programme: all 306 lexical units
+  verified, checkpoints at 100/200/300, and a 16/20 final. Other levels retain
+  their existing final-verification targets; this release adds no new payout
+  for them. The gopher's 80 practice stages do not themselves award $100.
+- $10 for every non-overlapping block of 30 consecutive dates with **both**
+  lessons completed. A missed morning or evening resets the unfinished streak,
+  never a paid balance. Each day/slot counts once, across levels and lesson IDs.
+- Actual completed lesson history counts. Legacy payment-only imports are not
+  treated as proof: older $1 rewards could be earned for unfinished practice.
+  New payments explicitly record completion for safe new-device restoration.
+- Study dates use the existing Istanbul clock (UTC+3); morning is 04:00–14:00.
+  Same-day lessons retain their start slot. A draft resumed on a later date
+  counts on completion day and cannot backfill a missed day.
+- Existing $2/$3 lessons and $100 checkpoints are untouched, and retaking a
+  previously paid checkpoint cannot add a second payment. Completed streaks
+  reconcile idempotently on restore; claimed date ranges prevent overlap when
+  earlier lesson history is restored later. Wallet restore now reads all entries
+  in bounded batches instead of silently stopping at 80 records.
 
 ## Vocabulary-first lessons (0.5.0)
 
@@ -67,20 +93,17 @@ Private English practice for Artur and Anna: https://english-for-two.onrender.co
   The 80-stage practice goal does not itself certify a CEFR level.
 - Previous routine rewards migrate into the ledger once.
 - Paused lessons retain question, time and answers across reloads.
-- $1 for five active minutes and three checked answers, even with errors (four
-  minutes for a five-minute lesson). $2: 12 minutes, eight answers, two types,
-  >=50% accuracy OR two corrected mistakes. $3: 12 minutes, 12 answers,
-  >=75% accuracy, three types and eight different correctly answered tasks.
-  Hints and translations are allowed at every tier. No speed threshold.
+- Rewards follow the fixed 0.5.1 policy above. Errors and help are allowed.
 - Lesson ascent requires 80% of planned time and five checked answers in a full
   lesson / three in a short lesson. Learning mistakes do not cancel progress.
-- Five minutes caps at $1. One reward per morning/evening slot.
+- One $1 lesson reward per morning/evening slot.
   Speaking self-assessment does not count as a checked answer.
 - Vocabulary and Reading errors enter a bounded recovery queue after intervening
   tasks, with at most two immediate retries. Next-day scheduling retains errors.
   The existing reminder system is unchanged; no second scheduler is added.
 - Spaced mastery, checkpoints and final knowledge verification are separate from
-  the practice ascent. The planned 400 units per route are not all published.
+  the practice ascent. A2 uses its complete published curriculum; the planned
+  400 units for the higher-level routes are not all published yet.
 
 ## Couple and personal backups
 

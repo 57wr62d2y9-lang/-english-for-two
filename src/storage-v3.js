@@ -240,13 +240,17 @@ export function setLocalMeta(key,value) { return localWrite(prefix()+key,value);
 export async function loadWallet() {
   const local = { earned:{}, spent:{}, goals:{}, incoming:{}, partner:null, ...(localRead(prefix()+'wallet') || {}) };
   const keys = (await cloudCall('getKeys')).value || [];
-  const relevant = keys.filter(k=>/^eft3_(earned|spent)_/.test(k)).slice(0,80);
-  const remote = relevant.length ? await cloudCall('getItems',relevant) : {value:{}};
-  for (const value of Object.values(remote.value||{})) {
-    const x=parse(value);
-    if (!['earned','spent'].includes(x?.kind) || !x.id || !x.data) continue;
-    const old = local[x.kind][x.id];
-    if (!old || (x.data.resolvedAt || x.data.at || 0) >= (old.resolvedAt || old.at || 0)) local[x.kind][x.id] = x.data;
+  const relevant = keys.filter(k=>/^eft3_(earned|spent)_/.test(k));
+  // Two paid lessons a day exceed the old 80-entry cap in six weeks.
+  // Restore the whole wallet in bounded requests without dropping old credits.
+  for(let offset=0;offset<relevant.length;offset+=50) {
+    const remote=await cloudCall('getItems',relevant.slice(offset,offset+50));
+    for (const value of Object.values(remote.value||{})) {
+      const x=parse(value);
+      if (!['earned','spent'].includes(x?.kind) || !x.id || !x.data) continue;
+      const old = local[x.kind][x.id];
+      if (!old || (x.data.resolvedAt || x.data.at || 0) >= (old.resolvedAt || old.at || 0)) local[x.kind][x.id] = x.data;
+    }
   }
   const remoteMeta = parse((await cloudCall('getItem','eft3_wallet_meta')).value);
   if (remoteMeta) {

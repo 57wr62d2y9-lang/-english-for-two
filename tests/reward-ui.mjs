@@ -1,0 +1,40 @@
+import assert from 'node:assert/strict';
+import React from 'react';
+import {create,act} from 'react-test-renderer';
+import {createServer} from 'vite';
+import {lexiconForLevel} from '../src/lexicon.js';
+import {courseProgress,awardMilestone} from '../src/learning.js';
+
+const server=await createServer({server:{middlewareMode:true},appType:'custom'});
+globalThis.IS_REACT_ACT_ENVIRONMENT=true;
+const originalFetch=globalThis.fetch;let requests=0;
+globalThis.fetch=async()=>{requests++;throw new Error('Reward UI must not call production services');};
+try {
+  const {RewardRules,AttendanceCard,CheckRewardsSection}=await server.ssrLoadModule('/src/RewardOverview.jsx');
+  const {CheckScreen,Lesson}=await server.ssrLoadModule('/src/AppV5.jsx');
+  const h=React.createElement;let root;
+  const render=async(Component,props={})=>{if(root)await act(async()=>root.unmount());await act(async()=>{root=create(h(Component,props));});};
+  const text=()=>JSON.stringify(root.toJSON());
+  await render(RewardRules);assert.match(text(),/\$1 утром \+ \$1 вечером/);assert.match(text(),/\$5/);assert.match(text(),/\$100/);assert.match(text(),/\$10/);assert.doesNotMatch(text(),/Как заработать \$1, \$2 или \$3/);
+  const time=Date.parse('2026-09-22T12:00:00Z');
+  await render(AttendanceCard,{time,wallet:{earned:{}},stats:{lessons:{today:{completed:true,studyDay:'2026-09-22',slot:'morning'}}}});
+  assert.equal(root.root.findByType('progress').props.value,0);assert.match(text(),/готово ✓/);assert.match(text(),/ещё не завершено/);
+  const items=lexiconForLevel('A2'),progress=Object.fromEntries(items.map(i=>[i.id,{v:true,s:'MASTERED'}]));
+  let wallet={earned:{},spent:{}};const clicked=[];
+  const props={level:'A2',items,progress,path:courseProgress(items,progress),wallet,onCheck:q=>clicked.push(q)};
+  await render(CheckRewardsSection,props);
+  assert.equal(root.root.findAllByType('button').length,4);assert.equal(root.root.findAllByType('button').at(-1).props.disabled,true);
+  await act(async()=>root.root.findAllByType('button')[0].props.onClick());assert.deepEqual(clicked,[1]);
+  for(const q of [1,2,3])wallet=awardMilestone(wallet,'A2',q,8,306);
+  await render(CheckRewardsSection,{...props,wallet});
+  assert.equal(root.root.findAllByType('button').at(-1).props.disabled,false);assert.match(text(),/Завершить A2 · \+\$100/);assert.match(text(),/306/);
+  await render(CheckScreen,{value:{done:true,passed:true,score:16,tasks:Array(20).fill({}),quarter:0,level:'A2',awarded:100}});
+  assert.match(text(),/100/);assert.match(text(),/за завершение программы A2/);assert.equal(root.root.findAllByProps({role:'status'}).length,1);
+  await render(CheckScreen,{value:{done:true,passed:false,score:7,tasks:Array(10).fill({}),quarter:1,level:'A2',awarded:0}});
+  assert.equal(root.root.findAllByProps({role:'status'}).length,0);
+  await render(Lesson,{session:{done:true,level:'A2',correct:0,answers:5,climb:1,routineReward:1,attendanceReward:10,rewardReasons:['$1 за урок']},ascent:{steps:60,total:80,lessons:60,percent:75},onHome(){},onMore(){}});
+  assert.match(text(),/\+\$11/);assert.match(text(),/за 30 дней подряд/);
+  assert.match(JSON.stringify(root.root.findByProps({className:'resultSummary'}).findAllByType('strong').map(n=>n.children)),/\+\$11/);
+  await act(async()=>root.unmount());assert.equal(requests,0);
+  console.log('✓ reward UI: fixed rates, two-slot attendance, reachable A2, actual checkpoint payouts and $1 + $10 finish result');
+} finally {globalThis.fetch=originalFetch;await server.close();}

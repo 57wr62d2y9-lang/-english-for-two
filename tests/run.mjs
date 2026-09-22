@@ -161,7 +161,7 @@ test('a milestone needs 100 verified units and an 8/10 checkpoint', () => {
   let wallet = { earned: {}, spent: {} };
   assert.equal(awardMilestone(wallet, 'B1', 1, 7, 100), wallet);
   wallet = awardMilestone(wallet, 'B1', 1, 8, 100, 1000);
-  assert.equal(balanceOf(wallet), 100);
+  assert.equal(balanceOf(wallet), 5);
   const duplicate = awardMilestone(wallet, 'B1', 1, 10, 100, 2000);
   assert.deepEqual(duplicate, wallet);
 });
@@ -186,7 +186,7 @@ test('checkpoint measures several skills rather than one repeated choice format'
 });
 
 test('gift requests spend only earned virtual credit and are idempotent', () => {
-  let wallet = awardMilestone({ earned: {}, spent: {} }, 'B1', 1, 10, 100, 1000);
+  let wallet = {earned:{legacy:{amount:100,at:1000}},spent:{}};
   const gift = { title: 'A date together', cost: 50 };
   wallet = redeem(wallet, gift, 'request-1', 2000);
   assert.equal(balanceOf(wallet), 50);
@@ -209,20 +209,20 @@ test('one completed morning and evening session can each earn a one-time reward'
   assert.equal(awardRoutine(wallet, { ...session, spentSeconds: 60 }, evening + 1000).awarded, 0);
 });
 
-test('$1/$2/$3 rewards encourage learning; one repeated skill cannot earn the top bonus', () => {
+test('completed lessons earn exactly $1 with any accuracy, hint use or speed', () => {
   const base = { plannedMs:15*60000, spentSeconds:15*60, answers:45 };
   const farming = evaluateSessionReward({ ...base, correct:45, taskCounts:{recognition:45}, successByType:{recognition:45}, dueSuccess:0 });
   assert.equal(farming.amount, 1);
   const strong = evaluateSessionReward({ ...base, answers:8,correct:4, taskCounts:{context:4,grammar:4},correctTaskKeys:['one','two','three','four'] });
-  assert.equal(strong.amount, 2);
+  assert.equal(strong.amount, 1);
   const excellentInput = { ...base, correct:45, taskCounts:{recognition:8,context:8,recall:8,listening:6,grammar:9,ielts:6}, successByType:{recognition:8,context:8,recall:8,listening:6,grammar:9,ielts:6}, correctTaskKeys:Array.from({length:45},(_,i)=>`key-${i}`),unaidedCorrect:45,fastCorrect:30 };
   const excellent = evaluateSessionReward(excellentInput);
-  assert.equal(excellent.amount, 3);
+  assert.equal(excellent.amount, 1);
   const short = evaluateSessionReward({ ...excellentInput, plannedMs:5*60000, spentSeconds:5*60 });
   assert.equal(short.amount, 1);
-  assert.equal(evaluateSessionReward({...excellentInput,correct:30}).amount,2);
-  assert.equal(evaluateSessionReward({...excellentInput,unaidedCorrect:0}).amount,3);
-  assert.equal(evaluateSessionReward({...excellentInput,fastCorrect:0}).amount,3);
+  assert.equal(evaluateSessionReward({...excellentInput,correct:30}).amount,1);
+  assert.equal(evaluateSessionReward({...excellentInput,unaidedCorrect:0}).amount,1);
+  assert.equal(evaluateSessionReward({...excellentInput,fastCorrect:0}).amount,1);
 });
 
 test('collocations are level-aware and keep independent SRS records', () => {
@@ -311,7 +311,7 @@ test('final level check stays locked until 400 verified units and all milestones
   assert.equal(finalLevelReady(items, progress, wallet, 'B1'), true);
   assert.equal(buildFinalCheck(items, progress, COLLOCATIONS, LISTENING_LESSONS, GRAMMAR_TASKS, 'B1').length, 20);
   assert.equal(awardLevelCompletion(wallet, 'B1', 15, 20), wallet);
-  const completed = awardLevelCompletion(wallet, 'B1', 16, 20, 1000);
+  const completed = awardLevelCompletion(wallet, 'B1', 16, 20, 1000, 400);
   assert.equal(completed.earned['route-2026-1:B1:complete'].score, 16);
 });
 

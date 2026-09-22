@@ -1,4 +1,4 @@
-import {checkpointCandidates,shuffle} from './learning.js';
+import {checkpointCandidates,levelTarget,shuffle} from './learning.js';
 import {examplesFor} from './lesson-notes.js';
 import {progressFor} from './lexicon.js';
 
@@ -16,8 +16,11 @@ export function buildCheckpoint(items,progress,quarter) {
   const candidates=checkpointCandidates(items,progress,quarter);
   return candidates.length===10?candidates.map((item,index)=>vocabularyTask(item,items,index)):[];
 }
-export function buildFinalCheck(items,progress) {
-  const candidates=shuffle(items.filter(item=>{const p=progressFor(item,progress);return p?.v && p.s==='MASTERED' && item.cloze;}));
-  if(candidates.length<400)return [];
-  return candidates.slice(0,20).map((item,index)=>vocabularyTask(item,items,index));
+export function buildFinalCheck(items,progress,level=items[0]?.level) {
+  // Old callers passed unrelated banks as the third argument.
+  if(typeof level!=='string')level=items[0]?.level;
+  const pool=items.filter(item=>item.level===level);
+  const candidates=shuffle(pool.filter(item=>{const p=progressFor(item,progress);return p?.v && p.s==='MASTERED' && item.cloze;}));
+  if(candidates.length<levelTarget(level))return [];
+  return candidates.slice(0,20).map((item,index)=>vocabularyTask(item,pool,index));
 }

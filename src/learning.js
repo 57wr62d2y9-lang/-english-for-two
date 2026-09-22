@@ -1,4 +1,4 @@
-import { progressFor } from './lexicon.js';
+import { lexiconForLevel, progressFor } from './lexicon.js';
 export const DAY = 86400000;
 export const LEVELS = ['A2', 'B1', 'B2', 'C1'];
 export const COURSE_SIZE = 400;
@@ -164,70 +164,66 @@ export function newItemLimit(session = {}) {
   if (Number(session.minutes) <= 5) return 4;
   return ({gentle:8,normal:12,more:16})[session.vocabPace] || 12;
 }
-export function courseProgress(items, progress) {
+// A2 graduation covers the entire published programme, not unavailable cards.
+export const levelTarget = level => level === 'A2' ? lexiconForLevel('A2').length : COURSE_SIZE;
+export const checkpointQuarters = level => Array.from({length:Math.floor(levelTarget(level)/100)},(_,index)=>index+1);
+export function courseProgress(items, progress, level = items[0]?.level) {
   const current = items.filter(x => {const p=progressFor(x,progress);return p?.v && p.s === 'MASTERED';});
   const learned = items.filter(x => {const p=progressFor(x,progress);return p && p.s !== 'NEW';});
-  return { verified: current.length, introduced: learned.length, available: items.length, total: COURSE_SIZE, points: current.length * 10, targetPoints: COURSE_SIZE * 10, percent: Math.min(100,Math.floor(current.length / COURSE_SIZE * 100)) };
+  const total=levelTarget(level);
+  return { verified: current.length, introduced: learned.length, available: items.length, total, points: current.length * 10, targetPoints: total * 10, percent: Math.min(100,Math.floor(current.length / total * 100)) };
 }
 export function checkpointCandidates(items, progress, quarter) {
+  if (!Number.isInteger(quarter) || quarter < 1 || quarter > 4) return [];
   const eligible = items.filter(x => {const p=progressFor(x,progress);return p?.v && p.s === 'MASTERED' && x.cloze;});
   return eligible.length >= quarter * 100 ? shuffle(eligible).slice(0, 10) : [];
 }
 export function awardMilestone(wallet, level, quarter, score, verified, time = Date.now()) {
   const id = `${COURSE_VERSION}:${level}:${quarter}`;
-  if (quarter < 1 || quarter > 4 || score < 8 || verified < quarter * 100 || wallet.earned?.[id]) return wallet;
-  return { ...wallet, earned: { ...wallet.earned, [id]: { at: time, level, quarter, amount: 100, score } } };
+  if (!LEVELS.includes(level) || !checkpointQuarters(level).includes(quarter) || !Number.isInteger(score) || score < 8 || score > 10 || !Number.isFinite(verified) || verified < quarter * 100 || wallet.earned?.[id]) return wallet;
+  return { ...wallet, earned: { ...wallet.earned, [id]: { at: time, level, quarter, amount: 5, kind:'checkpoint', score } } };
 }
 export function levelCompletionId(level) {
   return `${COURSE_VERSION}:${level}:complete`;
 }
 export function finalLevelReady(items, progress, wallet, level) {
-  const route = courseProgress(items, progress);
-  const milestones = [1, 2, 3, 4].every(quarter => Boolean(wallet?.earned?.[`${COURSE_VERSION}:${level}:${quarter}`]));
-  return items.length >= COURSE_SIZE && route.verified >= COURSE_SIZE && milestones;
+  const pool=items.filter(item=>item.level===level),route = courseProgress(pool, progress, level);
+  const milestones = checkpointQuarters(level).every(quarter => Boolean(wallet?.earned?.[`${COURSE_VERSION}:${level}:${quarter}`]));
+  return LEVELS.includes(level) && pool.length >= route.total && route.verified >= route.total && milestones;
 }
-export function awardLevelCompletion(wallet, level, score, total = 20, time = Date.now()) {
+export function awardLevelCompletion(wallet, level, score, total = 20, time = Date.now(), verified = 0) {
   const id = levelCompletionId(level);
-  if (total < 1 || score / total < .8 || wallet.earned?.[id]) return wallet;
+  const milestones=checkpointQuarters(level).every(quarter=>Boolean(wallet.earned?.[`${COURSE_VERSION}:${level}:${quarter}`]));
+  if (!LEVELS.includes(level) || total !== 20 || !Number.isInteger(score) || score < 16 || score > total || !Number.isFinite(verified) || verified < levelTarget(level) || !milestones || wallet.earned?.[id]) return wallet;
   return {
     ...wallet,
-    earned: { ...wallet.earned, [id]: { at: time, level, amount: 0, kind: 'level-completion', score, total } }
+    earned: { ...wallet.earned, [id]: { at: time, level, amount: level === 'A2' ? 100 : 0, kind: 'level-completion', score, total } }
   };
 }
 export function routineRewardId(time = Date.now()) {
   return `routine:${dayKey(time)}:${studySlot(time)}`;
 }
+export function lessonStudyTime(session, finishedAt = Date.now()) {
+  const start=Number(session.startedAt);
+  // A draft resumed on another date cannot fill a missed day retroactively.
+  return Number.isFinite(start) && start > 0 && start <= finishedAt && dayKey(start) === dayKey(finishedAt) ? start : finishedAt;
+}
 export function sessionCompletion(session = {}) {
   const plannedSeconds = Math.max(60, Number(session.plannedMs || 900000) / 1000);
   const answers = Math.max(0, Number(session.scoredAnswers ?? session.answers ?? 0));
   const minAnswers = plannedSeconds <= 330 ? 3 : 5;
-  return { completed:Number(session.spentSeconds || 0) >= plannedSeconds * .8 && answers >= minAnswers, plannedSeconds, minAnswers };
+  const spent=Number(session.spentSeconds || 0);
+  return { completed:Number.isFinite(plannedSeconds) && Number.isFinite(spent) && Number.isFinite(answers) && spent >= plannedSeconds * .8 && answers >= minAnswers, plannedSeconds, minAnswers };
 }
 export function evaluateSessionReward(session = {}) {
-  const {completed,plannedSeconds}=sessionCompletion(session);
-  const spentSeconds = Math.max(0, Number(session.spentSeconds || 0));
+  const {completed,plannedSeconds,minAnswers}=sessionCompletion(session);
   const answers = Math.max(0, Number(session.scoredAnswers ?? session.answers ?? 0));
   const correct = Math.max(0, Number(session.scoredCorrect ?? session.correct ?? 0));
   const accuracy = answers ? correct / answers : 0;
   const counts = session.taskCounts || {};
   const diversity = Object.values(counts).filter(value => Number(value) > 0).length;
-  const minutes = plannedSeconds / 60;
-  const unique = new Set(session.correctTaskKeys || []).size;
-  // Reward learning, not exam performance. Reading explanations and using
-  // hints are useful study. Mistakes never cancel this effort reward.
-  const effort = spentSeconds >= Math.min(300, plannedSeconds * .8) && answers >= 3;
-  if (!effort) return { amount:0, accuracy, diversity, reasons:[`Для $1 позанимайся хотя бы ${minutes <= 5.5 ? 4 : 5} минут и ответь на 3 задания. Ошибки и подсказки разрешены.`] };
-  let amount = 1;
-  const reasons = ['Награда за работу над английским — даже с ошибками'];
-  if (minutes >= 12 && completed && answers >= 8 && diversity >= 2 && (accuracy >= .5 || Number(session.recovered || 0) >= 2)) {
-    amount = 2;
-    reasons.push(accuracy >= .5 ? 'Не менее половины ответов верны' : 'Ты исправил ошибки в повторных заданиях');
-  }
-  if (minutes >= 12 && completed && answers >= 12 && accuracy >= .75 && diversity >= 3 && unique >= 8) {
-    amount = 3;
-    reasons.push('12 ответов, точность от 75% и разные навыки — отличный урок');
-  }
-  return { amount, accuracy, diversity, reasons };
+  if (!completed) return { amount:0, accuracy, diversity, reasons:[`Для завершения урока нужно ${Math.ceil(plannedSeconds*.8/60)} минут практики и ${minAnswers} проверяемых ответа. Ошибки и подсказки разрешены.`] };
+  return { amount:1, accuracy, diversity, reasons:['$1 за завершённый урок. Ошибки, подсказки и скорость ответов не уменьшают награду.'] };
 }
 export function awardRoutine(wallet, session, time = Date.now()) {
   const id = routineRewardId(time);
@@ -237,7 +233,7 @@ export function awardRoutine(wallet, session, time = Date.now()) {
     ...wallet,
     earned: {
       ...wallet.earned,
-      [id]: { at: time, amount: evaluation.amount, kind: 'routine', slot: studySlot(time), day: dayKey(time), reasons: evaluation.reasons }
+      [id]: { at: time, amount: evaluation.amount, kind: 'routine', completed:true, slot: studySlot(time), day: dayKey(time), reasons: evaluation.reasons }
     }
   };
   return { wallet: next, awarded: evaluation.amount, slot: studySlot(time), evaluation };
@@ -247,7 +243,8 @@ export const ROUTE_LESSONS = 80;
 export function lessonRecord(session, level, time = Date.now()) {
   const seconds = Math.max(0, Number(session.spentSeconds || 0));
   const {completed,plannedSeconds} = sessionCompletion(session);
-  return { id:session.id, level, at:time, seconds, answers:session.answers || 0, correct:session.correct || 0, completed, climb:completed ? Math.min(1, plannedSeconds / 900) : 0, reward:session.routineReward || 0 };
+  const studiedAt=lessonStudyTime(session,time);
+  return { id:session.id, level, at:time, studyDay:dayKey(studiedAt), slot:studySlot(studiedAt), seconds, answers:session.answers || 0, correct:session.correct || 0, completed, climb:completed ? Math.min(1, plannedSeconds / 900) : 0, reward:session.routineReward || 0 };
 }
 export function ascentProgress(stats, level) {
   const lessons = Object.values(stats?.lessons || {}).filter(record => record.level === level && record.completed);

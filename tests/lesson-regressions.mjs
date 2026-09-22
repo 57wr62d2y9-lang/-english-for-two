@@ -78,6 +78,6 @@ test('equal-time updates retain the larger answer history',()=>{const merged=mer
 test('introductions are not auto-scored; hints support learning without cancelling rewards',()=>{
   const {session}=simulate('B1');assert.ok(session.scoredAnswers<65);
   const assisted={plannedMs:900000,spentSeconds:900,answers:50,correct:50,taskCounts:{recall:10,context:10,grammar:10,ielts:10,listening:5,order:5},successByType:{recall:10,context:10,grammar:10,ielts:10,listening:5,order:5},correctTaskKeys:Array.from({length:50},(_,i)=>String(i)),unaidedCorrect:0,fastCorrect:0};
-  assert.equal(evaluateSessionReward(assisted).amount,3);assert.equal(evaluateSessionReward({...assisted,correct:20}).amount,1);
+  assert.equal(evaluateSessionReward(assisted).amount,1);assert.equal(evaluateSessionReward({...assisted,correct:20}).amount,1);
 });
 console.log(`${count} lesson regression checks passed.`);
