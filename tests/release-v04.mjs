@@ -6,7 +6,7 @@ import { DAILY_IELTS } from '../src/daily-ielts.js';
 import { MEDIA_LESSONS } from '../src/media-lessons.js';
 import { grammarDetail, translationTarget, CONDITIONAL_TYPES, ruleResource } from '../src/task-support.js';
 import { evaluateSessionReward, lessonRecord, reviewItem, DAY } from '../src/learning.js';
-import { makeSession, nextLessonTask, applySessionEvidence } from '../src/lesson-engine.js';
+import { makeSession, nextLessonTask, applySessionEvidence, extendVocabularySession } from '../src/lesson-engine.js';
 import { backupRecords, mergeBackup } from '../src/private-backup.js';
 import { translationChunks, translateToRussian } from '../src/translation.js';
 
@@ -64,7 +64,7 @@ await test('translation follows the visible sentence or phrase, not a hidden exa
 function runWithMistake(family) {
   const time=Date.parse('2026-09-21T06:00:00Z');let session=makeSession('B1',15,0,time),progress={},failed=null,repeated=null,after=[];
   for(let i=0;i<65;i++) {
-    session=nextLessonTask(session,progress,time+i*3000);assert.ok(!session.exhausted);
+    session=nextLessonTask(session,progress,time+i*3000);if(session.exhausted)session=nextLessonTask(extendVocabularySession(session),progress,time+i*3000);assert.ok(!session.exhausted);
     const task=session.task;
     if(failed)after.push(task);
     if(task.type==='intro'){progress[task.progressId]=reviewItem(progress[task.progressId],'intro',time+i*3000).item;continue;}
@@ -79,26 +79,20 @@ function runWithMistake(family) {
   }
   return {session,failed,repeated,progress,after};
 }
-await test('grammar, Reading and collocation errors return after intervening tasks',()=>{
-  for(const family of ['grammar','Reading','collocation']) {
+await test('vocabulary and Reading errors return after intervening tasks',()=>{
+  for(const family of ['recognition','context','Reading']) {
     const {session,failed,repeated}=runWithMistake(family);
     assert.ok(failed,family);assert.ok(repeated,`${family} never returned`);
     assert.ok(repeated.step>=failed.step+6,family);assert.equal(repeated.task.progressId,failed.id);
     assert.ok(!session.recoveryQueue.some(entry=>entry.id===failed.id));assert.ok(session.recovered>=1);
   }
 });
-await test('media mistakes replay the recording as a complete block, never a detached question',()=>{
-  const {failed,repeated,after}=runWithMistake('video');assert.ok(failed&&repeated);
-  const replay=after.filter(t=>t.lesson?.id===failed.task.lesson.id&&t.recovery);
-  assert.equal(replay[0].questionIndex,0);assert.equal(replay[0].questionCount,3);
-});
-await test('due grammar and Reading mistakes have priority in a later lesson',()=>{
+await test('old media and grammar progress remains stored but is never scheduled',()=>{
   const now=Date.parse('2026-09-22T06:00:00Z');
-  for(const [task,cycleStep] of [[DAILY_GRAMMAR.find(t=>t.id==='daily-B1-conditional-1'),1],[DAILY_IELTS.find(t=>t.id==='ielts-B1-travel-1'),3]]){
-    const progress={[task.id]:reviewItem(undefined,'wrong',now-DAY-1).item};
-    const next=nextLessonTask({...makeSession('B1',15,1,now),cycleStep},progress,now);
-    assert.equal(next.task.progressId,task.id);
-  }
+  const progress={'daily-B1-conditional-1':reviewItem(undefined,'wrong',now-DAY-1).item,'media-B1:q0':reviewItem(undefined,'wrong',now-DAY-1).item};
+  const copy=JSON.stringify(progress);
+  const next=nextLessonTask({...makeSession('B1',15,1,now),cycleStep:5},progress,now);
+  assert.equal(next.task.type,'intro');assert.equal(JSON.stringify(progress),copy);
 });
 await test('recovery state survives a save and each error gets at most two retries',()=>{
   const now=Date.now(),item=DAILY_GRAMMAR.find(t=>t.id==='daily-B1-conditional-1');

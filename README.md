@@ -1,4 +1,22 @@
-# English for Two · 0.4.2
+# English for Two · 0.5.0
+
+## Vocabulary-first lessons (0.5.0)
+
+- Removed external videos/audio and stand-alone grammar quizzes from daily
+  lessons and checkpoints. Optional device pronunciation never blocks a task.
+- Added 400 original word cards (100 per level), each with a Russian usage note
+  and two independently translated situations. Existing phrase IDs are retained.
+- 1,012 distinct headwords/expressions overall, not multiplied by examples.
+  Level pools: A2 306, B1 311, B2 205, C1 204; some cross-level headwords cover
+  different senses. Duplicate legacy cards are aliases, not false introductions.
+- Both daily slots mix fresh material, due reviews and within-session practice.
+  Recognition success leaves the due queue. Future reviews are not used as filler.
+- Choose up to 8, 12 (default) or 16 new units per ordinary lesson; up to 4 in a
+  five-minute lesson. An explicit extra-batch button adds more when ready.
+- Vocabulary progress separates introduced, written recall, long retention,
+  unseen and due counts. The catalogue is not a native-level vocabulary promise.
+- Old paused tasks migrate without losing identity, time or answers. Telegram
+  keeps legacy bucket addresses and uses bounded overflow parts when needed.
 
 ## Tap-to-translate (0.4.2)
 
@@ -30,27 +48,16 @@ Private English practice for Artur and Anna: https://english-for-two.onrender.co
 
 ## Daily lessons
 
-- 600 stable-ID phrases: A2 200, B1 200, B2 100, C1 100.
-- Strict level-specific task pools, typed recall, sentence ordering, contextual
-  choice, collocations and 56 authored grammar questions.
-- 44 original IELTS Reading/Writing/Speaking tasks integrated into daily lessons.
-  A2 builds foundation skills; no CEFR-to-IELTS band equivalence is claimed.
-- 13 British Council recordings and 8 dedicated teaching videos. Every recording
-  is followed by three questions in one uninterrupted block. C1 video questions
-  assess inference/discourse and explicitly disclose the B2 source level.
-- Exact phrase pronunciation uses device speech synthesis. Generic long-video
-  links are absent from the lesson interface.
-- All 56 daily grammar questions have sentence-specific Russian translations
-  and reasoning. Conditional help includes zero, first, second, third and mixed
-  types, with an explicit live/lived and will/would contrast.
-- Reading translations cover the full passage (12 authored offline translations),
-  not the question heading. IELTS hints use a skill strategy, not generic phrase advice.
-- Relevant grammar help links to verified public Russian Englex resources.
-  Rule explanations in this repository are original, not copied article text.
-- Bilingual rules include construction, explanation and example. “It depends”
-  has 12 distinct translated contexts. Additional sentence translations are
-  available on demand.
-- Task fingerprints do not repeat in a normal session; phrase examples rotate.
+- New units show meaning, usage and life examples before scored practice.
+- Recognition, meaning in context, cloze choice, typed recall and sentence
+  assembly exercise vocabulary in different ways. Examples rotate by encounters.
+- Occasional short, level-specific IELTS Reading remains integrated. Russian
+  translations cover passages, not their question headings.
+- Grammar and all five conditional explanations remain optional, closed help.
+- All added headwords have offline word-tap translations and usage notes.
+  Unknown surrounding words can use the existing translator on demand.
+- Legacy media/grammar files remain in the repository for history, but external
+  media is not imported by the active lesson/checkpoint programme.
 
 ## Progress and rewards
 
@@ -69,11 +76,9 @@ Private English practice for Artur and Anna: https://english-for-two.onrender.co
   lesson / three in a short lesson. Learning mistakes do not cancel progress.
 - Five minutes caps at $1. One reward per morning/evening slot.
   Speaking self-assessment does not count as a checked answer.
-- Errors in phrases, grammar, collocations, Reading/Writing and media enter a
-  bounded recovery queue (after five intervening tasks; at most two retries).
-  Media replays retain a complete three-question block. Due errors are prioritised
-  in subsequent lessons. Closed-app delivery still uses the existing reminder
-  system; the learning queue itself is not a second notification scheduler.
+- Vocabulary and Reading errors enter a bounded recovery queue after intervening
+  tasks, with at most two immediate retries. Next-day scheduling retains errors.
+  The existing reminder system is unchanged; no second scheduler is added.
 - Spaced mastery, checkpoints and final knowledge verification are separate from
   the practice ascent. The planned 400 units per route are not all published.
 
@@ -92,20 +97,11 @@ Private English practice for Artur and Anna: https://english-for-two.onrender.co
 - UUID + random 256-bit secret authenticates the device; only SHA-256 is stored.
   RLS and explicit deny policies block direct browser database access.
 
-## Quiet study (0.4.1)
+## Quiet study
 
-- The default is "В автобусе · без голоса"; "Дома · вслух" remains available.
-  The preference and optional answer notes are included in existing backups.
-- A quiet media block contains three checked questions followed by unscored
-  silent rehearsal. It remains intact when lesson time expires or the app reloads.
-  Old saved Speaking tasks can be completed silently or replaced with a video.
-- Added short creator vlogs about London (B1), Berlin (B2) and Manchester (C1),
-  with original questions grounded in the publisher's public transcripts.
-  Videos remain on YouTube; no media or full transcripts are copied into the app.
-- Playback is opt-in. An unavailable video / no-headphones action switches to
-  independent response preparation, without grading unheard material.
-- Silent responses are not pronunciation scores. Only checked questions count
-  towards accuracy and rewards; the optional practice timer never blocks progress.
+The default is "В автобусе · без голоса". Read and rehearse examples silently,
+without headphones or a microphone. "Дома · вслух" changes the optional rehearsal
+suggestion. There is no video replacement or compulsory speaking task.
 
 ## Development
 
@@ -114,9 +110,10 @@ Set VITE_COUPLE_SYNC_URL at frontend build time.
 The backend is supabase/functions/english-for-two-sync/index.ts; migrations are
 versioned under supabase/migrations.
 
-Tests include 33 original checks, 9 lesson regressions, 14 v0.4 checks, 11 quiet-mode
-checks and a component interaction suite. The opt-in
-tests/backend-smoke.mjs requires EFT_LIVE_TEST_URL and checks live backups,
+Tests cover existing wallet, reminders, backups and translation, plus seven
+simulated mornings/evenings per level, due backlogs, short lessons, content
+validation, deduplication, migration, overflow storage and component interactions.
+The opt-in tests/backend-smoke.mjs requires EFT_LIVE_TEST_URL and checks live backups,
 stale-write protection, identity isolation, notifications/deduplication and gifts.
 It creates fresh QA accounts and writes their exact disposable IDs to
 /tmp/eft-v04-qa-account-ids.json for scoped cleanup.

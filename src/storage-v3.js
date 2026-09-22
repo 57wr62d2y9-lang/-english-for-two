@@ -79,12 +79,22 @@ export function loadPairIdentity() {
   });
   return pairIdentityJob;
 }
-// 64 bounded buckets per level leave enough room for a full 400-unit route.
+// Preserve all 64 legacy bucket addresses. Dense buckets use bounded overflow
+// parts, written before the base part so a partial write cannot lose old data.
 // New fields are only appended, so every existing compact CloudStorage record
 // remains readable without resetting Artur's or Anna's history.
 const FIELDS = ['s','c','w','l','n','f','step','rec','ctx','days','xp','v','known','rewardDay','event','rcl','lis','selfKnown','knownAt','lastWrong','lastCorrect'];
 export const packItems = items => Object.fromEntries(Object.entries(items).map(([id,p]) => [id, FIELDS.map(f => p[f] ?? null)]));
 export const unpackItems = items => Object.fromEntries(Object.entries(items || {}).map(([id,v]) => [id, Array.isArray(v) ? normaliseItem(Object.fromEntries(FIELDS.map((f,i) => [f,v[i] ?? undefined]))) : normaliseItem(v)]));
+export function progressChunks(items,limit=3900) {
+  const chunks=[];let chunk={};
+  for(const [id,value] of Object.entries(packItems(items)).sort(([a],[b])=>a.localeCompare(b))) {
+    const next={...chunk,[id]:value};
+    if(Object.keys(chunk).length && JSON.stringify(next).length>limit){chunks.push(chunk);chunk={[id]:value};}
+    else chunk=next;
+  }
+  chunks.push(chunk);return chunks;
+}
 export async function loadSettings() {
   const a = localRead(prefix() + 'settings');
   const remote = parse((await cloudCall('getItem','eft3_settings')).value);
@@ -103,6 +113,12 @@ export async function loadLevelProgress(level) {
   const r = await cloudCall('getItems', keys);
   let result = { ...local };
   for (const key of keys) result = mergeItems(result, unpackItems(parse(r.value?.[key])));
+  const remoteKeys=await cloudCall('getKeys');
+  const overflow=(remoteKeys.value || []).filter(key=>new RegExp(`^eft3_p_${level}_\\d+_\\d+$`).test(key));
+  for(let index=0;index<overflow.length;index+=50) {
+    const extra=await cloudCall('getItems',overflow.slice(index,index+50));
+    for(const value of Object.values(extra.value || {}))result=mergeItems(result,unpackItems(parse(value)));
+  }
   const legacyRemote = parse((await cloudCall('getItem',`eft2_progress_${level}`)).value) || {};
   const legacyLocal = localRead(legacyPrefix()+'progress:'+level) || {};
   for (const [id,p] of Object.entries(mergeItems(legacyRemote, legacyLocal))) if (!result[id]) result[id] = normaliseItem(p);
@@ -127,7 +143,11 @@ export function saveLevelProgress(level, items) {
     for (const bucket of dirty) {
       const latest = localRead(key) || merged;
       const subset = Object.fromEntries(Object.entries(latest).filter(([id])=>hash(id)===bucket));
-      const ok = await setRemote(`eft3_p_${level}_${bucket}`, packItems(subset));
+      const chunks=progressChunks(subset);let ok=true;
+      for(let part=1;part<chunks.length;part++) {
+        if(!await setRemote(`eft3_p_${level}_${bucket}_${part}`,chunks[part])){ok=false;break;}
+      }
+      if(ok)ok=await setRemote(`eft3_p_${level}_${bucket}`,chunks[0]);
       if (ok) localWrite(pendingKey,(localRead(pendingKey)||[]).filter(x=>x!==bucket));
       else all = false;
     }

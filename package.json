@@ -1,13 +1,13 @@
 {
   "name": "english-for-two",
   "private": true,
-  "version": "0.4.2",
+  "version": "0.5.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "node tests/run.mjs && node tests/lesson-regressions.mjs && node tests/release-v04.mjs && node tests/quiet-speaking.mjs && node tests/quiet-speaking-ui.mjs && node tests/word-lookup.mjs && node tests/word-lookup-ui.mjs",
+    "test": "node tests/run.mjs && node tests/lesson-regressions.mjs && node tests/release-v04.mjs && node tests/quiet-speaking.mjs && node tests/quiet-speaking-ui.mjs && node tests/word-lookup.mjs && node tests/word-lookup-ui.mjs && node tests/vocabulary-programme.mjs && node tests/vocabulary-storage.mjs && node tests/vocabulary-ui.mjs",
     "validate": "npm test && npm run build"
   },
   "dependencies": {

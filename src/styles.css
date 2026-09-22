@@ -553,3 +553,9 @@ footer { display: flex; align-items: center; justify-content: center; gap: 7px; 
 .speakingPractice .quietButton { white-space: normal; }
 .quietStudyNote { padding: 12px; border-radius: 10px; background: #fff9; font-size: 13px; line-height: 1.6; }
 .lessonVideo { display: block; width: 100%; min-height: 200px; aspect-ratio: 16/9; border: 0; border-radius: 12px; margin: 14px 0; background: #161616; }
+.vocabularyProgress{margin:20px 0;padding:24px;border-radius:26px;background:#f0f8f5;border:1px solid #cde5db;color:#285d4b}
+.vocabularyProgress h2{font-size:34px;margin:12px 0}.vocabularyProgress h2 small{font-size:16px;font-weight:500}
+.vocabularyMeter{height:10px;background:#d6e9e1;border-radius:20px;overflow:hidden}.vocabularyMeter i{display:block;height:100%;background:#318768;border-radius:20px}
+.vocabularyNumbers{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:22px 0}.vocabularyNumbers span{font-size:13px;line-height:1.5}.vocabularyNumbers b{display:block;font-size:24px}
+.vocabularyProgress p{font-size:14px;line-height:1.6}.vocabReason{display:inline-block;padding:7px 12px;border-radius:20px;background:#eaf5ef;color:#28745b;font-size:13px;margin:12px 0}.vocabReason.new{background:#fff0f6;color:#a82865}.vocabReason.mistake{background:#fff2dc;color:#795322}
+.usageNote{padding:16px 18px;background:#faf6ed;border-radius:18px;margin:16px 0;line-height:1.6}.usageNote p{margin:8px 0}.usageNote small{color:#72695a}.optionalGrammar{font-size:14px;margin-top:18px}.optionalGrammar>summary{cursor:pointer;color:#867c70}

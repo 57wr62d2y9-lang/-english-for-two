@@ -1,11 +1,9 @@
-import { PHRASES, COLLOCATIONS } from './catalog.js';
-import { DAILY_GRAMMAR, examplesFor, guideFor } from './lesson-notes.js';
-import { dailyIeltsForLevel } from './daily-ielts.js';
-import { MEDIA_LESSONS } from './media-lessons.js';
-import { chooseTask, isDue, queueRecovery, settleRecovery, shuffle, studySlot } from './learning.js';
-import { normaliseSpeakingMode, quietRehearsalTask, quietMediaCandidates, mediaBlockHasNext } from './quiet-speaking.js';
-
-const cycle = ['phrase','grammar','phrase','Reading','phrase','media','phrase','collocation','phrase','grammar','phrase','Writing','phrase','order','phrase','Speaking'];
+import {lexiconForLevel,progressFor} from './lexicon.js';
+import {examplesFor,guideFor} from './lesson-notes.js';
+import {dailyIeltsForLevel} from './daily-ielts.js';
+import {chooseTask,isDue,queueRecovery,settleRecovery,shuffle,studySlot} from './learning.js';
+import {normaliseSpeakingMode} from './quiet-speaking.js';
+export const PROGRAMME_VERSION='vocabulary-1';
 const escapes = text => text.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 export function normaliseAnswer(text) {
   return String(text || '').toLowerCase().replaceAll('’',"'").replaceAll('‘',"'")
@@ -21,134 +19,78 @@ export function optionsFor(item,pool,field='phrase') {
   const alternatives = [...new Set(shuffle(pool.filter(other => other.id !== item.id && other.level === item.level)).map(other=>other[field]))].filter(value=>value && value !== answer).slice(0,3);
   return shuffle([answer,...alternatives]);
 }
-function leastUsed(pool, progress, session, maxVisits=1) {
-  const priority=item=>{
-    const p=progress[item.id];
-    // A due mistake must not be hidden behind hundreds of unseen items.
-    return p && isDue(p,session.now) ? (p.lastWrong > (p.lastCorrect || 0) ? 0 : 1) : !p ? 2 : 3;
-  };
-  return [...pool].filter(item=>(session.visits[item.id] || 0) < maxVisits && !session.recent.slice(-5).includes(item.id))
-    .sort((a,b)=>priority(a)-priority(b) || (session.visits[a.id] || 0) - (session.visits[b.id] || 0) || (progress[a.id]?.l || 0) - (progress[b.id]?.l || 0))[0];
-}
-function grammarTask(item,recovery=false) {
-  return {type:'grammar',category:'grammar',item,progressId:item.id,key:item.id,prompt:item.prompt,answer:item.answer,options:shuffle(item.options),guide:guideFor(item),explanation:item.explanation,ru:item.ru,recovery};
-}
-function ieltsTask(item,recovery=false) {
-  return {...item,type:'ielts',category:'ielts',item,progressId:item.id,key:item.id,options:item.options ? shuffle(item.options) : undefined,recovery};
-}
-function phraseTask(choice,pool,progress,session,forceType) {
-  const item = choice.item;
-  const examples = examplesFor(item);
-  const previous = progress[item.id];
-  const exampleIndex = (Number(previous?.c || 0) + Number(previous?.w || 0) + Number(session.lessonIndex || 0)) % Math.max(1,examples.length);
-  const example = examples[exampleIndex] || {en:item.phrase,ru:item.ru};
-  let type = choice.type === 'intro' ? 'intro' : forceType || ['recognition','context','recall','order','meaning'][(Number(previous?.c || 0) + Number(previous?.w || 0)) % 5];
-  if (choice.recovery) type = ['context','order','recall'][(session.visits[item.id] || 0) % 3];
-  const task = {...choice,item,type,category:type,progressId:item.id,exampleIndex,example,guide:guideFor(item,example.en),examples,answer:item.phrase};
-  if(type === 'intro') return {...task,key:`${item.id}:intro`,prompt:item.phrase};
-  if(type === 'recognition') Object.assign(task,{prompt:item.phrase,answer:item.ru,options:optionsFor(item,pool,'ru'),instruction:'Выбери значение выражения.'});
-  if(type === 'meaning') Object.assign(task,{prompt:example.en,answer:item.explanation,options:optionsFor(item,pool,'explanation'),instruction:`Что означает «${item.phrase}» в этой ситуации?`});
-  if(type === 'context') {
-    const core = item.phrase.replace(/[.!?…]+$/g,'').trim();
-    const pattern = new RegExp(escapes(core),'i');
-    Object.assign(task,{prompt:pattern.test(example.en) ? example.en.replace(pattern,'_____') : item.explanation,options:optionsFor(item,pool),instruction:pattern.test(example.en) ? 'Вставь подходящее выражение.' : 'Выбери выражение с этим значением.'});
+
+function phraseTask(choice,pool,progress,session) {
+  const item=choice.item,previous=progressFor(item,progress),examples=examplesFor(item);
+  const encounter=Number(previous?.c || 0)+Number(previous?.w || 0);
+  const exampleIndex=encounter % Math.max(1,examples.length);
+  const example=examples[exampleIndex] || {en:item.phrase,ru:item.ru};
+  let type=choice.type==='intro'?'intro':previous?.known?'recall':
+    ['recognition','context','recall','order','meaning'][encounter % 5];
+  if(choice.recovery)type=choice.type==='recognition'?'context':choice.type;
+  const task={...choice,item,type,category:type,progressId:item.id,exampleIndex,example,examples,
+    guide:guideFor(item,example.en),answer:item.phrase};
+  if(type==='intro')return {...task,key:item.id+':intro',prompt:item.phrase};
+  if(type==='recognition')Object.assign(task,{prompt:item.phrase,answer:item.ru,options:optionsFor(item,pool,'ru'),instruction:'Выбери значение слова или выражения.'});
+  if(type==='meaning')Object.assign(task,{prompt:example.en,answer:item.explanation,options:optionsFor(item,pool,'explanation'),instruction:'Что означает «'+item.phrase+'» в этой ситуации?'});
+  if(type==='context') {
+    const core=item.phrase.replace(/[.!?…]+$/g,'').trim();
+    const pattern=new RegExp('(?<![a-z])'+escapes(core)+'(?![a-z])','i');
+    const found=pattern.test(example.en);
+    Object.assign(task,{prompt:found?example.en.replace(pattern,'_____'):item.explanation,options:optionsFor(item,pool),
+      instruction:found?'Вставь слово или выражение по смыслу.':'Выбери слово или выражение с этим значением.'});
   }
-  if(type === 'recall') Object.assign(task,{prompt:item.ru,subPrompt:item.explanation,instruction:'Напиши изученное выражение по-английски. Регистр и знаки препинания не важны.'});
-  if(type === 'order') Object.assign(task,{prompt:example.ru || item.ru,answer:example.en,tokens:shuffle(example.en.split(/\s+/).map((text,index)=>({id:index,text}))),instruction:'Собери предложение из слов. Используй все слова.'});
-  return {...task,key:`${item.id}:${type}:${exampleIndex}`,wasDue:Boolean(previous && isDue(previous))};
+  if(type==='recall')Object.assign(task,{prompt:item.ru,subPrompt:item.explanation,instruction:'Вспомни изученное слово или выражение и напиши по-английски. Регистр и знаки препинания не важны.'});
+  if(type==='order')Object.assign(task,{prompt:example.ru || item.ru,answer:example.en,
+    tokens:shuffle(example.en.split(/\s+/).map((text,index)=>({id:index,text}))),instruction:'Собери жизненный пример из слов. Используй все слова.'});
+  return {...task,key:item.id+':'+type+':'+exampleIndex,wasDue:Boolean(previous && isDue(previous,session.now))};
 }
-function mediaQuestion(block) {
-  const question = block.lesson.questions[block.index];
-  const id = `${block.lesson.id}:q${block.index}`;
-  return {type:block.lesson.kind,category:block.lesson.kind,item:block.lesson,lesson:block.lesson,questionIndex:block.index,questionCount:block.lesson.questions.length,
-    progressId:id,key:id,prompt:question.prompt,answer:question.options[question.answer],options:shuffle(question.options),explanation:question.explanation,ru:question.ru,recovery:Boolean(block.recovery),quiet:Boolean(block.quiet)};
-}
-function pickMedia(pool,progress,session,time) {
-  const last=lesson=>Math.max(0,...lesson.questions.map((_,index)=>progress[`${lesson.id}:q${index}`]?.l||0));
-  const due=lesson=>lesson.questions.some((_,index)=>{const p=progress[`${lesson.id}:q${index}`];return p&&isDue(p,time)&&p.lastWrong>(p.lastCorrect||0);});
-  return pool.filter(lesson=>!session.visits[lesson.id]).sort((a,b)=>Number(due(b))-Number(due(a))||last(a)-last(b)||Number(b.format==='vlog')-Number(a.format==='vlog'))[0];
-}
-export function replaceSpeakingWithVideo(base,progress,time=Date.now()) {
-  const lesson=pickMedia(quietMediaCandidates(base.level),progress,base,time);
-  if(!lesson)return null;
-  const mediaBlock={lesson,index:0,ready:false,quiet:true};
-  return {...base,speakingMode:'quiet',mediaBlock,mediaBlocks:(base.mediaBlocks||0)+1,task:mediaQuestion(mediaBlock),feedback:null,selected:null,
-    recent:[...(base.recent||[]),lesson.id].slice(-12),visits:{...base.visits,[lesson.id]:1},taskStartedRemaining:base.remainingMs};
-}
-export function makeSession(level,minutes=15,lessonIndex=0,time=Date.now(),speakingMode='quiet') {
-  return {version:3,id:globalThis.crypto?.randomUUID?.() || `lesson-${time}-${Math.random().toString(36).slice(2)}`,level,minutes,lessonIndex,
-    speakingMode:normaliseSpeakingMode(speakingMode),slot:studySlot(time),startedAt:time,plannedMs:minutes*60000,remainingMs:minutes*60000,step:0,cycleStep:0,newCount:0,
+export function makeSession(level,minutes=15,lessonIndex=0,time=Date.now(),speakingMode='quiet',vocabPace='normal') {
+  return {version:3,programmeVersion:PROGRAMME_VERSION,id:globalThis.crypto?.randomUUID?.() || 'lesson-'+time+'-'+Math.random().toString(36).slice(2),level,minutes,lessonIndex,
+    speakingMode:normaliseSpeakingMode(speakingMode),vocabPace,slot:studySlot(time),startedAt:time,plannedMs:minutes*60000,remainingMs:minutes*60000,step:0,cycleStep:0,newCount:0,introducedIds:[],
     recent:[],visits:{},taskCounts:{},successByType:{},answers:0,correct:0,scoredAnswers:0,scoredCorrect:0,correctTaskKeys:[],
     unaidedCorrect:0,fastCorrect:0,recoveryQueue:[],recovered:0,dueSuccess:0,xp:0,mediaBlocks:0,done:false};
 }
 export function nextLessonTask(base,progress,time=Date.now()) {
-  const session = {...base,now:time,visits:base.visits || {},recent:base.recent || [],feedback:null,selected:null,hintUsed:false};
+  const session={...base,programmeVersion:PROGRAMME_VERSION,now:time,visits:base.visits || {},recent:base.recent || [],
+    introducedIds:base.introducedIds || [],mediaBlock:null,feedback:null,selected:null,hintUsed:false,exhausted:false};
+  const pool=lexiconForLevel(session.level);
+  const reading=dailyIeltsForLevel(session.level,'Reading');
+  session.recoveryQueue=(session.recoveryQueue || []).filter(entry=>[...pool,...reading].some(item=>item.id===entry.id));
+  const choice=chooseTask(pool,progress,session,time);
   let task;
-  if(mediaBlockHasNext(session.mediaBlock)) task = session.mediaBlock.index < session.mediaBlock.lesson.questions.length ? mediaQuestion(session.mediaBlock) : quietRehearsalTask(session.mediaBlock);
-  else {
-    session.mediaBlock = null;
-    const pool = PHRASES.filter(item=>item.level === session.level);
-    const category = cycle[session.cycleStep % cycle.length];
-    for(const recovery of session.recoveryQueue || []) {
-      if(recovery.dueStep > session.step || recovery.attempts > 2 || session.recent.slice(-5).includes(recovery.sourceId || recovery.id))continue;
-      const phrase=pool.find(item=>item.id===recovery.id);
-      const grammar=DAILY_GRAMMAR.find(item=>item.level===session.level && item.id===recovery.id);
-      const ielts=dailyIeltsForLevel(session.level).find(item=>item.id===recovery.id);
-      const collocation=COLLOCATIONS.find(item=>item.level===session.level && item.id===recovery.id);
-      if(phrase) task=phraseTask({item:phrase,type:'context',recovery:true},pool,progress,session);
-      else if(grammar) task=grammarTask(grammar,true);
-      else if(ielts) task=ieltsTask(ielts,true);
-      else if(collocation) task={...phraseTask({item:collocation,type:'context',recovery:true},COLLOCATIONS.filter(item=>item.level===session.level),progress,session),category:'collocation'};
-      else if(session.remainingMs>120000) {
-        const lesson=MEDIA_LESSONS.find(item=>item.level===session.level && recovery.id.startsWith(`${item.id}:q`));
-        if(lesson && !session.recent.slice(-5).includes(lesson.id)) {
-          session.mediaBlock={lesson,index:0,ready:false,recovery:true};task=mediaQuestion(session.mediaBlock);
-        }
-      }
-      if(task)break;
-    }
-    // A recovery supplements the normal programme; it does not skip its next category.
-    if(!task)session.cycleStep++;
-    if(!task && category === 'media' && session.minutes >= 12 && session.mediaBlocks < 2 && session.remainingMs > 120000) {
-      const kind = (session.lessonIndex + session.mediaBlocks) % 2 === 0 ? 'video' : 'listening';
-      const mediaPool = MEDIA_LESSONS.filter(lesson=>lesson.level === session.level && lesson.kind === kind);
-      const lesson = pickMedia(mediaPool,progress,session,time);
-      if(lesson) { session.mediaBlock={lesson,index:0,ready:false,quiet:normaliseSpeakingMode(session.speakingMode)==='quiet'};session.mediaBlocks++;task=mediaQuestion(session.mediaBlock); }
-    }
-    if(!task && category === 'grammar') {
-      const item = leastUsed(DAILY_GRAMMAR.filter(item=>item.level === session.level),progress,session);
-      if(item) task=grammarTask(item);
-    }
-    if(!task && ['Reading','Writing','Speaking'].includes(category)) {
-      if(category==='Speaking'&&normaliseSpeakingMode(session.speakingMode)==='quiet'&&session.minutes>=12&&session.mediaBlocks<2&&session.remainingMs>150000) {
-        const lesson=pickMedia(quietMediaCandidates(session.level),progress,session,time);
-        if(lesson){session.mediaBlock={lesson,index:0,ready:false,quiet:true};session.mediaBlocks++;task=mediaQuestion(session.mediaBlock);}
-      }
-      const item = leastUsed(dailyIeltsForLevel(session.level,category),progress,session);
-      if(item&&!task) task=ieltsTask(item);
-    }
-    if(!task && category === 'collocation') {
-      const collocations = COLLOCATIONS.filter(item=>item.level === session.level);
-      const item = leastUsed(collocations,progress,session,2);
-      if(item) task={...phraseTask({item,type:'context'},collocations,progress,session,'context'),category:'collocation'};
-    }
-    if(!task) {
-      const choice = chooseTask(pool,progress,session,time);
-      if(choice) task=phraseTask(choice,pool,progress,session,category === 'order' ? 'order' : undefined);
-    }
-    // A fast learner gets unused material, never an endless three-card loop.
-    if(!task) {
-      const item = leastUsed(DAILY_GRAMMAR.filter(item=>item.level === session.level),progress,session);
-      if(item) task=grammarTask(item);
-    }
+  const readingRecovery=session.recoveryQueue.find(entry=>entry.dueStep<=session.step && entry.attempts<=2 && !session.recent.slice(-5).includes(entry.id) && reading.some(item=>item.id===entry.id));
+  if(choice?.type!=='intro' && !choice?.recovery && readingRecovery) {
+    const item=reading.find(item=>item.id===readingRecovery.id);
+    task={...item,type:'ielts',category:'ielts',item,progressId:item.id,key:item.id,options:shuffle(item.options),reason:'mistake',recovery:true};
   }
-  if(!task) return {...session,exhausted:true};
-  const id=task.item.id;
-  return {...session,task,step:session.step+1,newCount:session.newCount+(task.type === 'intro' ? 1 : 0),
+  // Occasional short reading, no external media or stand-alone grammar quiz.
+  if(!task && session.step % 14===13 && !choice?.recovery && choice?.type!=='intro') {
+    const item=reading.filter(item=>!session.visits[item.id] &&
+      (!progress[item.id] || isDue(progress[item.id],time)))
+      .sort((a,b)=>(progress[a.id]?.l || 0)-(progress[b.id]?.l || 0))[0];
+    if(item)task={...item,type:'ielts',category:'ielts',item,progressId:item.id,key:item.id,options:shuffle(item.options),reason:'reading'};
+  }
+  if(!task && choice)task=phraseTask(choice,pool,progress,session);
+  if(!task)return {...session,task:null,exhausted:true,moreAvailable:pool.some(item=>!progressFor(item,progress) || progressFor(item,progress).s==='NEW')};
+  const id=task.item.id,isNew=task.type==='intro';
+  return {...session,task,step:session.step+1,newCount:session.newCount+(isNew?1:0),
+    introducedIds:isNew?[...new Set([...session.introducedIds,id])]:session.introducedIds,
     recent:[...session.recent,id].slice(-12),visits:{...session.visits,[id]:(session.visits[id] || 0)+1},
-    taskStartedRemaining:session.remainingMs,feedback:null,selected:null};
+    taskStartedRemaining:session.remainingMs};
 }
-
+export function extendVocabularySession(session) {
+  return {...session,extraNew:Number(session.extraNew || 0)+(session.minutes<=5?4:6),exhausted:false};
+}
+// Upgrade old tasks without resetting time, wallet, answers or lesson identity.
+export function resumeVocabularySession(draft,progress,settings={},time=Date.now()) {
+  const session={...draft,speakingMode:normaliseSpeakingMode(settings.speakingMode || draft.speakingMode),
+    vocabPace:settings.vocabPace || draft.vocabPace || 'normal'};
+  if(draft.programmeVersion===PROGRAMME_VERSION)return session;
+  const ids=lexiconForLevel(draft.level).map(item=>item.id);
+  return nextLessonTask({...session,introducedIds:[],mediaBlock:null,speakingDraft:null,feedback:null,
+    recoveryQueue:(draft.recoveryQueue || []).filter(entry=>ids.includes(entry.id))},progress,time);
+}
 export function applySessionEvidence(session,task,correct) {
   const elapsed = Math.max(0,(session.taskStartedRemaining-session.remainingMs)/1000);
   const scored = !task.practice;
@@ -160,7 +102,7 @@ export function applySessionEvidence(session,task,correct) {
   if(scored) {
     recoveryQueue = correct ? settleRecovery(recoveryQueue,task.progressId,true,task.type,session.step+2)
       : queueRecovery(recoveryQueue,task.progressId,task.type,session.step+2);
-    // Keep source identity as well as question identity for audio/video blocks.
+    // Preserve identity for retries and legacy saved sessions.
     recoveryQueue=recoveryQueue.map(entry=>entry.id===task.progressId ? {...entry,sourceId:task.item.id} : entry);
   }
   return {...session,
@@ -171,5 +113,5 @@ export function applySessionEvidence(session,task,correct) {
     correctTaskKeys:scored && correct ? [...new Set([...session.correctTaskKeys,task.key])] : session.correctTaskKeys,
     unaidedCorrect:session.unaidedCorrect+(unaided ? 1 : 0),fastCorrect:session.fastCorrect+(unaided && elapsed <= 18 ? 1 : 0),
     dueSuccess:session.dueSuccess+(correct && task.wasDue ? 1 : 0),recovered:session.recovered+(scored && correct && wasQueued ? 1 : 0),recoveryQueue,
-    mediaBlock:session.mediaBlock ? {...session.mediaBlock,index:session.mediaBlock.index+1} : null};
+    mediaBlock:null};
 }

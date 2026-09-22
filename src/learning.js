@@ -1,3 +1,4 @@
+import { progressFor } from './lexicon.js';
 export const DAY = 86400000;
 export const LEVELS = ['A2', 'B1', 'B2', 'C1'];
 export const COURSE_SIZE = 400;
@@ -64,7 +65,9 @@ export function reviewItem(raw, action, time = Date.now(), event = '') {
   } else if (action === 'recognition') {
     if (!old.rec) { p.rec = 1; xp = 2; }
     p.lastCorrect = time;
-    if (!old.n) p.n = time;
+    // Recognition is not mastery, but a successful due review must leave the
+    // due queue. Active recall remains necessary for verified knowledge.
+    if (due) p.n = time + DAY;
     if (p.s === 'NEW') p.s = 'LEARNING';
   } else {
     // A scored contextual question and an honest self-recall are distinct evidence.
@@ -125,51 +128,49 @@ export function settleRecovery(queue = [], itemId, correct, failedType, step) {
 }
 
 export function chooseTask(items, progress, session, time = Date.now()) {
+  progress = Object.fromEntries(items.map(item => [item.id, progressFor(item, progress)]));
   const seen = session.recent || [];
   const visits = session.visits || {};
-  const allowed = item => !seen.slice(-4).includes(item.id) && (visits[item.id] || 0) < 3;
-  const recovery = (session.recoveryQueue || []).find(entry => entry.dueStep <= session.step && !seen.slice(-4).includes(entry.id) && entry.attempts <= 2);
+  const gap=Math.min(5,Math.max(1,newItemLimit(session)-1));
+  const allowed = item => !seen.slice(-gap).includes(item.id) && (visits[item.id] || 0) < 3;
+  const fresh = items.filter(item => !progress[item.id] || progress[item.id].s === 'NEW');
+  const canIntroduce = fresh.length && Number(session.newCount || 0) < newItemLimit(session)+Number(session.extraNew || 0);
+  // Both morning and evening reserve one in three tasks for new learning.
+  if (canIntroduce && session.step % 3 === 0) return {item:fresh[0],type:'intro',reason:'new'};
+  const recovery = (session.recoveryQueue || []).find(entry => entry.dueStep <= session.step && !seen.slice(-5).includes(entry.id) && entry.attempts <= 2);
   if (recovery) {
     const item = items.find(candidate => candidate.id === recovery.id);
-    if (item) return { item, type: recovery.nextType, early: true, recovery: true };
+    if (item) return { item, type: recovery.nextType, early: true, recovery: true, reason:'mistake' };
   }
-  const due = items.filter(x => isDue(progress[x.id], time) && allowed(x)).sort((a, b) => {
+  const introduced = new Set(session.introducedIds || []);
+  const consolidation = items.filter(item => allowed(item) && progress[item.id] && !progress[item.id].known && introduced.has(item.id))
+    .sort((a,b) => (visits[a.id] || 0) - (visits[b.id] || 0));
+  // Do not pull future reviews forward just to fill the timer.
+  const due = items.filter(x => isDue(progress[x.id], time) && allowed(x) && !visits[x.id]).sort((a, b) => {
     const weak = weaknessScore(progress[b.id], time) - weaknessScore(progress[a.id], time);
     return weak || (progress[a.id].n || 0) - (progress[b.id].n || 0);
   });
-  const fresh = items.filter(x => allowed(x) && (!progress[x.id] || (progress[x.id].s === 'NEW' && !progress[x.id].known)));
-  const recentNew = items.filter(x => allowed(x) && progress[x.id] && !progress[x.id].rec && !progress[x.id].known);
-  const recentRecall = items.filter(x => allowed(x) && progress[x.id]?.rec && !progress[x.id]?.days?.length && !progress[x.id]?.known);
-  const newLimit = newItemLimit(session);
-  const morningNewWindow = session.slot !== 'evening' && (session.step === 0 || (session.newCount === 1 && session.step >= 6));
-  const eveningNewWindow = session.slot === 'evening' && session.newCount === 0 && session.step >= 8 && due.length < 3;
-  let pool;
-  if (recentNew.length && session.step % 3 === 1) pool = recentNew;
-  else if (recentRecall.length && session.step % 3 === 2) pool = recentRecall;
-  else if (fresh.length && session.newCount < newLimit && (morningNewWindow || eveningNewWindow)) pool = fresh;
-  else if (due.length) pool = due;
-  // Morning sessions introduce up to two units. Evening sessions primarily
-  // consolidate the day and introduce at most one when the due queue is light.
-  else if (fresh.length && session.newCount < newLimit) pool = fresh;
-  else pool = items.filter(x => allowed(x) && progress[x.id] && !progress[x.id].known).sort((a,b) => (visits[a.id] || 0) - (visits[b.id] || 0) || (progress[a.id].l || 0) - (progress[b.id].l || 0));
-  if (!pool.length) pool = fresh;
-  const item = pool.find(x => !seen.slice(-3).includes(x.id)) || pool[0];
+  let item, reason;
+  if (consolidation.length && (session.step % 3 === 2 || !due.length)) {item=consolidation[0];reason='practice';}
+  else if (due.length) {item=due[0];reason='due';}
+  else if (canIntroduce) {item=fresh[0];reason='new';}
+  else if (consolidation.length) {item=consolidation[0];reason='practice';}
   if (!item) return null;
   const p = progress[item.id];
-  const type = !p || p.s === 'NEW' ? 'intro' : p.known ? 'recall' : !p.rec ? 'recognition' : session.step % 2 === 0 && item.cloze ? 'context' : 'recall';
-  return { item, type, early: p && !isDue(p, time) };
+  const type = reason === 'new' ? 'intro' : p.known ? 'recall' : !p.rec && !p.c ? 'recognition' : 'recall';
+  return { item, type, reason, early: Boolean(p && !isDue(p, time)) };
 }
 export function newItemLimit(session = {}) {
   if (Number(session.minutes) <= 5) return 4;
-  return session.slot === 'evening' ? 6 : 8;
+  return ({gentle:8,normal:12,more:16})[session.vocabPace] || 12;
 }
 export function courseProgress(items, progress) {
-  const current = items.filter(x => progress[x.id]?.v && progress[x.id]?.s === 'MASTERED');
-  const learned = items.filter(x => progress[x.id] && progress[x.id].s !== 'NEW');
-  return { verified: current.length, introduced: learned.length, available: items.length, total: COURSE_SIZE, points: current.length * 10, targetPoints: COURSE_SIZE * 10, percent: Math.floor(current.length / COURSE_SIZE * 100) };
+  const current = items.filter(x => {const p=progressFor(x,progress);return p?.v && p.s === 'MASTERED';});
+  const learned = items.filter(x => {const p=progressFor(x,progress);return p && p.s !== 'NEW';});
+  return { verified: current.length, introduced: learned.length, available: items.length, total: COURSE_SIZE, points: current.length * 10, targetPoints: COURSE_SIZE * 10, percent: Math.min(100,Math.floor(current.length / COURSE_SIZE * 100)) };
 }
 export function checkpointCandidates(items, progress, quarter) {
-  const eligible = items.filter(x => progress[x.id]?.v && progress[x.id].s === 'MASTERED' && x.cloze);
+  const eligible = items.filter(x => {const p=progressFor(x,progress);return p?.v && p.s === 'MASTERED' && x.cloze;});
   return eligible.length >= quarter * 100 ? shuffle(eligible).slice(0, 10) : [];
 }
 export function awardMilestone(wallet, level, quarter, score, verified, time = Date.now()) {

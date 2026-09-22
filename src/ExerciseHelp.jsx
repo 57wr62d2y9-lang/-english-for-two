@@ -23,17 +23,22 @@ export function RuleHelp({guide,item,open=false}) {
   const resource=ruleResource(guide);
   return <div className="ruleSupport"><details className="ruleHelp" open={open}><summary>{guide.title}</summary><code><EnglishText text={guide.formula}/></code><p>{guide.ru}</p>{guide.example&&<Example example={{en:guide.example,ru:guide.translation}}/>}<details className="englishExplanation"><summary>Explanation in English</summary><p lang="en"><EnglishText text={guide.en}/></p></details></details>{isConditionalGuide(guide)&&<ConditionalOverview/>}{resource&&<a className="ruleLink" href={resource.url} target="_blank" rel="noopener noreferrer">{resource.label}</a>}</div>;
 }
+export function LexicalHelp({item,compact=false}) {
+  if(!item?.phrase)return null;
+  if(compact)return item.usageRu?<div className="usageNote"><strong>Как сказать в жизни</strong><p>{item.usageRu}</p></div>:null;
+  return <div className="usageNote"><strong><EnglishText text={item.phrase} ru={item.ru}/></strong><p>{item.ru}</p>{item.usageRu&&<p>{item.usageRu}</p>}<small lang="en"><EnglishText text={item.explanation}/></small></div>;
+}
 export function TaskTranslation({task,onHint}) {
   const target=translationTarget(task);
   return <TranslateButton key={target.text} {...target} onHint={onHint}/>;
 }
 export function TaskHint({task,onHint}) {
-  return <details className="taskHint" onToggle={event=>{if(event.currentTarget.open)onHint?.();}}><summary>{task.type==='ielts'?'Как решить это задание и полезные слова':'Подсказка: смысл и правило'}</summary>{task.type==='ielts'?<div className="taskStrategy"><p>{task.strategyRu}</p><details><summary>Strategy in English</summary><p lang="en"><EnglishText text={task.strategyEn}/></p></details></div>:task.lesson?<p>Прослушай запись ещё раз и найди момент, который отвечает на этот вопрос. Ответ должен опираться на услышанное, а не на догадку.</p>:<RuleHelp guide={task.guide || guideFor(task.item,task.example?.en || task.prompt)} item={task.item} open/>}<WordHelp text={`${task.passage||''} ${task.prompt} ${task.options?.join(' ') || ''}`}/></details>;
+  return <details className="taskHint" onToggle={event=>{if(event.currentTarget.open)onHint?.();}}><summary>{task.type==='ielts'?'Как понять текст и полезные слова':'Подсказка: значение и употребление'}</summary>{task.type==='ielts'?<div className="taskStrategy"><p>{task.strategyRu}</p></div>:<><LexicalHelp item={task.item}/>{task.example&&<Example example={task.example}/>}</>}<WordHelp text={`${task.passage||''} ${task.prompt} ${task.options?.join(' ') || ''}`}/></details>;
 }
 export function AnswerExplanation({task,selected,wrong}) {
   if(task.type==='grammar') {
     const detail=grammarDetail(task.item || task);
     return <div className="answerExplanation">{wrong&&<p className="chosenAnswer">Твой ответ: <s><EnglishText text={selected}/></s></p>}<div className="answerReveal" lang="en"><EnglishText text={detail.sentence} ru={detail.translation}/></div><p className="sentenceTranslation">{detail.translation}</p><h3>Почему именно так</h3><p>{detail.why}</p><RuleHelp guide={task.guide || guideFor(task.item)} item={task.item}/></div>;
   }
-  return <div className="answerExplanation">{wrong&&<p className="chosenAnswer">Твой ответ: <s><EnglishText text={selected}/></s></p>}{!task.practice&&<div className="answerReveal"><EnglishText text={task.answer}/></div>}{task.ru&&task.ru!==task.prompt&&<p>{task.ru}</p>}{task.explanation&&<details className="englishExplanation"><summary>Explanation in English</summary><p lang="en"><EnglishText text={task.explanation}/></p></details>}{task.example&&<><RuleHelp guide={task.guide || guideFor(task.item,task.example.en)} item={task.item}/><Example example={task.example}/></>}{task.passage&&<TaskTranslation task={task}/>}</div>;
+  return <div className="answerExplanation">{wrong&&<p className="chosenAnswer">Твой ответ: <s><EnglishText text={selected}/></s></p>}{!task.practice&&<div className="answerReveal"><EnglishText text={task.answer}/></div>}{task.ru&&task.ru!==task.prompt&&<p>{task.ru}</p>}{task.explanation&&<details className="englishExplanation"><summary>Explanation in English</summary><p lang="en"><EnglishText text={task.explanation}/></p></details>}{task.example&&<><LexicalHelp item={task.item}/><Example example={task.example}/><details className="optionalGrammar"><summary>Если интересна конструкция предложения</summary><RuleHelp guide={task.guide || guideFor(task.item,task.example.en)} item={task.item}/></details></>}{task.passage&&<TaskTranslation task={task}/>}</div>;
 }

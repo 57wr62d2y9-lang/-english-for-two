@@ -179,12 +179,9 @@ test('checkpoint measures several skills rather than one repeated choice format'
   const progress = Object.fromEntries(items.map(item => [item.id,{s:'MASTERED',v:true}]));
   const tasks = buildCheckpoint(items, progress, 1, COLLOCATIONS, LISTENING_LESSONS, 'B1');
   assert.equal(tasks.length, 10);
-  assert.ok(new Set(tasks.map(task => task.type)).size >= 5);
-  assert.equal(tasks.filter(task => task.type === 'recall').length, 2);
-  const audio=tasks.filter(task => task.type === 'listening');
-  assert.equal(audio.length, 3);
-  assert.equal(new Set(audio.map(task=>task.lesson.id)).size,1);
-  assert.deepEqual(tasks.slice(-3).map(task=>task.questionIndex),[0,1,2]);
+  assert.deepEqual(new Set(tasks.map(task => task.type)),new Set(['recognition','meaning','recall']));
+  assert.equal(tasks.filter(task => task.type === 'recall').length, 3);
+  assert.ok(tasks.every(task=>!task.lesson && !['video','listening','grammar'].includes(task.type)));
   assert.ok(tasks.every(task=>task.item.level==='B1'));
 });
 
@@ -248,9 +245,9 @@ test('grammar diagnostics are level-aware and keep separate SRS records', () => 
   assert.notDeepEqual(correct, wrong);
 });
 
-test('morning and evening sessions have distinct new-material limits', () => {
-  assert.equal(newItemLimit({ minutes:15, slot:'morning' }), 8);
-  assert.equal(newItemLimit({ minutes:15, slot:'evening' }), 6);
+test('both daily sessions have fresh material with an adjustable pace', () => {
+  assert.equal(newItemLimit({ minutes:15, slot:'morning' }), 12);
+  assert.equal(newItemLimit({ minutes:15, slot:'evening' }), 12);
   assert.equal(newItemLimit({ minutes:5, slot:'morning' }), 4);
 });
 

@@ -3,7 +3,6 @@ import React from 'react';
 import {create,act} from 'react-test-renderer';
 import {createServer} from 'vite';
 import {DAILY_IELTS} from '../src/daily-ielts.js';
-import {VLOG_LESSONS} from '../src/vlog-lessons.js';
 
 const server=await createServer({server:{middlewareMode:true},appType:'custom'});
 globalThis.IS_REACT_ACT_ENVIRONMENT=true;
@@ -11,7 +10,7 @@ globalThis.document={hidden:false};
 let voiceCalls=0;
 globalThis.window={speechSynthesis:{cancel(){},speak(){voiceCalls++;}},SpeechSynthesisUtterance:class {constructor(text){this.text=text;}}};
 try {
-  const {default:Practice,MediaPrompt}=await server.ssrLoadModule('/src/SpeakingPractice.jsx');
+  const {default:Practice}=await server.ssrLoadModule('/src/SpeakingPractice.jsx');
   const task=DAILY_IELTS.find(item=>item.level==='B1'&&item.skill==='Speaking');task.key=task.id;
   let mode='quiet',draft=null,completed=0,videoCalls=0;
   const props=()=>({task,mode,draft,completed:false,onModeChange(value){mode=value;},onDraftChange(value){draft=value;},onComplete(){completed++;},onVideo(){videoCalls++;return true;}});
@@ -28,25 +27,13 @@ try {
   await act(async()=>root.update(React.createElement(Practice,props())));
   assert.equal(mode,'aloud');assert.equal(button('Ответил вслух').props.disabled,false);
   assert.match(root.root.findByType('textarea').props.value,/bus journey/);
-  await act(async()=>button('Вместо этого — видео и 3 вопроса').props.onClick());
-  assert.equal(videoCalls,1);
+  assert.equal(videoCalls,0);
+  assert.equal(root.root.findAllByType('iframe').length,0);
+  assert.doesNotMatch(JSON.stringify(root.toJSON()),/YouTube|видео и 3 вопроса/);
   await act(async()=>root.unmount());
   await act(async()=>{root=create(React.createElement(Practice,props()));});
   assert.match(root.root.findByType('textarea').props.value,/bus journey/);
   await act(async()=>root.unmount());
 
-  let opened=0,skipped=0,ready=0;
-  const lesson=VLOG_LESSONS[0];
-  const mediaProps={task:{lesson,type:'video',questionCount:3,quiet:true},ready:false,onOpen(){opened++;},onReady(){ready++;},onSkip(){skipped++;}};
-  await act(async()=>{root=create(React.createElement(MediaPrompt,mediaProps));});
-  assert.equal(root.root.findAllByType('iframe').length,0);
-  await act(async()=>button('Загрузить YouTube-видео в уроке').props.onClick());
-  assert.equal(opened,1);assert.match(root.root.findByType('iframe').props.src,/ihC-1DJG7cw/);
-  assert.doesNotMatch(root.root.findByType('iframe').props.src,/autoplay=1/);
-  await act(async()=>button('Нет наушников или видео не открывается').props.onClick());
-  assert.equal(skipped,1);
-  await act(async()=>button('Готово — перейти к вопросам').props.onClick());
-  assert.equal(ready,1);assert.equal(voiceCalls,0);
-  await act(async()=>root.unmount());
-  console.log('✓ quiet UI: immediate completion, notes, mode switch, remount, opt-in video and fallback');
+  console.log('✓ quiet UI: silent completion, notes, mode switch and no video alternative');
 } finally {await server.close();}

@@ -1,4 +1,5 @@
-import {PHRASES,COLLOCATIONS} from './catalog.js';
+import {LEXICON,lexicalKey} from './lexicon.js';
+import {VOCABULARY} from './vocabulary.js';
 import {GUIDES,examplesFor,wordHints} from './lesson-notes.js';
 import {DAILY_IELTS} from './daily-ielts.js';
 import {WORD_NOTES,WORD_FORMS,CONTRACTIONS,CONTEXT_PHRASES} from './word-notes.js';
@@ -30,7 +31,7 @@ let corpus;
 function exampleCorpus() {
   if(corpus)return corpus;
   const rows=[];
-  for(const item of [...PHRASES,...COLLOCATIONS])for(const example of examplesFor(item))rows.push({...example,level:item.level});
+  for(const item of [...LEXICON])for(const example of examplesFor(item))rows.push({...example,level:item.level});
   for(const guide of Object.values(GUIDES))if(guide.example)rows.push({en:guide.example,ru:guide.translation||''});
   for(const item of DAILY_IELTS)if(item.passage)for(const en of sentences(item.passage))rows.push({en,ru:en===item.passage?item.passageRu||'':'',level:item.level});
   corpus=rows.map(row=>({...row,words:new Set(englishTokens(row.en).filter(t=>t.word).map(t=>lemmaFor(t.text)))}));
@@ -44,7 +45,7 @@ export function phraseAt(text,index) {
   // An authored phrase's translation is shown only when that phrase is visible
   // at the tapped position, never by consulting a hidden task answer.
   const clean=normaliseWord(text);
-  for(const item of [...PHRASES,...COLLOCATIONS].sort((a,b)=>b.phrase.length-a.phrase.length)) {
+  for(const item of [...LEXICON].sort((a,b)=>b.phrase.length-a.phrase.length)) {
     const phrase=normaliseWord(item.phrase.replace(/[.!?]+$/,'')).trim();
     if(!phrase.includes(' '))continue;
     let at=clean.indexOf(phrase);
@@ -55,7 +56,8 @@ export function phraseAt(text,index) {
 
 export function buildWordCard({word,text,index=0,ru='',level='B1'}) {
   const normalized=normaliseWord(word),lemma=lemmaFor(word),contraction=CONTRACTIONS[normalized];
-  const note=WORD_NOTES[lemma];
+  const lexical=VOCABULARY.filter(item=>lexicalKey(item.phrase)===lemma).sort((a,b)=>Number(b.level===level)-Number(a.level===level))[0];
+  const note=WORD_NOTES[lemma] || (lexical?{ru:lexical.ru,note:lexical.usageRu,examples:examplesFor(lexical)}:null);
   const hint=wordHints(normalized).find(h=>h.word===normalized) || wordHints(lemma).find(h=>h.word===lemma);
   const context=sentenceAt(text,index);
   const phrase=phraseAt(text,index);
@@ -67,5 +69,5 @@ export function buildWordCard({word,text,index=0,ru='',level='B1'}) {
   }
   return {word,lemma,ru:contraction?.[1]||note?.ru||hint?.ru||'',
     note:contraction?`${word} = ${contraction[0]}. Переводи сокращение в составе предложения.`:note?.note||'',
-    definition:hint?.en||'',phrase,context:{en:context,ru:context.trim()===String(text).trim()?ru:''},examples};
+    definition:hint?.en||lexical?.explanation||'',phrase,context:{en:context,ru:context.trim()===String(text).trim()?ru:''},examples};
 }

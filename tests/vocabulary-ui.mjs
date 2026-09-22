@@ -1,0 +1,45 @@
+import assert from 'node:assert/strict';
+import React from 'react';
+import {create,act} from 'react-test-renderer';
+import {createServer} from 'vite';
+import {makeSession,nextLessonTask} from '../src/lesson-engine.js';
+import {lexiconForLevel,vocabularyStats} from '../src/lexicon.js';
+
+const server=await createServer({server:{middlewareMode:true},appType:'custom'});
+globalThis.IS_REACT_ACT_ENVIRONMENT=true;
+globalThis.document={hidden:false,body:{style:{overflow:''}},createElement:()=>({set innerHTML(value){this.value=value;}})};
+let voice=0,network=0;
+globalThis.window={speechSynthesis:{cancel(){},getVoices(){return [];},speak(){voice++;}}};
+globalThis.SpeechSynthesisUtterance=class {constructor(text){this.text=text;}};
+const originalFetch=globalThis.fetch;
+globalThis.fetch=async()=>{network++;throw new Error('No network expected in offline word lesson');};
+try {
+  const {Lesson,VocabularyProgress}=await server.ssrLoadModule('/src/AppV5.jsx');
+  const h=React.createElement;let root,intros=[],hints=0,extras=0;
+  const session=nextLessonTask(makeSession('B1'),{});
+  const props={session,ascent:{steps:0,total:80},onIntro:value=>intros.push(value),onHint:()=>hints++,onAddNew:()=>extras++};
+  await act(async()=>{root=create(h(Lesson,props));});
+  const button=text=>root.root.findAllByType('button').find(node=>node.children.join('')===text);
+  const html=JSON.stringify(root.toJSON());
+  assert.match(html,/Как сказать в жизни/);assert.match(html,/позволить себе/);
+  assert.match(html,/погово|проговори/);assert.doesNotMatch(html,/YouTube|<iframe|ГРАММАТИКА В КОНТЕКСТЕ/);
+  assert.equal(root.root.findAllByType('iframe').length,0);assert.equal(voice,0);assert.equal(network,0);
+  const word=root.root.findAllByType('button').find(node=>node.props['aria-label']==='Перевод слова: afford');
+  await act(async()=>word.props.onClick({preventDefault(){},stopPropagation(){},currentTarget:{focus(){}}}));
+  assert.equal(root.root.findAllByType('dialog').length,1);assert.equal(hints,1);assert.deepEqual(intros,[]);
+  assert.equal(network,0);
+  await act(async()=>button('Вернуться к заданию').props.onClick());
+  await act(async()=>button('Потренировать').props.onClick());assert.deepEqual(intros,[false]);
+  await act(async()=>button('Уже хорошо знаю').props.onClick());assert.deepEqual(intros,[false,true]);
+  await act(async()=>root.update(h(Lesson,{...props,session:{...session,exhausted:true,task:null,moreAvailable:true}})));
+  await act(async()=>button('Добавить ещё 6 новых слов и фраз').props.onClick());assert.equal(extras,1);
+  assert.match(JSON.stringify(root.toJSON()),/Не будем крутить их по кругу/);
+  await act(async()=>root.unmount());
+  const vocab=vocabularyStats(lexiconForLevel('B1'),{});
+  await act(async()=>{root=create(h(VocabularyProgress,{vocab,level:'B1'}));});
+  const meter=root.root.findByProps({role:'progressbar'});
+  assert.equal(meter.props['aria-valuemax'],311);assert.equal(meter.props['aria-valuenow'],0);
+  assert.match(JSON.stringify(root.toJSON()),/не охватывает словарный запас носителя/);
+  await act(async()=>root.unmount());
+  console.log('✓ vocabulary UI: bilingual usage, silent offline word lookup, real intro controls, explicit extra batch and honest counts');
+} finally {globalThis.fetch=originalFetch;await server.close();}
