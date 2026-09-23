@@ -204,9 +204,9 @@ export function routineRewardId(time = Date.now()) {
   return `routine:${dayKey(time)}:${studySlot(time)}`;
 }
 export function lessonStudyTime(session, finishedAt = Date.now()) {
-  const start=Number(session.startedAt);
-  // A draft resumed on another date cannot fill a missed day retroactively.
-  return Number.isFinite(start) && start > 0 && start <= finishedAt && dayKey(start) === dayKey(finishedAt) ? start : finishedAt;
+  // A lesson saved after the morning session may be resumed in the evening.
+  // Reward the actual completion slot, never the draft's creation timestamp.
+  return finishedAt;
 }
 export function sessionCompletion(session = {}) {
   const plannedSeconds = Math.max(60, Number(session.plannedMs || 900000) / 1000);

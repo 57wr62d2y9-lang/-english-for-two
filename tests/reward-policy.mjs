@@ -157,11 +157,11 @@ test('real consecutive finish events produce $70 for 30 days; no accuracy requir
   }
   assert.equal(balanceOf(w),70);assert.equal(Object.keys(w.earned).length,61);
 });
-test('same-day boundary uses start slot; multi-day drafts cannot backfill a missed date',()=>{
+test('completion time determines the slot; multi-day drafts cannot backfill a missed date',()=>{
   const morning=Date.parse('2026-08-01T10:59:00Z'),finish=morning+900000;
   assert.equal(studySlot(morning),'morning');assert.equal(studySlot(finish),'evening');
   const first=finishStudySession(wallet(),stats(),session(0,'morning',{startedAt:morning}),finish);
-  assert.equal(first.stats.lessons['lesson-0-morning'].slot,'morning');assert.ok(first.wallet.earned[routineRewardId(morning)]);
+  assert.equal(first.stats.lessons['lesson-0-morning'].slot,'evening');assert.ok(first.wallet.earned[routineRewardId(finish)]);
   const old=finishStudySession(wallet(),stats(),session(0,'morning'),end(2));
   const r=old.stats.lessons['lesson-0-morning'];assert.equal(r.studyDay,date(2));assert.equal(r.slot,'evening');
   assert.ok(old.wallet.earned[routineRewardId(at(2))]);assert.equal(completedStudyDays(old.stats,end(2))[date(0)],undefined);

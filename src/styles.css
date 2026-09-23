@@ -236,6 +236,7 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 .slotRow { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin: 13px 0 2px; }
 .slotRow span { padding: 9px 10px; border-radius: 12px; color: #7d7279; background: var(--soft); text-align: center; font-size: 11px; font-weight: 800; }
 .slotRow span.done { color: var(--green); background: var(--green-soft); }
+.slotRow strong { display: block; margin-bottom: 5px; font-size: 13px; }
 
 .routeCard { width: 100%; margin-bottom: 12px; text-align: left; color: var(--ink); }
 .routeHeader { display: flex; align-items: center; justify-content: space-between; gap: 12px; }

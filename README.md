@@ -1,4 +1,22 @@
-# English for Two · 0.5.1
+# English for Two · 0.5.2
+
+## Quiet practice and lesson corrections (0.5.2)
+
+- One quiet programme, without a bus/aloud switch on the home or settings screen.
+  Legacy aloud settings migrate to quiet without discarding a paused lesson.
+- Lesson date and reward slot use actual completion time. A morning-created
+  draft finished in the evening earns the evening reward, not another morning
+  attempt. Per-slot payment IDs still prevent duplicate credit.
+- The daily time ring is explicitly a time goal, not lesson completion. Morning
+  and evening badges show actual completion and payment independently.
+- Typed answers accept standard contractions and their intended full forms,
+  including “I would like” / “I’d like”. Context disambiguates had/would and
+  is/has; negation, possessives and explicitly different tenses remain checked.
+- Support-corrected lessons retain their original completion time and a separate
+  update timestamp, so older local backups cannot undo a correction. No account
+  identifiers or one-off refund commands are embedded in the application.
+- Regression tests cover the reported answer, cross-slot and midnight finishes,
+  restored credit, stale backup merges and quiet-only lesson controls.
 
 ## Fixed rewards (0.5.1)
 
@@ -18,8 +36,8 @@
   treated as proof: older $1 rewards could be earned for unfinished practice.
   New payments explicitly record completion for safe new-device restoration.
 - Study dates use the existing Istanbul clock (UTC+3); morning is 04:00–14:00.
-  Same-day lessons retain their start slot. A draft resumed on a later date
-  counts on completion day and cannot backfill a missed day.
+  All lessons use their actual completion date and slot, including resumed
+  drafts. Completing an old draft cannot backfill a missed day.
 - Existing $2/$3 lessons and $100 checkpoints are untouched, and retaking a
   previously paid checkpoint cannot add a second payment. Completed streaks
   reconcile idempotently on restore; claimed date ranges prevent overlap when

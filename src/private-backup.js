@@ -5,7 +5,7 @@ export function backupRecords({level,progress,stats,wallet,draft,settings}) {
   const out=[];
   const add=(key,data,at)=>out.push({key,data,at:Math.max(1,Number(at)||1)});
   for(const [id,item] of Object.entries(progress || {})) add(`progress:${level}:${id}`,item,item.l);
-  for(const [id,item] of Object.entries(stats?.lessons || {})) add(`lesson:${id}`,item,item.at);
+  for(const [id,item] of Object.entries(stats?.lessons || {})) add(`lesson:${id}`,item,item.updatedAt || item.at);
   for(const [day,item] of Object.entries(stats?.byDay || {})) add(`day:${day}`,item,item.at);
   if(stats?.legacy) add('legacy',stats.legacy,1);
   for(const kind of ['earned','spent','goals']) for(const [id,item] of Object.entries(wallet?.[kind] || {})) add(`wallet:${kind}:${id}`,item,item.resolvedAt || item.updatedAt || item.at);

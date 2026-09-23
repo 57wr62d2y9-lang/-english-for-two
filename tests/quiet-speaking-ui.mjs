@@ -23,9 +23,11 @@ try {
   await act(async()=>root.root.findByType('textarea').props.onChange({target:{value:'My bus journey was longer than usual.'}}));
   await act(async()=>root.update(React.createElement(Practice,props())));
   assert.equal(root.root.findByType('textarea').props.value,draft.notes);
-  await act(async()=>button('Дома · вслух').props.onClick());
+  assert.equal(button('Дома · вслух'),undefined);assert.equal(button('В автобусе · без голоса'),undefined);
+  mode='aloud'; // A restored legacy setting must not revive a second mode.
   await act(async()=>root.update(React.createElement(Practice,props())));
-  assert.equal(mode,'aloud');assert.equal(button('Ответил вслух').props.disabled,false);
+  assert.equal(button('Ответил вслух'),undefined);assert.equal(button('Сформулировал ответ про себя').props.disabled,false);
+  assert.equal(voiceCalls,0);
   assert.match(root.root.findByType('textarea').props.value,/bus journey/);
   assert.equal(videoCalls,0);
   assert.equal(root.root.findAllByType('iframe').length,0);
@@ -35,5 +37,5 @@ try {
   assert.match(root.root.findByType('textarea').props.value,/bus journey/);
   await act(async()=>root.unmount());
 
-  console.log('✓ quiet UI: silent completion, notes, mode switch and no video alternative');
+  console.log('✓ quiet UI: silent completion, preserved notes, no mode switch and no video alternative');
 } finally {await server.close();}

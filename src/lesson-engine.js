@@ -5,14 +5,7 @@ import {chooseTask,isDue,queueRecovery,settleRecovery,shuffle,studySlot} from '.
 import {normaliseSpeakingMode} from './quiet-speaking.js';
 export const PROGRAMME_VERSION='vocabulary-1';
 const escapes = text => text.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-export function normaliseAnswer(text) {
-  return String(text || '').toLowerCase().replaceAll('’',"'").replaceAll('‘',"'")
-    .replace(/\bi'm\b/g,'i am').replace(/\bit's\b/g,'it is').replace(/\bthat's\b/g,'that is')
-    .replace(/\bcan't\b/g,'cannot').replace(/\bwon't\b/g,'will not').replace(/n't\b/g,' not')
-    .replace(/'re\b/g,' are').replace(/'ve\b/g,' have').replace(/'ll\b/g,' will')
-    .replace(/[^a-z0-9а-яё\s]/gi,' ').replace(/\s+/g,' ').trim();
-}
-export const isAnswerCorrect = (task,value) => (task.accepted || [task.answer]).some(answer => normaliseAnswer(answer) === normaliseAnswer(value));
+export {normaliseAnswer,isAnswerCorrect} from './answer-check.js';
 
 export function optionsFor(item,pool,field='phrase') {
   const answer = item[field];
@@ -40,7 +33,7 @@ function phraseTask(choice,pool,progress,session) {
     Object.assign(task,{prompt:found?example.en.replace(pattern,'_____'):item.explanation,options:optionsFor(item,pool),
       instruction:found?'Вставь слово или выражение по смыслу.':'Выбери слово или выражение с этим значением.'});
   }
-  if(type==='recall')Object.assign(task,{prompt:item.ru,subPrompt:item.explanation,instruction:'Вспомни изученное слово или выражение и напиши по-английски. Регистр и знаки препинания не важны.'});
+  if(type==='recall')Object.assign(task,{prompt:item.ru,subPrompt:item.explanation,instruction:'Вспомни изученное слово или выражение и напиши по-английски. Полная и сокращённая формы подходят: I would = I’d. Регистр и знаки препинания не важны.'});
   if(type==='order')Object.assign(task,{prompt:example.ru || item.ru,answer:example.en,
     tokens:shuffle(example.en.split(/\s+/).map((text,index)=>({id:index,text}))),instruction:'Собери жизненный пример из слов. Используй все слова.'});
   return {...task,key:item.id+':'+type+':'+exampleIndex,wasDue:Boolean(previous && isDue(previous,session.now))};

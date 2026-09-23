@@ -6,7 +6,11 @@ import {mergeBackup,backupRecords} from '../src/private-backup.js';
 
 assert.equal(makeSession('B1').speakingMode,'quiet');
 assert.equal(normaliseSpeakingMode('invalid'),'quiet');
-assert.equal(makeSession('B1',15,0,Date.now(),'aloud').speakingMode,'aloud');
+assert.equal(makeSession('B1',15,0,Date.now(),'aloud').speakingMode,'quiet');
+assert.equal(normaliseSpeakingMode('aloud'),'quiet');
+const oldAloud={...makeSession('B1'),speakingMode:'aloud',answers:7,remainingMs:450000};
+const silent=resumeVocabularySession(oldAloud,{}, {speakingMode:'aloud'});
+assert.equal(silent.speakingMode,'quiet');assert.equal(silent.id,oldAloud.id);assert.equal(silent.answers,7);assert.equal(silent.remainingMs,450000);
 for(const type of ['video','listening','grammar','ielts']) {
   const old={...makeSession('B1'),programmeVersion:undefined,id:'legacy-'+type,answers:8,correct:5,scoredAnswers:8,scoredCorrect:5,remainingMs:240000,step:17,
     task:{type,practice:type==='ielts'},mediaBlock:{lesson:{id:'old-video'},index:1},recoveryQueue:[{id:'old-video:q0',dueStep:0,attempts:1}]};
@@ -26,4 +30,4 @@ for(const file of ['src/AppV5.jsx','src/SpeakingPractice.jsx','src/lesson-engine
   const text=readFileSync(new URL('../'+file,import.meta.url),'utf8');
   assert.doesNotMatch(text,/getUserMedia|MediaRecorder|<iframe|youtube-nocookie|replaceSpeakingWithVideo|MediaPrompt/);
 }
-console.log('✓ quiet programme: optional voice, legacy migration without lost work, backup and no video paths');
+console.log('✓ single quiet programme: old aloud settings migrate without lost work, backups and no video paths');
