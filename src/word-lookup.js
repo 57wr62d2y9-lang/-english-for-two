@@ -1,7 +1,5 @@
 import {LEXICON,lexicalKey} from './lexicon.js';
-import {VOCABULARY} from './vocabulary.js';
 import {GUIDES,examplesFor,wordHints} from './lesson-notes.js';
-import {DAILY_IELTS} from './daily-ielts.js';
 import {WORD_NOTES,WORD_FORMS,CONTRACTIONS,CONTEXT_PHRASES} from './word-notes.js';
 
 const wordPattern=()=>/[\p{Script=Latin}]+(?:['’][\p{Script=Latin}]+)*(?:-[\p{Script=Latin}]+(?:['’][\p{Script=Latin}]+)*)*/gu;
@@ -33,7 +31,6 @@ function exampleCorpus() {
   const rows=[];
   for(const item of [...LEXICON])for(const example of examplesFor(item))rows.push({...example,level:item.level});
   for(const guide of Object.values(GUIDES))if(guide.example)rows.push({en:guide.example,ru:guide.translation||''});
-  for(const item of DAILY_IELTS)if(item.passage)for(const en of sentences(item.passage))rows.push({en,ru:en===item.passage?item.passageRu||'':'',level:item.level});
   corpus=rows.map(row=>({...row,words:new Set(englishTokens(row.en).filter(t=>t.word).map(t=>lemmaFor(t.text)))}));
   return corpus;
 }
@@ -56,7 +53,7 @@ export function phraseAt(text,index) {
 
 export function buildWordCard({word,text,index=0,ru='',level='B1'}) {
   const normalized=normaliseWord(word),lemma=lemmaFor(word),contraction=CONTRACTIONS[normalized];
-  const lexical=VOCABULARY.filter(item=>lexicalKey(item.phrase)===lemma).sort((a,b)=>Number(b.level===level)-Number(a.level===level))[0];
+  const lexical=LEXICON.filter(item=>lexicalKey(item.phrase)===lemma).sort((a,b)=>Number(b.level===level)-Number(a.level===level))[0];
   const note=WORD_NOTES[lemma] || (lexical?{ru:lexical.ru,note:lexical.usageRu,examples:examplesFor(lexical)}:null);
   const hint=wordHints(normalized).find(h=>h.word===normalized) || wordHints(lemma).find(h=>h.word===lemma);
   const context=sentenceAt(text,index);

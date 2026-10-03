@@ -5,6 +5,26 @@ export const STREAK_REWARD=10;
 const validDay=value=>typeof value==='string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0,10)===value;
 const dayNumber=day=>Date.parse(day)/DAY;
 
+export function registerDailyVisit(stats,time=Date.now()) {
+  const day=dayKey(time),old=stats.byDay?.[day] || {};
+  if(old.visitedAt)return stats;
+  return {...stats,byDay:{...stats.byDay,[day]:{...old,visitedAt:time,at:time}}};
+}
+export function visitedStudyDays(stats,time=Date.now()) {
+  const days={},today=dayKey(time);
+  for(const [day,record] of Object.entries(stats.byDay || {})) {
+    if(validDay(day) && day<=today && ((record.visitedAt>0&&record.visitedAt<=time)||record.sessions>0||record.answers>0))days[day]=true;
+  }
+  // Actual historic practice is evidence that the app was opened that date.
+  // A payment-only import still cannot invent a visit.
+  for(const record of Object.values(stats.lessons || {})) {
+    if(record.imported || !(record.seconds>0||record.answers>0))continue;
+    const day=record.studyDay || dayKey(record.at);
+    if(validDay(day) && day<=today)days[day]=true;
+  }
+  return days;
+}
+
 export function completedStudyDays(stats,time=Date.now()) {
   const days={},today=dayKey(time);
   for(const record of Object.values(stats?.lessons || {})) {
@@ -22,8 +42,8 @@ export function completedStudyDays(stats,time=Date.now()) {
 }
 
 function streakBlocks(stats,wallet,time) {
-  const days=completedStudyDays(stats,time);
-  const fullDays=Object.keys(days).filter(day=>days[day].morning && days[day].evening).sort();
+  const days=visitedStudyDays(stats,time);
+  const fullDays=Object.keys(days).sort();
   const claimed=Object.values(wallet?.earned || {}).filter(entry=>entry.kind==='attendance-bonus' && validDay(entry.startDay) && validDay(entry.endDay));
   const blocks=[];let pending=[],previous=null,consecutive=0;
   for(const day of fullDays) {
@@ -42,7 +62,7 @@ function streakBlocks(stats,wallet,time) {
 
 export function attendanceProgress(stats,wallet,time=Date.now()) {
   const state=streakBlocks(stats,wallet,time),today=dayKey(time);
-  return {days:state.pending.length,total:STREAK_DAYS,consecutive:state.consecutive,today:state.days[today] || {},
+  return {days:state.pending.length,total:STREAK_DAYS,consecutive:state.consecutive,today:state.days[today]===true,
     rewardedToday:Object.values(wallet?.earned || {}).some(entry=>entry.kind==='attendance-bonus' && entry.endDay===today)};
 }
 
@@ -51,7 +71,7 @@ export function awardAttendanceBonus(wallet,stats,time=Date.now()) {
   for(const block of streakBlocks(stats,wallet,time).blocks) {
     const id=`attendance30:${block.startDay}:${block.endDay}`;
     if(next.earned?.[id])continue;
-    next={...next,earned:{...next.earned,[id]:{...block,at:time,amount:STREAK_REWARD,kind:'attendance-bonus'}}};
+    next={...next,earned:{...next.earned,[id]:{...block,at:time,amount:STREAK_REWARD,kind:'attendance-bonus',basis:'daily-visit'}}};
     awarded+=STREAK_REWARD;
   }
   return {wallet:next,awarded};
@@ -62,15 +82,21 @@ export function finishStudySession(wallet,stats,snapshot,time=Date.now()) {
   if(!snapshot || !snapshot.id || snapshot.done || stats.lessons?.[snapshot.id])return {wallet,stats,session:snapshot,duplicate:true};
   const spentSeconds=Math.max(0,Math.round((snapshot.plannedMs-snapshot.remainingMs)/1000));
   const studiedAt=lessonStudyTime(snapshot,time),rewardId=routineRewardId(studiedAt);
-  const routine=awardRoutine(wallet,{...snapshot,spentSeconds},studiedAt);
+  const prior=wallet.earned?.[rewardId]?[]:Object.values(stats.lessons || {}).filter(record=>!record.completed&&!record.imported&&!record.contributedTo &&
+    (record.studyDay||dayKey(record.at))===dayKey(studiedAt) && (record.slot||studySlot(record.at))===studySlot(studiedAt));
+  const evaluation={...snapshot,spentSeconds:spentSeconds+prior.reduce((sum,r)=>sum+(Number(r.seconds)||0),0),
+    scoredAnswers:Number(snapshot.scoredAnswers ?? snapshot.answers ?? 0)+prior.reduce((sum,r)=>sum+(Number(r.answers)||0),0)};
+  const routine=awardRoutine(wallet,evaluation,studiedAt);
   const session={...snapshot,done:true,spentSeconds,routineReward:routine.awarded,rewardReasons:routine.evaluation.reasons,
     rewardAlready:Boolean(wallet.earned?.[rewardId]) && !routine.awarded && routine.evaluation.amount>0};
   const record=lessonRecord(session,snapshot.level,time);
+  if(routine.evaluation.amount>0){record.completed=true;record.climb=Math.min(1,snapshot.plannedMs/900000);}
   if(routine.awarded)record.rewardId=rewardId;
   let nextWallet=routine.wallet;
   if(routine.awarded)nextWallet={...nextWallet,earned:{...nextWallet.earned,[rewardId]:{...nextWallet.earned[rewardId],level:snapshot.level,sessionId:snapshot.id}}};
   const key=record.studyDay,day=stats.byDay?.[key] || {};
-  const nextStats={...stats,lessons:{...stats.lessons,[snapshot.id]:record},byDay:{...stats.byDay,[key]:{...day,seconds:(day.seconds||0)+spentSeconds,sessions:(day.sessions||0)+1,at:time}}};
+  const contributions=routine.awarded?Object.fromEntries(prior.map(r=>[r.id,{...r,contributedTo:snapshot.id,updatedAt:time}])):{};
+  const nextStats={...stats,lessons:{...stats.lessons,...contributions,[snapshot.id]:record},byDay:{...stats.byDay,[key]:{...day,visitedAt:day.visitedAt||time,seconds:(day.seconds||0)+spentSeconds,sessions:(day.sessions||0)+1,at:time}}};
   const bonus=awardAttendanceBonus(nextWallet,nextStats,time);
   if(bonus.awarded)record.bonusReward=bonus.awarded;
   return {wallet:bonus.wallet,stats:nextStats,session:{...session,attendanceReward:bonus.awarded,climb:record.climb,ascentBefore:ascentProgress(stats,snapshot.level).steps},duplicate:false};

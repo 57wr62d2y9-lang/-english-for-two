@@ -14,6 +14,7 @@
   --green-soft: #eaf8f3;
 }
 
+
 /* Tap-to-translate uses independent controls, never nested answer buttons. */
 .englishText {display:contents!important;font:inherit!important;color:inherit!important;}
 .app .englishText > button.wordTap,.wordSheet .englishText > button.wordTap {all:unset;display:inline;font:inherit;color:inherit;line-height:inherit;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-decoration-color:#b9a6b080;text-underline-offset:4px;border-radius:3px;touch-action:manipulation;}
@@ -564,3 +565,116 @@ footer { display: flex; align-items: center; justify-content: center; gap: 7px; 
 .attendanceHeading{display:flex;align-items:center;justify-content:space-between;gap:12px}.attendanceHeading h2{font-size:20px;margin:8px 0 18px;line-height:1.3}.attendanceHeading>strong{font-size:26px;white-space:nowrap;color:#25795e}.attendanceHeading .eyebrow{font-size:10px;letter-spacing:1px}
 .attendanceCount{display:flex;justify-content:space-between;gap:12px;font-size:14px}.attendanceCard progress{display:block;width:100%;height:10px;margin:12px 0 18px;border:0;border-radius:20px;overflow:hidden;background:#ebdfcc;accent-color:#c49746}.attendanceCard progress::-webkit-progress-bar{background:#ebdfcc;border-radius:20px}.attendanceCard progress::-webkit-progress-value{background:#c49746;border-radius:20px}.attendanceCard progress::-moz-progress-bar{background:#c49746;border-radius:20px}
 .attendanceToday{display:flex;flex-wrap:wrap;gap:8px}.attendanceToday span{padding:8px 10px;border-radius:12px;background:#f0e6d8;color:#74624b;font-size:12px}.attendanceToday .done{background:#e2f1e8;color:#247055}.attendanceCard .helper{margin-bottom:0;line-height:1.6}.bonusNotice{padding:13px 16px;border-radius:14px;background:#e6f5ec;color:#247055;font-weight:600;line-height:1.6}
+
+/* v0.6: seasons decorate the app; cards stay quiet and readable. */
+:root {--page-bg:#fff9f2;--sky-start:#fae5c9;--mountain-start:#d8bb8d;--mountain-end:#aa825a;--season-decoration:'🍂';}
+:root[data-season="winter"] {--page-bg:#f4f8ff;--pink:#8072ba;--pink-dark:#625499;--pink-soft:#f0edfb;--sky-start:#dceaff;--mountain-start:#c3d5e8;--mountain-end:#8ba3bc;--season-decoration:'❄';}
+:root[data-season="spring"] {--page-bg:#fff8fc;--pink:#ce6590;--pink-dark:#a73f70;--pink-soft:#fff0f7;--sky-start:#fae7ef;--mountain-start:#cbdcb0;--mountain-end:#88aa75;--season-decoration:'🌷';}
+:root[data-season="summer"] {--page-bg:#f4fbf7;--pink:#329982;--pink-dark:#1b7766;--pink-soft:#e4f6ef;--sky-start:#d9f1ee;--mountain-start:#b7d8a0;--mountain-end:#6da77c;--season-decoration:'☀';}
+:root[data-holiday="halloween"] {--pink:#c47932;--pink-dark:#915323;--pink-soft:#fff0dc;--page-bg:#fff7ec;--season-decoration:'🎃';}
+:root[data-holiday="new-year"],:root[data-holiday="christmas"] {--pink:#b44c64;--pink-dark:#94384f;--pink-soft:#ffedf1;--season-decoration:'✨';}
+:root[data-holiday="march-8"] {--pink:#d86591;--pink-dark:#b14778;--season-decoration:'🌸';}
+:root[data-holiday="valentine"] {--pink:#d45582;--pink-dark:#b53b68;--season-decoration:'♡';}
+.app.v5App {background:var(--page-bg);}
+.v5App .brandbar {position:relative;}
+.v5App .brandbar::after {content:var(--season-decoration);position:absolute;right:56px;top:0;font-size:15px;pointer-events:none;opacity:.65;}
+.brandmark.mascot {object-fit:contain;background:transparent!important;border:0!important;height:52px;width:36px;border-radius:0!important;}
+.holidayRibbon {padding:9px 14px;text-align:center;border-radius:14px;background:var(--pink-soft);color:var(--pink-dark);font-size:13px;margin:0 0 12px;}
+:root[data-holiday="new-year"] .brandbar,:root[data-holiday="christmas"] .brandbar {border-top:3px dotted #bb9355;padding-top:12px;}
+.mountainCompact {display:grid;grid-template-columns:1fr 125px;grid-template-rows:auto auto;border-radius:22px;}
+.mountainCompact .mountainHeading {grid-column:1;padding:17px 18px 0;align-items:flex-start;gap:7px;flex-direction:column;}
+.mountainCompact .mountainHeading>span {letter-spacing:1px;font-size:9px;}
+.mountainCompact .landscape {grid-column:2;grid-row:1/3;height:135px;max-width:125px;align-self:end;object-fit:cover;}
+.mountainCompact .mountainFoot {grid-column:1;padding:10px 18px 16px;}
+.mountainCompact .mountainFoot p {display:none;}
+.mountainCompact .mountainFoot strong {font-size:24px;}
+.gopher {object-fit:contain;}
+.attendanceCard {padding:17px 19px;border-radius:21px;margin:14px 0;background:color-mix(in srgb,var(--page-bg) 80%,white);}
+.attendanceHeading .eyebrow {display:none;}
+.attendanceHeading h2 {font-size:17px;margin:0 0 9px;}
+.attendanceHeading>strong {font-size:22px;}
+.attendanceCount {font-size:12px;}
+.attendanceCard progress {height:6px;margin:8px 0 10px;}
+.attendanceToday span {padding:5px 9px;font-size:11px;}
+.attendanceCard .helper {font-size:11px;margin-top:7px;}
+.v5App .todayCard {padding:22px;margin-top:0;border-radius:24px;}
+.v5App .todayTop h1 {font-size:25px;margin:8px 0;line-height:1.2;}
+.v5App .todayTop p {font-size:13px;margin:5px 0;}
+.v5App .quietStudyNote {font-size:14px;line-height:1.5;margin:14px 0;}
+.v5App .todayCard .primary.big {min-height:54px;margin-top:10px;font-size:17px;}
+.v5App .slotRow {margin:15px 0 0;gap:8px;}
+.v5App .slotRow>span {padding:10px 7px;font-size:11px;}
+.v5App .slotRow strong {font-size:13px;}
+.v5App .rewardRules {margin-top:15px;font-size:12px;}
+.v5App .rewardRules summary {font-size:13px;}
+.giftHeading {display:flex!important;align-items:flex-start;justify-content:space-between;gap:12px;grid-column:1/-1;}
+.v5App .giftCard button.deleteGoal {width:36px;min-height:36px;flex:none;margin:0;background:transparent;color:#998992;border:1px solid var(--line);border-radius:50%;font-size:22px;padding:0;}
+.deleteGoalConfirm {grid-column:1/-1;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.deleteGoalConfirm p {width:100%;}
+.v5App .deleteGoalConfirm button {width:auto;min-height:40px;margin:0;}
+.giftArchive summary {font-size:14px;color:var(--muted);cursor:pointer;padding:10px 0;}
+.compactLesson {width:min(100%,600px);margin:0 auto;padding:12px 14px max(10px,env(safe-area-inset-bottom));height:100dvh;height:var(--lesson-height,100dvh);min-height:0;display:flex;flex-direction:column;gap:12px;background:var(--page-bg);overflow:hidden;box-sizing:border-box;}
+.compactTopbar {display:flex;align-items:center;gap:12px;flex-shrink:0;height:42px;}
+.compactTopbar .iconButton {width:40px;min-width:40px;height:40px;min-height:40px;border:0;background:transparent;font-size:28px;color:var(--ink);}
+.compactTopbar .sessionProgress {flex:1;margin:0;height:7px;background:#dfd9df;}
+.compactTimer {font-size:12px;color:var(--muted);min-width:36px;text-align:right;}
+.compactCard {flex:1;min-height:0;padding:20px;border:1px solid var(--line);border-radius:24px;background:#fff;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;}
+.compactCard .eyebrow {font-size:10px;letter-spacing:1px;color:#897580;}
+.compactCard h1 {font-size:clamp(23px,6vw,31px);line-height:1.25;letter-spacing:-.6px;margin:14px 0;overflow-wrap:anywhere;}
+.phraseLine {display:flex;align-items:center;gap:10px;}
+.phraseLine h1 {flex:1;min-width:0;}
+.compactLesson .soundButton {width:38px;min-height:38px;padding:0;border-radius:50%;background:var(--pink-soft);color:var(--pink-dark);border:0;flex-shrink:0;}
+.compactMeaning {font-size:18px;line-height:1.45;color:var(--pink-dark);background:var(--pink-soft);padding:12px 14px;border-radius:14px;margin:8px 0 14px;font-weight:650;}
+.compactUsage {font-size:13px;line-height:1.6;color:#71646c;margin:12px 0;}
+.compactExample {padding:13px 14px;background:#faf8f7;border:1px solid #eee7e5;border-radius:16px;margin-top:16px;}
+.compactExample p {font-size:15px;line-height:1.5;margin:8px 0 0;}
+.compactExample p[lang=ru] {font-size:13px;color:#8a7b83;}
+.exampleHeading {display:flex;justify-content:space-between;align-items:center;gap:10px;}
+.exampleHeading small {font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:#94828c;}
+.exampleHeading>div {display:flex;gap:5px;}
+.exampleHeading button {height:28px;min-width:28px;font-size:11px;padding:0;border-radius:8px;border:0;background:#ede7e9;color:#8b7a85;}
+.exampleHeading button.active {color:var(--pink-dark);background:var(--pink-soft);}
+.compactLookupHint {display:block;margin-top:13px;font-size:10px;color:#9d8c96;}
+.compactLesson .englishText>button.wordTap {all:unset;display:inline;font:inherit;color:inherit;line-height:inherit;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-decoration-color:#b9a6b080;text-underline-offset:4px;touch-action:manipulation;}
+.compactLesson .wordTap:focus-visible {outline:2px solid var(--pink);outline-offset:2px;}
+.compactInstruction {font-size:12px;line-height:1.5;color:#8b7a85;margin:0 0 13px;}
+.compactLesson .options {gap:8px;margin-top:8px;}
+.compactLesson .options>button {min-height:44px;border-radius:12px;font-size:14px;padding:11px 12px;line-height:1.35;}
+.compactLesson .answerChoiceHint {font-size:9px;line-height:1.3;margin:0 0 6px;}
+.compactLesson .lookupOption {display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:12px;min-height:46px;}
+.compactLesson .optionText {font-size:14px;line-height:1.45;min-width:0;}
+.compactLesson .chooseAnswer {min-height:36px;border:0;border-radius:8px;background:var(--pink-soft);color:var(--pink-dark);padding:7px 9px;font-size:11px;flex-shrink:0;}
+.compactLesson .typedAnswer {margin-top:16px;}
+.compactLesson .typedAnswer input {font-size:16px;min-height:48px;padding:12px;border-radius:13px;}
+.compactLesson .typedAnswer button {min-height:44px;margin-top:9px;width:100%;font-size:14px;}
+.compactLesson .orderMode button {font-size:10px;min-height:34px;}
+.compactLesson .sentenceAssembly {padding:11px;margin-top:10px;min-height:60px;}
+.compactLesson .sentenceAssembly button,.compactLesson .wordBank button {font-size:13px;padding:7px 9px;}
+.compactLesson .wordBank {gap:6px;margin:10px 0;}
+.compactLesson .orderTask>.primary {width:100%;font-size:13px;min-height:40px;}
+.compactLesson .optionalTranslation button {font-size:12px;min-height:34px;padding:0;margin-top:11px;}
+.compactLesson .optionalTranslation p {font-size:13px;line-height:1.45;color:#82727d;}
+.compactActions {flex-shrink:0;display:flex;flex-direction:column;gap:7px;}
+.compactActions>.primary,.compactActions>.secondary {min-height:48px;font-size:16px;border-radius:15px;}
+.knownButton {background:transparent;border:1px solid var(--line);border-radius:12px;min-height:40px;color:#8a7480;font-size:11px;padding:8px 9px;}
+.compactFinishLink {min-height:25px;padding:3px;background:transparent;border:0;color:#ab9aa3;font-size:10px;}
+.feedbackTitle {display:block;font-size:16px;font-weight:750;color:var(--green);}
+.feedbackTitle.wrong {color:#aa5670;}
+.compactYourAnswer {font-size:12px;color:#a47988;margin:9px 0;text-decoration:line-through;}
+.compactRecovery {font-size:12px;line-height:1.5;color:#967f89;margin:13px 0 0;}
+.checkSaved {font-size:13px;color:var(--green);margin-top:15px;}
+.checkpointLesson .compactActions>small {font-size:10px;color:var(--muted);text-align:center;line-height:1.4;}
+.lessonFinish .resultSummary>div {padding:15px;border-radius:16px;background:#f7f4f5;display:flex;flex-direction:column;gap:7px;}
+.lessonFinish .resultSummary strong {font-size:26px;}
+.lessonFinish .resultSummary span {font-size:12px;color:var(--muted);}
+@media(max-height:650px) {.compactLesson {gap:8px;padding-top:7px}.compactCard{padding:15px}.compactCard h1{font-size:24px;margin:10px 0}.compactMeaning{font-size:16px;padding:9px 12px;margin:7px 0}.compactExample{margin-top:11px;padding:10px 12px}.compactExample p{font-size:14px}.compactUsage{font-size:12px;margin:8px 0}.compactActions>.primary{min-height:44px}.knownButton{min-height:35px}.compactTopbar{height:35px}.compactLookupHint{margin-top:9px}}
+.compactUsage summary {cursor:pointer;font-size:12px;color:#8a7480;}
+.compactUsage p {margin:8px 0;font-size:13px;}
+.compactLong h1 {font-size:24px;line-height:1.25;}
+.compactLong .compactMeaning {font-size:16px;padding:10px 12px;}
+.compactLong .compactExample p {font-size:14px;line-height:1.45;}
+.checkMistakes {padding:15px;border:1px solid var(--line);border-radius:17px;margin:15px 0;text-align:left;}
+.checkMistakes h2 {font-size:17px;}
+.checkMistakes article {padding:10px 0;border-bottom:1px solid var(--line);}
+.checkMistakes article p {font-size:14px;margin:5px 0;}
+.checkMistakes article small {font-size:11px;color:#a37d8b;}

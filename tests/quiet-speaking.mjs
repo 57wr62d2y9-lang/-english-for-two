@@ -16,8 +16,8 @@ for(const type of ['video','listening','grammar','ielts']) {
     task:{type,practice:type==='ielts'},mediaBlock:{lesson:{id:'old-video'},index:1},recoveryQueue:[{id:'old-video:q0',dueStep:0,attempts:1}]};
   const changed=resumeVocabularySession(old,{}, {speakingMode:'quiet'});
   assert.equal(changed.id,old.id);assert.equal(changed.answers,8);assert.equal(changed.correct,5);assert.equal(changed.remainingMs,240000);
-  assert.equal(changed.mediaBlock,null);assert.equal(changed.programmeVersion,'vocabulary-1');
-  assert.ok(!['video','listening','grammar'].includes(changed.task.type));
+  assert.equal(changed.mediaBlock,null);assert.equal(changed.programmeVersion,'vocabulary-2');
+  assert.ok(!['video','listening','grammar','ielts'].includes(changed.task.type));
   assert.deepEqual(changed.recoveryQueue,[]);assert.equal(old.mediaBlock.index,1);
 }
 const session=nextLessonTask(makeSession('A2'),{});

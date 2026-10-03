@@ -1,78 +1,77 @@
-# Vocabulary-first learning design · 0.5.0
+# Vocabulary learning design · 0.6.0
 
-## Current direction
+Useful words and phrases are the whole active programme. Meaning comes first:
+Russian meaning, a short usage note, and two or more life examples. Videos,
+IELTS and standalone grammar quizzes are no longer scheduled. Device pronunciation
+is optional and limited to the text shown. Individual English words open a
+translation sheet without selecting an answer.
 
-Learn useful words and expressions through meaning and varied life situations.
-Rules are optional context help. Daily tasks and checkpoints require no video,
-external recording or spoken answer. Device pronunciation is opt-in.
-
-The catalogue has 400 authored word cards plus existing phrases/collocations:
-1,012 distinct headwords/expressions. Every new word card contains a Russian
-meaning and usage note, an English definition and two translated examples.
-Examples and task variants do not count as additional words. Level pools are
-A2 306, B1 311, B2 205, C1 204; cross-level headwords may cover different senses.
-Legacy IDs and duplicate aliases retain their progress.
+There are 1,312 distinct lexical units across all levels, including 300 additions
+in this release. A2 / B1 / B2 / C1 contain 426 / 411 / 245 / 244 cards. Repeated
+headwords across levels may cover different senses; examples and exercises do not
+inflate the count. Original IDs, aliases and progress are preserved.
 
 ## Selection and repetition
 
-- Every third task reserves a place for a new unit while fresh material and the
-  selected quota remain. Both daily slots use the same rule; a large due backlog
-  must not eliminate introductions.
-- Normal 15-minute quota: up to 12 new units, adjustable to 8 or 16. Five-minute
-  quota: up to 4. These are limits, not promised learning outcomes.
-- Between introductions, mix due material with consolidation of units introduced
-  in this session. Normally five intervening items; three for short sessions.
-- A due card appears at most once normally in a session. Introduced units get up
-  to two checks. Failures can have up to two separate retries after a gap.
-- Never use a future review as filler. When this batch is exhausted, offer an
-  explicit additional batch or finish. No automatic three-card loop.
-- Recognition success schedules the next day but earns no verified mastery.
-  Later contextual/recall success advances the transparent spaced schedule.
-- Ordinary targets: day 1, 3, 5, 8, 12, 30, 60 and 90 after first exposure.
-  Late returns schedule the next review at least one day later.
-- Verified mastery needs four distinct review days, two contextual successes,
-  recall or listening evidence, and at least 30 days of retention. An error
-  removes verified status. Already-known units get a delayed 35-day recall check.
-- Existing audio/grammar progress is preserved, not reset or falsely marked as
-  learned, although those tasks are no longer part of the programme.
+Every third task reserves new learning when fresh units and the quota remain.
+The 15-minute quota is up to 8, 12 or 16; five-minute lessons use up to four.
+Words and phrases alternate where available, with unseen release additions given
+priority. Due material and consolidation fill the intervening tasks. Future reviews
+never fill an empty timer. The learner can finish a batch or explicitly add more.
 
-## Progress and rewards
+Recognition success leaves the due queue for three days. Successful due active
+reviews schedule 3, 5, 8, 12, 30, 35, 60 and 90 days relative to actual review time.
+A conservative read-time compatibility rule postpones legacy one-day schedules
+whose recorded successful review otherwise leaves them perpetually overdue.
+Historical dates, mistakes, known declarations and backup records are unchanged.
 
-Introduced, recalled in writing, due, unseen and long-retained counts are separate.
-An introduction or repeated click cannot claim long-term knowledge. The gopher
-mountain records completed practice independently from vocabulary retention.
-Neither 80 practice stages nor a 400-unit internal checkpoint certifies CEFR.
-Some planned checkpoint thresholds exceed the currently available level pool.
+Errors retry after intervening cards, with at most two retries, and receive a
+next-day due date. Correctly recalled cards do not return normally later that
+same date. “Очень хорошо знаю” is available throughout ordinary learning; it
+clears that card from the local recovery queue and sets a 35-day verification,
+without inventing a correct answer. Self-declaration is distinct from verified
+long-term retention. Verification still needs distributed evidence across days.
 
-Existing balances and reward IDs are unchanged. One routine reward per morning
-and evening: $1 for five minutes/three checked answers even with mistakes (four
-minutes in a short lesson); $2 for a completed ordinary lesson with eight answers,
-two task types and >=50% accuracy or two recovered errors; $3 for 12 answers,
->=75% accuracy, three task types and eight different correct tasks. Hints are
-allowed, speed is not required. Short lessons cap at $1. Credits are personal
-virtual gift credits, not actual payouts. Existing milestone rewards are unchanged.
+## Progress, checks and rewards
 
-## Persistence and release safety
+Practised-card progress advances the mountain; long-retained vocabulary is a
+separate count. Introductions alone do not count as practice. A checked response,
+including an error, or an explicit known declaration contributes to course
+practice. This is a learning route, not official CEFR certification.
 
-- Telegram users retain independent storage and the existing account identity.
-- Progress keeps 64 original bucket addresses. Dense buckets split into bounded
-  parts below 4,096 characters. Overflow is written before the base, so a failed
-  write preserves the old base; retries and newest-record merges recover.
-- Supabase private backup and couple sync contracts are unchanged; production
-  database, bot secrets and reminder scheduler are not modified.
-- Draft migration changes an obsolete task, never earned evidence or lesson ID.
-- Pure/component tests simulate a week of daily lessons, all levels, dense
-  history, failed saves, a new-device restore and interaction without media.
-- New content has offline translations; legacy/unknown text may still request
-  the existing on-demand translator. No fabricated fallback is shown.
+At 25%, 50% and 75% of the actual published level pool, the next daily lesson
+becomes a ten-card vocabulary check. A check persists in the normal draft/backup
+channel. Passing requires eight correct answers and awards $5 once, with the
+existing milestone ID. It completes the daily slot and replaces that slot’s $1.
+A failed completed attempt earns the ordinary $1; automatic retry waits until
+another date so new learning remains available. Manual retry is still possible.
+After all cards and three paid checks, the final has twenty tasks and requires
+sixteen correct answers. Completing A2 awards $100 once; other level finals have
+no new monetary award.
 
-## Long-term vocabulary ambition
+Ordinary lessons pay $1 per completed morning/evening slot regardless of mistakes,
+hints or speed. Finishing a natural batch requires five checked answers, or three
+for a short lesson. An early manual exit needs twelve active minutes (four in a
+short lesson) and the same answer minimum. Unfinished attempts in the same
+completion date/slot combine once and cannot be reused for extra ascent.
+Time, actual answers and completion status remain separate.
 
-This is an initial catalogue, not tens of thousands of delivered learning units.
-Native-speaker estimates depend strongly on what is counted. A 2016 study
-estimated about 42,000 recognised lemmas and 4,200 multiword expressions for an
-average 20-year-old native American-English speaker, from about 11,100 word
-families. This was receptive knowledge, sometimes merely recognising a word's
-existence, not a promise of active fluency or a required card count.
+Every thirty consecutive app-visit dates awards $10 once per non-overlapping
+block. Opening the app is enough. Historical actual practice proves an opening;
+imported payment records alone do not. The Istanbul clock defines dates and the
+existing morning 04:00–14:00 / evening slots. All old earned money is retained.
 
-Source: [Brysbaert et al., Frontiers in Psychology](https://www.frontiersin.org/journals/psychology/articles/10.3389/fpsyg.2016.01116/full).
+## Persistence
+
+Canonical and alias progress merge by last update without renaming old records.
+Schedule-version fields append to the existing compact tuple format. Progress
+buckets and individual wallet/day records remain below CloudStorage’s size cap.
+Goal deletions are timestamped records, so stale restores cannot resurrect them.
+Only active goals are published to the partner; financial request history remains
+available in a collapsed archive.
+
+Own backups retain settings, level progress, day visits, lessons, wallet, and a
+paused lesson or checkpoint. Corrections use a separate update timestamp while
+preserving the original completion date. Existing reminder settings and the
+original scheduler endpoint remain unchanged. Release tests use isolated doubles
+and do not contact production accounts.

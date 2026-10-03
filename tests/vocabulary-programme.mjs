@@ -43,7 +43,7 @@ test('400 original word cards have two distinct translated situations and usage 
   }
 });
 test('catalogue counts headwords, not examples, task variants or duplicate legacy cards',()=>{
-  assert.equal(TOTAL_LEXICAL_UNITS,1012);
+  assert.equal(TOTAL_LEXICAL_UNITS,1312);
   for(const level of ['A2','B1','B2','C1']) {
     const pool=lexiconForLevel(level);
     assert.equal(new Set(pool.map(item=>lexicalKey(item.phrase))).size,pool.length);
@@ -67,7 +67,7 @@ test('a large due backlog cannot displace the twelve new units in either daily s
     const result=study(level,progress,time,{answers:45});
     assert.equal(result.introductions.length,12,level+' '+hour);
     assert.ok(result.tasks.some(task=>task.reason==='due'));
-    assert.ok(result.tasks.filter(task=>task.type==='ielts').length/result.tasks.length<.15);
+    assert.ok(result.tasks.every(task=>task.type!=='ielts'));
   }
 });
 test('seven mornings and evenings offer fresh words without early recycling',()=>{
@@ -90,7 +90,7 @@ test('seven mornings and evenings offer fresh words without early recycling',()=
 });
 test('a correct recognition leaves the due queue but cannot claim active mastery',()=>{
   const p=reviewItem(reviewItem(undefined,'intro',start).item,'recognition',start+1000).item;
-  assert.equal(p.n,start+1000+DAY);assert.equal(p.v,false);assert.equal(p.rcl,0);assert.equal(p.days.length,0);
+  assert.equal(p.n,start+1000+3*DAY);assert.equal(p.v,false);assert.equal(p.rcl,0);assert.equal(p.days.length,0);
 });
 test('five-minute lessons have enough intervening material for actual checked answers',()=>{
   for(const level of ['A2','B1','B2','C1']) {

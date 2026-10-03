@@ -23,6 +23,8 @@ import {
 } from '../src/learning.js';
 import { packItems, summariseStats, unpackItems } from '../src/storage-v3.js';
 import { mergeCoupleSnapshot, normalisePairCode } from '../src/couple-sync.js';
+import {lexiconForLevel} from '../src/lexicon.js';
+import {levelTarget,checkpointThreshold} from '../src/learning.js';
 import { IELTS_TASKS, recommendTaskType, tasksForMode } from '../src/ielts.js';
 import { chooseListeningLesson } from '../src/scheduler.js';
 import { buildCheckpoint, buildFinalCheck } from '../src/checkpoint.js';
@@ -141,7 +143,7 @@ test('edited phrase families contain distinct natural variations', () => {
   }
 });
 
-test('course points count verified knowledge, not clicks or practice XP', () => {
+test('course progress counts practised vocabulary and preserves separate verified knowledge', () => {
   const items = PHRASES.filter(item => item.level === 'B1').slice(0, 3);
   const progress = {
     [items[0].id]: { s: 'MASTERED', v: true, xp: 20 },
@@ -150,25 +152,26 @@ test('course points count verified knowledge, not clicks or practice XP', () => 
   };
   const result = courseProgress(items, progress);
   assert.equal(result.verified, 1);
-  assert.equal(result.points, 10);
-  assert.equal(result.targetPoints, COURSE_SIZE * 10);
+  assert.equal(result.practised, 2);
+  assert.equal(result.points, 20);
+  assert.equal(result.targetPoints, levelTarget('B1') * 10);
 });
 
-test('a milestone needs 100 verified units and an 8/10 checkpoint', () => {
+test('a milestone needs a practised quarter and an 8/10 checkpoint', () => {
   const items = PHRASES.filter(item => item.level === 'B1');
   const progress = Object.fromEntries(items.map(item => [item.id, { s: 'MASTERED', v: true }]));
   assert.equal(checkpointCandidates(items, progress, 1).length, 10);
   let wallet = { earned: {}, spent: {} };
-  assert.equal(awardMilestone(wallet, 'B1', 1, 7, 100), wallet);
-  wallet = awardMilestone(wallet, 'B1', 1, 8, 100, 1000);
+  assert.equal(awardMilestone(wallet, 'B1', 1, 7, checkpointThreshold('B1',1)), wallet);
+  wallet = awardMilestone(wallet, 'B1', 1, 8, checkpointThreshold('B1',1), 1000);
   assert.equal(balanceOf(wallet), 5);
-  const duplicate = awardMilestone(wallet, 'B1', 1, 10, 100, 2000);
+  const duplicate = awardMilestone(wallet, 'B1', 1, 10, checkpointThreshold('B1',1), 2000);
   assert.deepEqual(duplicate, wallet);
 });
 
-test('the second 100-unit checkpoint is available only after 200 verified units', () => {
-  const items = PHRASES.filter(item => item.level === 'B1');
-  const first199 = Object.fromEntries(items.slice(0, 199).map(item => [item.id, { s: 'MASTERED', v: true }]));
+test('the second quarter check unlocks at its exact practised-card threshold', () => {
+  const items = lexiconForLevel('B1');
+  const first199 = Object.fromEntries(items.slice(0, checkpointThreshold('B1',2)-1).map(item => [item.id, { s: 'MASTERED', v: true }]));
   assert.equal(checkpointCandidates(items, first199, 2).length, 0);
   const all200 = Object.fromEntries(items.map(item => [item.id, { s: 'MASTERED', v: true }]));
   assert.equal(checkpointCandidates(items, all200, 2).length, 10);
@@ -300,9 +303,9 @@ test('legacy and detailed IELTS type stats merge without losing accuracy', () =>
   assert.equal(stats.ielts.Reading.taskTypes['Matching heading'].correct, 1);
 });
 
-test('final level check stays locked until 400 verified units and all milestones', () => {
+test('final level check stays locked until the whole published programme and all milestones', () => {
   const source = PHRASES.find(item => item.level === 'B1');
-  const items = Array.from({ length:400 }, (_, index) => ({ ...source, id:`final-${index}` }));
+  const items = Array.from({ length:levelTarget('B1') }, (_, index) => ({ ...source, id:`final-${index}` }));
   const progress = Object.fromEntries(items.map(item => [item.id, { s:'MASTERED', v:true }]));
   const incompleteWallet = { earned:{}, spent:{} };
   assert.equal(finalLevelReady(items, progress, incompleteWallet, 'B1'), false);
@@ -311,7 +314,7 @@ test('final level check stays locked until 400 verified units and all milestones
   assert.equal(finalLevelReady(items, progress, wallet, 'B1'), true);
   assert.equal(buildFinalCheck(items, progress, COLLOCATIONS, LISTENING_LESSONS, GRAMMAR_TASKS, 'B1').length, 20);
   assert.equal(awardLevelCompletion(wallet, 'B1', 15, 20), wallet);
-  const completed = awardLevelCompletion(wallet, 'B1', 16, 20, 1000, 400);
+  const completed = awardLevelCompletion(wallet, 'B1', 16, 20, 1000, levelTarget('B1'));
   assert.equal(completed.earned['route-2026-1:B1:complete'].score, 16);
 });
 

@@ -1,14 +1,16 @@
 import {PHRASES,COLLOCATIONS} from './catalog.js';
 import {VOCABULARY} from './vocabulary.js';
+import {AUTUMN_VOCABULARY} from './vocabulary-autumn.js';
+import {scheduledReviewAt} from './review-schedule.js';
 
 export const lexicalKey=text=>String(text).toLowerCase().replaceAll('’',"'").replace(/[.!?…]+$/g,'').trim();
 const levels=['A2','B1','B2','C1'];
 // Keep original IDs. Duplicate legacy cards are aliases, never new learning.
 export const LEXICON=levels.flatMap(level=>{
   const unique=new Map();
-  for(const item of [...PHRASES,...COLLOCATIONS,...VOCABULARY].filter(item=>item.level===level)) {
+  for(const item of [...PHRASES,...COLLOCATIONS,...VOCABULARY,...AUTUMN_VOCABULARY].filter(item=>item.level===level)) {
     const key=lexicalKey(item.phrase),existing=unique.get(key);
-    if(existing){existing.aliases.push(item.id);continue;}
+    if(existing){existing.aliases.push(item.id);if(item.usageRu&&!existing.usageRu)existing.usageRu=item.usageRu;continue;}
     unique.set(key,{...item,kind:item.kind || 'phrase',aliases:[]});
   }
   const words=[...unique.values()].filter(item=>item.kind==='word');
@@ -30,7 +32,7 @@ export function vocabularyStats(items,progress,time=Date.now()) {
   return {available:items.length,words:items.filter(item=>item.kind==='word').length,phrases:items.filter(item=>item.kind!=='word').length,
     introduced:learned.length,remaining:items.length-learned.length,
     recall:learned.filter(item=>progressFor(item,progress)?.rcl>0).length,
-    due:learned.filter(item=>{const p=progressFor(item,progress);return !p.n || p.n<=time;}).length,
+    due:learned.filter(item=>{const p=progressFor(item,progress);return !scheduledReviewAt(p) || scheduledReviewAt(p)<=time;}).length,
     verified:learned.filter(item=>{const p=progressFor(item,progress);return p.v && p.s==='MASTERED';}).length};
 }
 export const TOTAL_LEXICAL_UNITS=new Set(LEXICON.map(item=>lexicalKey(item.phrase))).size;

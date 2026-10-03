@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { PHRASES, COLLOCATIONS } from '../src/catalog.js';
+import {lexiconForLevel} from '../src/lexicon.js';
 import { DAILY_GRAMMAR, GUIDES } from '../src/lesson-notes.js';
 import { DAILY_IELTS } from '../src/daily-ielts.js';
 import { MEDIA_LESSONS } from '../src/media-lessons.js';
@@ -63,6 +64,7 @@ await test('translation follows the visible sentence or phrase, not a hidden exa
 
 function runWithMistake(family) {
   const time=Date.parse('2026-09-21T06:00:00Z');let session=makeSession('B1',15,0,time),progress={},failed=null,repeated=null,after=[];
+  if(family==='recall')progress=Object.fromEntries(lexiconForLevel('B1').slice(0,100).map(item=>[item.id,{s:'LEARNING',c:2,rec:1,l:time-DAY,n:time-1}]));
   for(let i=0;i<65;i++) {
     session=nextLessonTask(session,progress,time+i*3000);if(session.exhausted)session=nextLessonTask(extendVocabularySession(session),progress,time+i*3000);assert.ok(!session.exhausted);
     const task=session.task;
@@ -79,8 +81,8 @@ function runWithMistake(family) {
   }
   return {session,failed,repeated,progress,after};
 }
-await test('vocabulary and Reading errors return after intervening tasks',()=>{
-  for(const family of ['recognition','context','Reading']) {
+await test('vocabulary errors return after intervening tasks',()=>{
+  for(const family of ['recognition','context','recall']) {
     const {session,failed,repeated}=runWithMistake(family);
     assert.ok(failed,family);assert.ok(repeated,`${family} never returned`);
     assert.ok(repeated.step>=failed.step+6,family);assert.equal(repeated.task.progressId,failed.id);

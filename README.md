@@ -1,4 +1,42 @@
-# English for Two · 0.5.2
+# English for Two · 0.6.0
+
+## Vocabulary, automatic checks and daily visits (0.6.0)
+
+- Daily lessons contain only vocabulary: no IELTS, video, audio comprehension
+  or grammar quizzes. Legacy progress and paused lesson answers remain intact.
+- Added 300 original bilingual lexical units: A2 120, B1 100, B2 40 and C1 40.
+  The catalogue now contains 1,312 distinct headwords/expressions across levels;
+  level pools are 426 / 411 / 245 / 244. New material alternates words and phrases
+  where available and keeps its reserved place despite a due-review backlog.
+- Compact mobile cards use translated life examples in tabs, a persistent action
+  area and word lookup. Sentence assembly always starts from a Russian sentence.
+  On every ordinary card, “Очень хорошо знаю” postpones it exactly 35 days.
+- Successful due reviews now schedule from the actual review date. A conservative
+  compatibility rule corrects legacy one-day schedules without rewriting history.
+  Incorrect answers retain their spaced and within-session recovery paths.
+- A finished batch with at least five checked answers (three for a short lesson)
+  earns the ordinary $1, even if it finishes before the time threshold or includes
+  mistakes. Early manual finishes retain the 12-/4-minute thresholds. Partial
+  attempts in the same date/slot combine once; payment IDs remain unchanged.
+- Three checks unlock at 25%, 50% and 75% of practised vocabulary and replace the
+  next daily lesson automatically. Paused controls resume after reload. Passing
+  8/10 awards $5 total and marks the daily slot complete; an unsuccessful complete
+  attempt earns the ordinary $1. The final is 16/20 after all practised cards and
+  all three checks; A2 still awards $100 once. Paid controls cannot be paid again.
+- The $10 streak now requires 30 consecutive app visits, with no lesson requirement.
+  Actual historical practice proves visits; payment-only imports do not. Existing
+  paid date ranges cannot overlap new bonuses. Dates use Istanbul time.
+- Personal gifts can be deleted without changing earned/spent money. Deletion
+  records survive stale backups and individual bounded CloudStorage records;
+  the partner sees active goals. Gift request history is collapsed by default.
+- The mountain uses the supplied gopher reference. Calendar themes cover all four
+  seasons plus seven-day New Year, Christmas, Halloween, March 8, Valentine and
+  May windows. Lesson decor stays unobtrusive; reminder infrastructure is unchanged.
+- New regression coverage exercises the reported A2 finish, old repeated phrase,
+  visit-only bonuses, actual app check/reload/settlement, deletion/restore, season
+  boundaries and daily status. No production QA users or test credits are created.
+
+The release sections below document historical behaviour, not current rules.
 
 ## Quiet practice and lesson corrections (0.5.2)
 

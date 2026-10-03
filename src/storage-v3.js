@@ -83,7 +83,7 @@ export function loadPairIdentity() {
 // parts, written before the base part so a partial write cannot lose old data.
 // New fields are only appended, so every existing compact CloudStorage record
 // remains readable without resetting Artur's or Anna's history.
-const FIELDS = ['s','c','w','l','n','f','step','rec','ctx','days','xp','v','known','rewardDay','event','rcl','lis','selfKnown','knownAt','lastWrong','lastCorrect'];
+const FIELDS = ['s','c','w','l','n','f','step','rec','ctx','days','xp','v','known','rewardDay','event','rcl','lis','selfKnown','knownAt','lastWrong','lastCorrect','sv'];
 export const packItems = items => Object.fromEntries(Object.entries(items).map(([id,p]) => [id, FIELDS.map(f => p[f] ?? null)]));
 export const unpackItems = items => Object.fromEntries(Object.entries(items || {}).map(([id,v]) => [id, Array.isArray(v) ? normaliseItem(Object.fromEntries(FIELDS.map((f,i) => [f,v[i] ?? undefined]))) : normaliseItem(v)]));
 export function progressChunks(items,limit=3900) {
@@ -240,21 +240,24 @@ export function setLocalMeta(key,value) { return localWrite(prefix()+key,value);
 export async function loadWallet() {
   const local = { earned:{}, spent:{}, goals:{}, incoming:{}, partner:null, ...(localRead(prefix()+'wallet') || {}) };
   const keys = (await cloudCall('getKeys')).value || [];
-  const relevant = keys.filter(k=>/^eft3_(earned|spent)_/.test(k));
+  const relevant = keys.filter(k=>/^eft3_(earned|spent|goals)_/.test(k));
   // Two paid lessons a day exceed the old 80-entry cap in six weeks.
   // Restore the whole wallet in bounded requests without dropping old credits.
   for(let offset=0;offset<relevant.length;offset+=50) {
     const remote=await cloudCall('getItems',relevant.slice(offset,offset+50));
     for (const value of Object.values(remote.value||{})) {
       const x=parse(value);
-      if (!['earned','spent'].includes(x?.kind) || !x.id || !x.data) continue;
+      if (!['earned','spent','goals'].includes(x?.kind) || !x.id || !x.data) continue;
       const old = local[x.kind][x.id];
-      if (!old || (x.data.resolvedAt || x.data.at || 0) >= (old.resolvedAt || old.at || 0)) local[x.kind][x.id] = x.data;
+      if (!old || (x.data.resolvedAt || x.data.updatedAt || x.data.at || 0) >= (old.resolvedAt || old.updatedAt || old.at || 0)) local[x.kind][x.id] = x.data;
     }
   }
   const remoteMeta = parse((await cloudCall('getItem','eft3_wallet_meta')).value);
   if (remoteMeta) {
-    local.goals = { ...(remoteMeta.goals || {}), ...(local.goals || {}) };
+    for(const [id,goal] of Object.entries(remoteMeta.goals || {})) {
+      const old=local.goals[id];
+      if(!old||(goal.updatedAt||goal.at||0)>(old.updatedAt||old.at||0))local.goals[id]=goal;
+    }
     local.incoming = { ...(remoteMeta.incoming || {}), ...(local.incoming || {}) };
     local.partner = choose(local.partner, remoteMeta.partner);
   }
@@ -263,12 +266,14 @@ export async function loadWallet() {
 export async function saveWallet(wallet) {
   const before = localRead(prefix()+'wallet') || {earned:{},spent:{},goals:{},incoming:{},partner:null};
   localWrite(prefix()+'wallet',wallet);
-  for (const kind of ['earned','spent']) for (const [id,data] of Object.entries(wallet[kind] || {})) {
+  for (const kind of ['earned','spent','goals']) for (const [id,data] of Object.entries(wallet[kind] || {})) {
     const fingerprint = JSON.stringify(data);
     if (before[kind]?.[id] && localRead(prefix()+`ack:${kind}:${id}`) === fingerprint) continue;
     const ok=await setRemote(`eft3_${kind}_${id.replaceAll(':','_')}`,{kind,id,data});
     if(ok) localWrite(prefix()+`ack:${kind}:${id}`,fingerprint);
   }
   const incoming = Object.fromEntries(Object.entries(wallet.incoming || {}).sort((a,b)=>(b[1].at||0)-(a[1].at||0)).slice(0,12));
-  await setRemote('eft3_wallet_meta',{ goals:wallet.goals||{}, incoming, partner:wallet.partner||null });
+  // Goals (including deletion records) have individual bounded keys. The old
+  // metadata address stays readable, but no growing list can exceed 4 KB.
+  await setRemote('eft3_wallet_meta',{ goals:{}, incoming, partner:wallet.partner||null });
 }

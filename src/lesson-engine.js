@@ -1,9 +1,8 @@
 import {lexiconForLevel,progressFor} from './lexicon.js';
 import {examplesFor,guideFor} from './lesson-notes.js';
-import {dailyIeltsForLevel} from './daily-ielts.js';
 import {chooseTask,isDue,queueRecovery,settleRecovery,shuffle,studySlot} from './learning.js';
 import {normaliseSpeakingMode} from './quiet-speaking.js';
-export const PROGRAMME_VERSION='vocabulary-1';
+export const PROGRAMME_VERSION='vocabulary-2';
 const escapes = text => text.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 export {normaliseAnswer,isAnswerCorrect} from './answer-check.js';
 
@@ -20,17 +19,18 @@ function phraseTask(choice,pool,progress,session) {
   const example=examples[exampleIndex] || {en:item.phrase,ru:item.ru};
   let type=choice.type==='intro'?'intro':previous?.known?'recall':
     ['recognition','context','recall','order','meaning'][encounter % 5];
+  if(type==='order'&&!example.ru)type='recall';
   if(choice.recovery)type=choice.type==='recognition'?'context':choice.type;
   const task={...choice,item,type,category:type,progressId:item.id,exampleIndex,example,examples,
     guide:guideFor(item,example.en),answer:item.phrase};
   if(type==='intro')return {...task,key:item.id+':intro',prompt:item.phrase};
   if(type==='recognition')Object.assign(task,{prompt:item.phrase,answer:item.ru,options:optionsFor(item,pool,'ru'),instruction:'Выбери значение слова или выражения.'});
-  if(type==='meaning')Object.assign(task,{prompt:example.en,answer:item.explanation,options:optionsFor(item,pool,'explanation'),instruction:'Что означает «'+item.phrase+'» в этой ситуации?'});
+  if(type==='meaning')Object.assign(task,{prompt:example.en,promptRu:example.ru,answer:item.ru,options:optionsFor(item,pool,'ru'),instruction:'Что означает выражение в этой ситуации?'});
   if(type==='context') {
     const core=item.phrase.replace(/[.!?…]+$/g,'').trim();
     const pattern=new RegExp('(?<![a-z])'+escapes(core)+'(?![a-z])','i');
     const found=pattern.test(example.en);
-    Object.assign(task,{prompt:found?example.en.replace(pattern,'_____'):item.explanation,options:optionsFor(item,pool),
+    Object.assign(task,{prompt:found?example.en.replace(pattern,'_____'):item.ru,promptRu:example.ru || item.ru,options:optionsFor(item,pool),
       instruction:found?'Вставь слово или выражение по смыслу.':'Выбери слово или выражение с этим значением.'});
   }
   if(type==='recall')Object.assign(task,{prompt:item.ru,subPrompt:item.explanation,instruction:'Вспомни изученное слово или выражение и напиши по-английски. Полная и сокращённая формы подходят: I would = I’d. Регистр и знаки препинания не важны.'});
@@ -48,22 +48,9 @@ export function nextLessonTask(base,progress,time=Date.now()) {
   const session={...base,programmeVersion:PROGRAMME_VERSION,now:time,visits:base.visits || {},recent:base.recent || [],
     introducedIds:base.introducedIds || [],mediaBlock:null,feedback:null,selected:null,hintUsed:false,exhausted:false};
   const pool=lexiconForLevel(session.level);
-  const reading=dailyIeltsForLevel(session.level,'Reading');
-  session.recoveryQueue=(session.recoveryQueue || []).filter(entry=>[...pool,...reading].some(item=>item.id===entry.id));
+  session.recoveryQueue=(session.recoveryQueue || []).filter(entry=>pool.some(item=>item.id===entry.id));
   const choice=chooseTask(pool,progress,session,time);
   let task;
-  const readingRecovery=session.recoveryQueue.find(entry=>entry.dueStep<=session.step && entry.attempts<=2 && !session.recent.slice(-5).includes(entry.id) && reading.some(item=>item.id===entry.id));
-  if(choice?.type!=='intro' && !choice?.recovery && readingRecovery) {
-    const item=reading.find(item=>item.id===readingRecovery.id);
-    task={...item,type:'ielts',category:'ielts',item,progressId:item.id,key:item.id,options:shuffle(item.options),reason:'mistake',recovery:true};
-  }
-  // Occasional short reading, no external media or stand-alone grammar quiz.
-  if(!task && session.step % 14===13 && !choice?.recovery && choice?.type!=='intro') {
-    const item=reading.filter(item=>!session.visits[item.id] &&
-      (!progress[item.id] || isDue(progress[item.id],time)))
-      .sort((a,b)=>(progress[a.id]?.l || 0)-(progress[b.id]?.l || 0))[0];
-    if(item)task={...item,type:'ielts',category:'ielts',item,progressId:item.id,key:item.id,options:shuffle(item.options),reason:'reading'};
-  }
   if(!task && choice)task=phraseTask(choice,pool,progress,session);
   if(!task)return {...session,task:null,exhausted:true,moreAvailable:pool.some(item=>!progressFor(item,progress) || progressFor(item,progress).s==='NEW')};
   const id=task.item.id,isNew=task.type==='intro';

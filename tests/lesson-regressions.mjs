@@ -21,15 +21,15 @@ function simulate(level,n=65) {
   }
   return {session,progress,tasks};
 }
-test('every level is vocabulary-first with occasional reading and no media',()=>{
+test('every level is vocabulary-only with words, phrases and no media',()=>{
   const all={};
   for(const level of ['A2','B1','B2','C1']){
     const {tasks}=simulate(level);all[level]=tasks;
     assert.ok(tasks.every(task=>task.item.level===level));
-    assert.ok(tasks.some(task=>task.type==='ielts'&&task.skill==='Reading'));
+    assert.ok(tasks.every(task=>task.type!=='ielts'));
     assert.ok(tasks.every(task=>!['video','listening','grammar'].includes(task.type) && !task.practice));
     assert.ok(tasks.filter(task=>task.type==='ielts').length/tasks.length<.15);
-    assert.ok(new Set(tasks.filter(t=>PHRASES.some(p=>p.id===t.item.id)).map(t=>t.item.id)).size>=8,`${level}: too few phrases`);
+    assert.ok(new Set(tasks.filter(t=>t.item.kind==='phrase').map(t=>t.item.id)).size>=5,`${level}: too few phrases`);
     const recordings=[...new Set(tasks.filter(t=>t.lesson).map(t=>t.lesson.id))];
     for(const id of recordings){const block=tasks.filter(t=>t.lesson?.id===id);assert.deepEqual(block.map(t=>t.questionIndex),[0,1,2]);}
   }

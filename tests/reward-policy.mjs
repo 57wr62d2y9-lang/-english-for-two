@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { DAY, COURSE_VERSION, awardLevelCompletion, awardMilestone, awardRoutine, balanceOf, checkpointQuarters, courseProgress, dayKey, evaluateSessionReward, finalLevelReady, lessonRecord, levelCompletionId, levelTarget, routineRewardId, studySlot } from '../src/learning.js';
+import { DAY, COURSE_VERSION, awardLevelCompletion, awardMilestone, awardRoutine, balanceOf, checkpointQuarters, checkpointThreshold, courseProgress, dayKey, evaluateSessionReward, finalLevelReady, lessonRecord, levelCompletionId, levelTarget, routineRewardId, studySlot } from '../src/learning.js';
 import { attendanceProgress, awardAttendanceBonus, completedStudyDays, finishStudySession } from '../src/rewards.js';
 import { buildFinalCheck } from '../src/checkpoint.js';
 import { lexiconForLevel } from '../src/lexicon.js';
@@ -47,46 +47,46 @@ test('old $3 lesson and $100 checkpoint remain untouched and cannot be paid twic
   const w={...wallet(),earned:{[id]:{amount:3,at:1},[milestone]:{amount:100,at:2}},spent:{gift:{cost:20,status:'approved'}}};
   const copy=JSON.stringify(w);
   assert.equal(awardRoutine(w,session(0),at(0)).wallet,w);
-  assert.equal(awardMilestone(w,'A2',1,10,306),w);
+  assert.equal(awardMilestone(w,'A2',1,10,levelTarget('A2')),w);
   assert.equal(balanceOf(w),83);assert.equal(JSON.stringify(w),copy);
 });
-test('checkpoints award $5 once, with score and verified-unit guards',()=>{
+test('checkpoints award $5 once, with score and practised-quarter guards',()=>{
   let w=wallet();
   for(const [quarter,score,verified] of [[1,7,100],[1,8,99],[1,NaN,100],[1,11,100],[1.5,8,200],[4,8,400]])assert.equal(awardMilestone(w,'A2',quarter,score,verified),w);
-  for(const q of [1,2,3])w=awardMilestone(w,'A2',q,8,q*100,end(q));
+  for(const q of [1,2,3])w=awardMilestone(w,'A2',q,8,checkpointThreshold('A2',q),end(q));
   assert.equal(balanceOf(w),15);
-  assert.equal(awardMilestone(w,'A2',3,10,306),w);
+  assert.equal(awardMilestone(w,'A2',3,10,levelTarget('A2')),w);
 });
-test('A2 graduation is reachable only after all 306 published units and three checkpoints',()=>{
+test('A2 graduation is reachable only after all published units and three checkpoints',()=>{
   const items=lexiconForLevel('A2'),progress=Object.fromEntries(items.map(i=>[i.id,{v:true,s:'MASTERED'}]));
   let w=wallet();
-  assert.equal(items.length,306);assert.equal(levelTarget('A2'),items.length);assert.deepEqual(checkpointQuarters('A2'),[1,2,3]);
+  assert.equal(items.length,levelTarget('A2'));assert.equal(levelTarget('A2'),items.length);assert.deepEqual(checkpointQuarters('A2'),[1,2,3]);
   assert.equal(finalLevelReady(items,progress,w,'A2'),false);
-  for(const q of [1,2,3])w=awardMilestone(w,'A2',q,8,306,end(q));
+  for(const q of [1,2,3])w=awardMilestone(w,'A2',q,8,levelTarget('A2'),end(q));
   assert.equal(finalLevelReady(items,progress,w,'A2'),true);
   assert.equal(courseProgress(items,progress).percent,100);
   const incomplete={...progress,[items[0].id]:{v:false,s:'LEARNING'}};
   assert.equal(finalLevelReady(items,incomplete,w,'A2'),false);assert.equal(buildFinalCheck(items,incomplete).length,0);
   const tasks=buildFinalCheck(items,progress);assert.equal(tasks.length,20);assert.ok(tasks.every(t=>t.item.level==='A2'));
   assert.equal(finalLevelReady(items.slice(1),progress,w,'A2'),false);
-  for(const score of [15,NaN,21])assert.equal(awardLevelCompletion(w,'A2',score,20,end(4),306),w);
-  assert.equal(awardLevelCompletion(w,'A2',16,20,end(4),305),w);
-  const paid=awardLevelCompletion(w,'A2',16,20,end(4),306);
+  for(const score of [15,NaN,21])assert.equal(awardLevelCompletion(w,'A2',score,20,end(4),levelTarget('A2')),w);
+  assert.equal(awardLevelCompletion(w,'A2',16,20,end(4),levelTarget('A2')-1),w);
+  const paid=awardLevelCompletion(w,'A2',16,20,end(4),levelTarget('A2'));
   assert.equal(paid.earned[levelCompletionId('A2')].amount,100);assert.equal(balanceOf(paid),115);
-  assert.equal(awardLevelCompletion(paid,'A2',20,20,end(5),306),paid);
+  assert.equal(awardLevelCompletion(paid,'A2',20,20,end(5),levelTarget('A2')),paid);
 });
 test('other level finals do not accidentally receive the A2-specific $100',()=>{
-  let w=wallet();for(const q of [1,2,3,4])w=awardMilestone(w,'B1',q,10,400,end(q));
-  const next=awardLevelCompletion(w,'B1',20,20,end(5),400);
-  assert.equal(balanceOf(next),20);assert.equal(next.earned[levelCompletionId('B1')].amount,0);
+  let w=wallet();for(const q of [1,2,3])w=awardMilestone(w,'B1',q,10,levelTarget('B1'),end(q));
+  const next=awardLevelCompletion(w,'B1',20,20,end(5),levelTarget('B1'));
+  assert.equal(balanceOf(next),15);assert.equal(next.earned[levelCompletionId('B1')].amount,0);
 });
-test('29 full days or 59 lessons never earn the 30-day bonus',()=>{
+test('29 visited dates cannot earn; one visit on day 30 is enough',()=>{
   const w=wallet(),s=history(30,{missing:['29:evening']});
   assert.equal(awardAttendanceBonus(w,history(29),end(28)).awarded,0);
-  assert.equal(awardAttendanceBonus(w,s,end(29)).awarded,0);
-  const p=attendanceProgress(s,w,end(29));assert.equal(p.days,29);assert.deepEqual(p.today,{morning:true});
+  assert.equal(awardAttendanceBonus(w,s,end(29)).awarded,10);
+  const p=attendanceProgress(s,w,end(29));assert.equal(p.days,0);assert.equal(p.today,true);
 });
-test('30 days with both lessons earn $10 once, unaffected by retries or reloads',()=>{
+test('30 visited dates earn $10 once, unaffected by retries or reloads',()=>{
   const s=history(30),w=wallet(),before=JSON.stringify(s);
   const paid=awardAttendanceBonus(w,s,end(29));assert.equal(paid.awarded,10);assert.equal(balanceOf(paid.wallet),10);
   assert.equal(awardAttendanceBonus(paid.wallet,s,end(29)).wallet,paid.wallet);
@@ -101,11 +101,11 @@ test('60 consecutive days pay two non-overlapping bonuses, not 31 sliding bonuse
   const sixty=awardAttendanceBonus(first,history(60),end(59));assert.equal(sixty.awarded,10);assert.equal(balanceOf(sixty.wallet),20);
   assert.equal(awardAttendanceBonus(wallet(),history(60),end(59)).awarded,20);
 });
-test('one missed morning or evening resets the pending streak and a new 30-day block can earn',()=>{
+test('a missed whole date resets the pending streak and a new 30-day block can earn',()=>{
   for(const slot of ['morning','evening']) {
-    assert.equal(awardAttendanceBonus(wallet(),history(30,{missing:[`15:${slot}`]}),end(29)).awarded,0);
-    assert.equal(attendanceProgress(history(30,{missing:[`15:${slot}`]}),wallet(),end(29)).days,14);
-    const result=awardAttendanceBonus(wallet(),history(46,{missing:[`15:${slot}`]}),end(45));assert.equal(result.awarded,10);
+    assert.equal(awardAttendanceBonus(wallet(),history(30,{missing:['15:morning','15:evening']}),end(29)).awarded,0);
+    assert.equal(attendanceProgress(history(30,{missing:['15:morning','15:evening']}),wallet(),end(29)).days,14);
+    const result=awardAttendanceBonus(wallet(),history(46,{missing:['15:morning','15:evening']}),end(45));assert.equal(result.awarded,10);
     assert.equal(Object.values(result.wallet.earned)[0].startDay,date(16));
   }
 });
@@ -115,20 +115,21 @@ test('partial today preserves yesterday streak; a missed whole date clears it wi
   const paid=awardAttendanceBonus(wallet(),history(30),end(29)).wallet;
   assert.equal(awardAttendanceBonus(paid,history(30),end(40)).wallet,paid);assert.equal(balanceOf(paid),10);
 });
-test('repeat lessons in one slot, unfinished lessons, and future dates cannot fake attendance',()=>{
-  const s=history(30,{missing:['29:evening']});
-  s.lessons.repeat={...s.lessons['lesson-29-morning'],id:'repeat'};
-  s.lessons.unfinished={...lessonRecord(session(29), 'A2',end(29)),completed:false};
+test('repeat and unfinished lessons on one date cannot invent another visit; future dates are excluded',()=>{
+  const s=history(29);
+  s.lessons.repeat={...s.lessons['lesson-28-morning'],id:'repeat'};
+  s.lessons.unfinished={...lessonRecord(session(28), 'A2',end(28)),completed:false};
   assert.equal(awardAttendanceBonus(wallet(),s,end(29)).awarded,0);
   assert.equal(awardAttendanceBonus(wallet(),history(60),end(28)).awarded,0);
   assert.equal(Object.keys(completedStudyDays({lessons:{bad:{completed:true,studyDay:'2026-02-30',slot:'morning'}}},end(29))).length,0);
 });
-test('legacy paid-only imports do not invent completed days; explicit new completion proof restores them',()=>{
+test('payment-only imports cannot invent visits even with completion flags',()=>{
   const s=history(30);
   for(const r of Object.values(s.lessons)){r.imported=true;r.reward=3;}
   assert.equal(awardAttendanceBonus(wallet(),s,end(29)).awarded,0);
   for(const r of Object.values(s.lessons))r.completionVerified=true;
-  assert.equal(awardAttendanceBonus(wallet(),s,end(29)).awarded,10);
+  assert.equal(awardAttendanceBonus(wallet(),s,end(29)).awarded,0);
+  assert.equal(Object.keys(completedStudyDays(s,end(29))).length,30);
 });
 test('actual legacy completed lessons retain their recorded date and slot',()=>{
   const s=history(30);
