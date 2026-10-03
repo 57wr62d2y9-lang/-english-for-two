@@ -1,4 +1,5 @@
 import { DAY, ascentProgress, awardRoutine, dayKey, lessonRecord, lessonStudyTime, routineRewardId, studySlot } from './learning.js';
+export {lessonRewardTotal} from '../supabase/functions/english-for-two-sync/lesson-reward.js';
 
 export const STREAK_DAYS=30;
 export const STREAK_REWARD=10;

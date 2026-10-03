@@ -1,4 +1,15 @@
-# English for Two · 0.6.0
+# English for Two · 0.6.1
+
+## Consistent lesson earnings (0.6.1)
+
+- Lesson history and partner news include the actual checkpoint/final payment
+  and an attendance bonus settled with the lesson. A passed check shows $5,
+  the A2 final $100 and an ordinary lesson plus attendance $11.
+- Checkpoints are labelled separately from ordinary lessons in the history
+  and partner news. Existing wallet entries, payout rules and deduplication
+  IDs remain intact. The shared display helper never credits money.
+- Offline endpoint tests execute the real authenticated notification handler
+  against in-memory records, including duplicate and unauthorized requests.
 
 ## Vocabulary, automatic checks and daily visits (0.6.0)
 
@@ -133,9 +144,8 @@ Private English practice for Artur and Anna: https://english-for-two.onrender.co
 - New units show meaning, usage and life examples before scored practice.
 - Recognition, meaning in context, cloze choice, typed recall and sentence
   assembly exercise vocabulary in different ways. Examples rotate by encounters.
-- Occasional short, level-specific IELTS Reading remains integrated. Russian
-  translations cover passages, not their question headings.
-- Grammar and all five conditional explanations remain optional, closed help.
+- Daily lessons and checkpoints use vocabulary only. Russian translations
+  cover the exact example or sentence being practised.
 - All added headwords have offline word-tap translations and usage notes.
   Unknown surrounding words can use the existing translator on demand.
 - Legacy media/grammar files remain in the repository for history, but external
@@ -149,12 +159,12 @@ Private English practice for Artur and Anna: https://english-for-two.onrender.co
   The 80-stage practice goal does not itself certify a CEFR level.
 - Previous routine rewards migrate into the ledger once.
 - Paused lessons retain question, time and answers across reloads.
-- Rewards follow the fixed 0.5.1 policy above. Errors and help are allowed.
-- Lesson ascent requires 80% of planned time and five checked answers in a full
-  lesson / three in a short lesson. Learning mistakes do not cancel progress.
+- Rewards follow the completion and attendance rules in 0.6.0 above.
+  A finished batch needs five checked answers, or three in a short lesson.
+  Early manual finishes also need 12 / 4 active minutes. Errors and help are allowed.
 - One $1 lesson reward per morning/evening slot.
   Speaking self-assessment does not count as a checked answer.
-- Vocabulary and Reading errors enter a bounded recovery queue after intervening
+- Vocabulary errors enter a bounded recovery queue after intervening
   tasks, with at most two immediate retries. Next-day scheduling retains errors.
   The existing reminder system is unchanged; no second scheduler is added.
 - Spaced mastery, checkpoints and final knowledge verification are separate from
@@ -178,9 +188,8 @@ Private English practice for Artur and Anna: https://english-for-two.onrender.co
 
 ## Quiet study
 
-The default is "В автобусе · без голоса". Read and rehearse examples silently,
-without headphones or a microphone. "Дома · вслух" changes the optional rehearsal
-suggestion. There is no video replacement or compulsory speaking task.
+Read and rehearse examples silently, without headphones or a microphone.
+There is one quiet programme. Device pronunciation is optional.
 
 ## Development
 

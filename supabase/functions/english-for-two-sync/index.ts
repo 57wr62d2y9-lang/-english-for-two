@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.112.3';
+import { lessonRewardTotal } from './lesson-reward.js';
 
 const encoder = new TextEncoder();
 const APP_ORIGIN = Deno.env.get('APP_ORIGIN') || 'https://english-for-two.onrender.com';
@@ -274,14 +275,17 @@ async function handle(action: string, payload: Record<string, unknown>, account:
     if(!pair?.partner_id) return {published:false};
     const {data:user,error:userError}=await db.from('eft_users').select('display_name').eq('account_id',account.id).single();
     if(userError) throw userError;
-    const earned=Math.max(0,Math.min(3,Math.trunc(Number(lesson.reward)||0)));
-    const notice={kind:'lesson',from:user.display_name,level:lesson.level,reward:earned,seconds:Math.max(0,Math.min(3600,Math.round(Number(lesson.seconds)||0))),answers:Math.max(0,Math.min(500,Math.round(Number(lesson.answers)||0))),accuracy:Math.max(0,Math.min(100,Math.round(Number(lesson.accuracy)||0))),steps:Math.max(0,Math.min(10000,Number(lesson.steps)||0))};
+    // Report settled payments without adding any credit to the wallet.
+    // Legacy $3 lessons + an A2 final + attendance cannot exceed $113.
+    const earned=Math.min(113,lessonRewardTotal(lesson));
+    const isCheck=lesson.kind==='checkpoint',quarter=isCheck?Math.max(0,Math.min(3,Math.trunc(Number(lesson.quarter)||0))):undefined;
+    const notice={kind:isCheck?'checkpoint':'lesson',...(isCheck?{quarter,passed:lesson.passed===true}:{}),from:user.display_name,level:lesson.level,reward:earned,seconds:Math.max(0,Math.min(3600,Math.round(Number(lesson.seconds)||0))),answers:Math.max(0,Math.min(500,Math.round(Number(lesson.answers)||0))),accuracy:Math.max(0,Math.min(100,Math.round(Number(lesson.accuracy)||0))),steps:Math.max(0,Math.min(10000,Number(lesson.steps)||0))};
     const {data:existing,error:lookupError}=await db.from('eft_notifications').select('id').eq('id',`${account.id}:${id}`).maybeSingle();
     if(lookupError) throw lookupError;
     if(!existing) {
       const {error}=await db.from('eft_notifications').insert({id:`${account.id}:${id}`,recipient_id:pair.partner_id,sender_id:account.id,payload:notice});
       if(error?.code !== '23505' && error) throw error;
-      if(!error) await notify(String(pair.partner_id),`🐿 <b>${escapeHtml(String(user.display_name))}</b>: урок ${escapeHtml(String(lesson.level))} завершён!\n${notice.answers} ответов · точность ${notice.accuracy}%\nВ копилку +$${earned} · подъём до отметки ${Math.round(notice.steps*10)/10}.`);
+      if(!error) await notify(String(pair.partner_id),`🐿 <b>${escapeHtml(String(user.display_name))}</b>: ${isCheck?quarter?`контрольная ${quarter}`:'итоговая проверка':'урок'} ${escapeHtml(String(lesson.level))} ${isCheck?'завершена':'завершён'}!\n${notice.answers} ответов · точность ${notice.accuracy}%\nВ копилку +$${earned} · подъём до отметки ${Math.round(notice.steps*10)/10}.`);
     }
     return {published:true};
   }

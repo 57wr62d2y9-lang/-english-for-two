@@ -52,6 +52,11 @@ try {
   const saved=JSON.parse(disk.get('eft3:browser:wallet'));
   assert.equal(saved.earned['routine:2026-10-03:morning'].amount,0);
   assert.equal(Object.values(saved.earned).reduce((n,x)=>n+x.amount,0),5);
+  await act(async()=>root.root.findAllByType('button').find(n=>n.findAllByType('span').some(s=>s.children.includes('Пройдено уроков'))).props.onClick());
+  const history=root.root.findByProps({className:'history'});
+  assert.equal(history.findByType('small').children.join(''),'Контрольная 1 · пройдена');
+  assert.equal(history.findByType('b').children.join(''),'+$5');
+  assert.deepEqual(JSON.parse(disk.get('eft3:browser:wallet')),saved);
   await act(async()=>root.unmount());
   console.log('✓ app UI: auto-check replaces lesson, persists through exit/reload, pays $5 and marks morning complete');
 
