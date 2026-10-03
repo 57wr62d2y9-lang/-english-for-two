@@ -12,7 +12,8 @@ const now=Date.parse('2026-10-03T08:00:00Z'),oldNow=Date.now,oldFetch=globalThis
 Date.now=()=>now;let network=0;
 globalThis.fetch=async()=>{network++;throw Error('UI tests cannot contact production');};
 const disk=new Map();globalThis.localStorage={getItem:k=>disk.get(k)||null,setItem:(k,v)=>disk.set(k,v)};
-globalThis.document={hidden:false,body:{style:{}},documentElement:{dataset:{},style:{setProperty(){}}},addEventListener(){},removeEventListener(){},createElement:()=>({})};
+const visibilityHandlers=new Set();
+globalThis.document={hidden:false,body:{style:{}},documentElement:{dataset:{},style:{setProperty(){}}},addEventListener(type,handler){if(type==='visibilitychange')visibilityHandlers.add(handler);},removeEventListener(type,handler){if(type==='visibilitychange')visibilityHandlers.delete(handler);},createElement:()=>({})};
 globalThis.window={innerHeight:680,addEventListener(){},removeEventListener(){}};
 globalThis.getComputedStyle=()=>({getPropertyValue:()=> '#fff9f2'});
 const h=React.createElement;let root;
@@ -53,6 +54,15 @@ try {
   assert.equal(Object.values(saved.earned).reduce((n,x)=>n+x.amount,0),5);
   await act(async()=>root.unmount());
   console.log('✓ app UI: auto-check replaces lesson, persists through exit/reload, pays $5 and marks morning complete');
+
+  disk.clear();document.hidden=true;
+  await act(async()=>{root=create(h(App));});
+  assert.equal(JSON.parse(disk.get('eft3:browser:stats')).byDay['2026-10-03']?.visitedAt,undefined);
+  document.hidden=false;
+  await act(async()=>{for(const fn of [...visibilityHandlers])fn();});
+  assert.equal(JSON.parse(disk.get('eft3:browser:stats')).byDay['2026-10-03'].visitedAt,now);
+  await act(async()=>root.unmount());
+  console.log('✓ app UI: a hidden load earns no visit; returning to the visible app counts the day');
 
   let known=0,next=0;
   const intro=nextLessonTask(makeSession('B1'),{}),item=intro.task.item;

@@ -41,7 +41,7 @@ export default function App() {
   const unread=couple.notifications.filter(entry=>!readNotices.includes(entry.id)).length;
   const scheduledCheck=useMemo(()=>pendingCheckpoint(items,progress,wallet,stats,settings.level),[items,progress,wallet,stats,settings.level,theme.date]);
   useEffect(()=>{
-    function update(){const next=themeFor();setTheme(old=>old.date===next.date?old:next);document.documentElement.dataset.season=next.season;document.documentElement.dataset.holiday=next.holiday;
+    function update(){if(document.hidden)return;const next=themeFor();setTheme(old=>old.date===next.date?old:next);document.documentElement.dataset.season=next.season;document.documentElement.dataset.holiday=next.holiday;
       const tg=window.Telegram?.WebApp;try{tg?.setHeaderColor?.(getComputedStyle(document.documentElement).getPropertyValue('--page-bg').trim()||'#fffdfb');}catch{}
       document.documentElement.style.setProperty('--lesson-height',(tg?.viewportStableHeight||window.innerHeight)+'px');}
     update();const timer=setInterval(update,60000);window.addEventListener('resize',update);document.addEventListener('visibilitychange',update);window.Telegram?.WebApp?.onEvent?.('viewportChanged',update);
@@ -52,6 +52,12 @@ export default function App() {
   function storeProgress(next,level=stateRef.current.settings.level) { stateRef.current={...stateRef.current,progress:next};setProgress(next);saveLevelProgress(level,next); }
   function storeStats(next) { const value=summariseStats(next);stateRef.current={...stateRef.current,stats:value};setStats(value);saveStats(value);return value; }
   function storeWallet(next) { stateRef.current={...stateRef.current,wallet:next};setWallet(next);saveWallet(next); }
+  function recordVisit() {
+    if(document.hidden)return;
+    const s=stateRef.current,visited=registerDailyVisit(s.stats),bonus=awardAttendanceBonus(s.wallet,visited);
+    if(visited!==s.stats)storeStats(visited);
+    if(bonus.awarded){storeWallet(bonus.wallet);setNotice(`+$${bonus.awarded} за 30 дней входов подряд!`);}
+  }
   function bundle(draft=loadDraft()) { const s=stateRef.current;return {settings:s.settings,level:s.settings.level,progress:s.progress,stats:s.stats,wallet:s.wallet,draft}; }
   async function backUpNow({manual=false}={}) {
     setBackup('saving');if(manual)setSaveMessage('Сохраняю ответы, урок и настройки…');
@@ -90,7 +96,8 @@ export default function App() {
       for(const [id,earned] of Object.entries(loaded.wallet.earned || {})) if(id.startsWith('routine:') && !lessons[`import-${id}`] && !Object.values(lessons).some(record=>record.rewardId===id)) {
         lessons[`import-${id}`]={id:`import-${id}`,level:earned.level || config.level,at:earned.at,seconds:900,completed:true,completionVerified:earned.completed===true,studyDay:earned.day,slot:earned.slot,climb:1,reward:earned.amount,imported:true,rewardId:id};
       }
-      loaded.stats=registerDailyVisit({...loaded.stats,lessons});
+      loaded.stats={...loaded.stats,lessons};
+      if(!document.hidden)loaded.stats=registerDailyVisit(loaded.stats);
       const attendance=awardAttendanceBonus(loaded.wallet,loaded.stats);
       loaded.wallet=attendance.wallet;
       if(active && attendance.awarded)setNotice(`Бонус за 30 дней без пропусков: +$${attendance.awarded}. Уже в копилке.`);
@@ -108,9 +115,7 @@ export default function App() {
 
   useEffect(()=>{
     if(!ready)return;
-    const s=stateRef.current,visited=registerDailyVisit(s.stats),bonus=awardAttendanceBonus(s.wallet,visited);
-    if(visited!==s.stats)storeStats(visited);
-    if(bonus.awarded){storeWallet(bonus.wallet);setNotice(`+${bonus.awarded} за 30 дней входов подряд!`);}
+    recordVisit();
   },[ready,theme.date]);
 
   useEffect(()=>{
@@ -122,8 +127,8 @@ export default function App() {
   useEffect(()=>{
     if(!ready)return;
     const start=setTimeout(()=>refreshCouple(),600);
-    const timer=setInterval(()=>{if(!document.hidden){refreshCouple();if(backup==='pending')backUpNow();}},20000);
-    const wake=()=>{activityRef.current=Date.now();if(!document.hidden){refreshCouple();backUpNow();}};
+    const timer=setInterval(()=>{if(!document.hidden){recordVisit();refreshCouple();if(backup==='pending')backUpNow();}},20000);
+    const wake=()=>{activityRef.current=Date.now();if(!document.hidden){recordVisit();refreshCouple();backUpNow();}};
     window.addEventListener('online',wake);document.addEventListener('visibilitychange',wake);
     return()=>{clearTimeout(start);clearInterval(timer);window.removeEventListener('online',wake);document.removeEventListener('visibilitychange',wake);};
   },[ready,backup]);
