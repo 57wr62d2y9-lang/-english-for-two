@@ -3,6 +3,14 @@ import {sentenceRule} from './sentence-rules.js';
 const escape=text=>text.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 const core=text=>text.replace(/[.!?…]+$/g,'').trim();
 
+export function contextSupport(task,pool,{optionsFor}={}) {
+  const candidates=pool.filter(other=>other.kind===task.item.kind &&
+    Math.abs(core(other.phrase).split(/\s+/).length-task.answer.split(/\s+/).length)<=1);
+  const supportOptions=typeof optionsFor==='function'?optionsFor({...task.item,phrase:task.answer},
+    candidates.length>=4?candidates:pool,'phrase'):[];
+  return {hintRu:task.item.ru,supportOptions};
+}
+
 export function vocabularyTask(item,type,pool,index=0,{optionsFor}={}) {
   const examples=examplesFor(item),example=examples[index%Math.max(1,examples.length)] || {en:item.phrase,ru:item.ru};
   const task={item,type,category:type,progressId:item.id,exampleIndex:index%Math.max(1,examples.length),example,examples,
@@ -20,11 +28,12 @@ export function vocabularyTask(item,type,pool,index=0,{optionsFor}={}) {
   if(type==='context') {
     const pattern=new RegExp('(?<![a-z])'+escape(core(item.phrase)).replace(/['’]/g,"['’]")+'(?![a-z])','i');
     const usable=examples.filter(e=>(e.en.match(new RegExp(pattern.source,'gi')) || []).length===1);
-    if(usable.length){const chosen=usable[index%usable.length],answer=chosen.en.match(pattern)[0];return {...task,type,category:type,
+    if(usable.length){const chosen=usable[index%usable.length],answer=chosen.en.match(pattern)[0];const gap={...task,type,category:type,
       prompt:chosen.en.replace(pattern,'_____'),answer,example:chosen,typed:true,
-      instruction:'Напиши пропущенное изученное слово или выражение. Ответ — только часть на месте пропуска.'};}
+      instruction:'Вставь слово или выражение с этим смыслом.'};
+      return {...gap,accepted:item.accepted||[],...contextSupport(gap,pool,{optionsFor})};}
     type='recall';
   }
-  return {...task,type:'recall',category:'recall',prompt:item.ru,typed:true,
+  return {...task,type:'recall',category:'recall',prompt:item.ru,accepted:item.accepted||[],typed:true,
     instruction:'Вспомни изученное слово или выражение. Напиши по-английски; регистр, пунктуация и сокращения не влияют на проверку.'};
 }

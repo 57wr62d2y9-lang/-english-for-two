@@ -1,4 +1,41 @@
-# English for Two · 0.7.3
+# English for Two · 0.7.4
+
+## Clear context tasks and conversation (0.7.4)
+
+- Context blanks now specify the intended Russian meaning: an underspecified
+  sentence is not a test of guessing the author's word. Optional English
+  choices fill the input but never submit it. Revealing them marks assistance,
+  so such an answer cannot create unaided recall proof. Checks have the meaning
+  cue but never English choices, translations or lookup before submission.
+- The ordinary review mix uses recall, context, recognition and occasional
+  sentence writing across a lesson instead of giving the same format to an
+  entire batch with identical encounter counts. Paused v3 tasks retain their
+  exact prompt, answer, score, feedback, hints, timing and lesson identity.
+- Added 18 original bilingual conversation cards (three examples each), with
+  regional/register notes and dictionary references. Eight existing informal
+  cards also gain usage notes. One in three introductions can select this pack
+  alongside foundational vocabulary; prior items and progress IDs are retained.
+- Vocabulary audit: everyday A2/B1 phrases remain the foundation; B2/C1 work
+  vocabulary remains available rather than deleting previously studied work.
+  Conversation includes hang out, chill, vibe, ghost, low-key, FOMO and British
+  knackered/gutted. Slang is labelled, not presented as universally appropriate.
+  Dictionary attestation does not establish a statistical frequency ranking;
+  these teaching bands are not an official CEFR classification of slang.
+- Pronunciation has a labelled SVG speaker, US/UK controls, English-only voice
+  selection, asynchronous device voice-list updates, stop/retry/error feedback
+  and cleanup when leaving a card or hiding the app. No microphone or paid
+  audio service is requested. Actual voice availability depends on the device.
+
+Usage references checked October 4, 2026 (examples/translations are original):
+[Cambridge hang out](https://dictionary.cambridge.org/us/dictionary/english/hang-out),
+[chill](https://dictionary.cambridge.org/dictionary/english/chill),
+[low-key](https://dictionary.cambridge.org/dictionary/english/low-key),
+[ghost](https://dictionary.cambridge.org/dictionary/english/ghost),
+[gutted](https://dictionary.cambridge.org/dictionary/english/gutted),
+[FOMO](https://dictionary.cambridge.org/dictionary/english/fomo),
+[British Council conversations](https://learnenglish.britishcouncil.org/free-resources/speaking/b1/meeting-face-face).
+API behaviour: [MDN voice selection](https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesisUtterance/voice)
+and [voice-list changes](https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesis/voiceschanged_event).
 
 ## Preserved repetition history (0.7.3)
 

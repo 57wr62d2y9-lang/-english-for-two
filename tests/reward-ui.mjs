@@ -29,7 +29,7 @@ try {
   for(const q of [1,2,3])wallet=awardMilestone(wallet,'A2',q,8,items.length);
   items.forEach(i=>{progress[i.id]=securedItem();});
   await render(CheckRewardsSection,{...props,wallet,path:courseProgress(items,progress)});
-  assert.equal(root.root.findAllByType('button').at(-1).props.disabled,false);assert.match(text(),/Завершить A2 · \+\$100/);assert.match(text(),/426/);
+  assert.equal(root.root.findAllByType('button').at(-1).props.disabled,false);assert.match(text(),/Завершить A2 · \+\$100/);assert.match(text(),new RegExp(String(items.length)));
   await render(CheckScreen,{value:{done:true,passed:true,score:16,tasks:Array(20).fill({}),quarter:0,level:'A2',awarded:100}});
   assert.match(text(),/100/);assert.match(text(),/за завершение программы A2/);assert.equal(root.root.findAllByProps({role:'status'}).length,1);
   await render(CheckScreen,{value:{done:true,passed:false,score:7,tasks:Array(10).fill({}),quarter:1,level:'A2',awarded:0}});

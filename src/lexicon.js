@@ -1,6 +1,7 @@
 import {PHRASES,COLLOCATIONS} from './catalog.js';
 import {VOCABULARY} from './vocabulary.js';
 import {AUTUMN_VOCABULARY} from './vocabulary-autumn.js';
+import {CONVERSATION_CONTENT,conversationalDetails} from './conversation-content.js';
 import {scheduledReviewAt} from './review-schedule.js';
 import {isSecured,readyForCheck} from './mastery.js';
 
@@ -9,7 +10,8 @@ const levels=['A2','B1','B2','C1'];
 // Keep original IDs. Duplicate legacy cards are aliases, never new learning.
 export const LEXICON=levels.flatMap(level=>{
   const unique=new Map();
-  for(const item of [...PHRASES,...COLLOCATIONS,...VOCABULARY,...AUTUMN_VOCABULARY].filter(item=>item.level===level)) {
+  for(const original of [...PHRASES,...COLLOCATIONS,...VOCABULARY,...AUTUMN_VOCABULARY,...CONVERSATION_CONTENT].filter(item=>item.level===level)) {
+    const item=conversationalDetails(original);
     const key=lexicalKey(item.phrase),existing=unique.get(key);
     if(existing){existing.aliases.push(item.id);if(item.usageRu&&!existing.usageRu)existing.usageRu=item.usageRu;continue;}
     unique.set(key,{...item,kind:item.kind || 'phrase',aliases:[]});

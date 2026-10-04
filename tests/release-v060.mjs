@@ -111,7 +111,7 @@ test('A2 final remains $100 once after every card has independent secured eviden
 });
 test('expanded content has 300 distinct new units, bilingual usage and two translated situations each',()=>{
   assert.equal(AUTUMN_VOCABULARY.length,300);assert.equal(new Set(AUTUMN_VOCABULARY.map(i=>i.id)).size,300);
-  assert.equal(LEXICON.filter(i=>i.pack==='2026-10').length,300);assert.equal(TOTAL_LEXICAL_UNITS,1312);
+  assert.equal(LEXICON.filter(i=>i.pack==='2026-10').length,300);assert.equal(TOTAL_LEXICAL_UNITS,1330);
   for(const i of AUTUMN_VOCABULARY){assert.ok(/[а-яё]/i.test(i.ru),i.id);assert.ok(/[а-яё]/i.test(i.usageRu),i.id);assert.equal(i.examples.length,2);assert.equal(i.exampleRu.length,2);assert.equal(new Set(i.examples).size,2);assert.ok(i.exampleRu.every(x=>/[а-яё]/i.test(x)),i.id);}
   for(const level of ['A2','B1','B2','C1']){const a=nextLessonTask(makeSession(level),{});const p={[a.task.item.id]:reviewItem(undefined,'intro',now).item};const b=nextLessonTask({...a,step:3},p,now);assert.notEqual(a.task.item.kind,b.task.item.kind);}
 });

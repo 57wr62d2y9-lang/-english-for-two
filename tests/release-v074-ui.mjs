@@ -1,0 +1,47 @@
+import assert from 'node:assert/strict';
+import React from 'react';
+import {create,act} from 'react-test-renderer';
+import {createServer} from 'vite';
+import {vocabularyTask} from '../src/vocabulary-tasks.js';
+import {makeSession,optionsFor} from '../src/lesson-engine.js';
+import {lexiconForLevel} from '../src/lexicon.js';
+const server=await createServer({server:{middlewareMode:true},appType:'custom'});
+globalThis.IS_REACT_ACT_ENVIRONMENT=true;
+globalThis.document={hidden:false,body:{style:{}},addEventListener(){},removeEventListener(){}};
+const fetchOriginal=globalThis.fetch;let network=0,root,spoken=[],cancelled=0,listeners={};
+globalThis.fetch=async()=>{network++;throw Error('No production calls in UI tests');};
+globalThis.SpeechSynthesisUtterance=class {constructor(text){this.text=text;}};
+globalThis.speechSynthesis={getVoices:()=>[{lang:'ru-RU',default:true},{lang:'en-US'},{lang:'en-GB'}],
+  speak:u=>spoken.push(u),cancel:()=>cancelled++,addEventListener:(name,cb)=>listeners[name]=cb,removeEventListener:(name)=>delete listeners[name]};
+const h=React.createElement,visible=node=>node==null?'':typeof node==='string'?node:Array.isArray(node)?node.map(visible).join(''):visible(node.children);
+try {
+  const {default:Lesson,CheckScreen}=await server.ssrLoadModule('/src/VocabularyLesson.jsx');
+  const {default:Pronunciation}=await server.ssrLoadModule('/src/PronunciationButton.jsx');
+  const pool=lexiconForLevel('B1'),item=pool.find(i=>i.phrase==='eventually'),task=vocabularyTask(item,'context',pool,0,{optionsFor});
+  const session={...makeSession('B1'),task};let hints=0,answers=[];
+  await act(async()=>{root=create(h(Lesson,{session,onHint:()=>hints++,onAnswer:v=>answers.push(v),onKnown(){},onFinish(){}}));});
+  assert.match(visible(root.toJSON()),/Смысл пропуска/);assert.ok(!visible(root.toJSON()).includes(task.answer));
+  const button=text=>root.root.findAllByType('button').find(b=>visible(b.toJSON?.()||{children:b.children})===text);
+  const help=root.root.findAllByProps({className:'gapHelpToggle'})[0];
+  await act(async()=>help.props.onClick());assert.equal(hints,1);
+  const choices=root.root.findByProps({className:'gapOptions'}).findAllByType('button');assert.equal(choices.length,4);
+  assert.equal(answers.length,0);
+  const correct=choices.find(b=>b.children[0]===task.answer);await act(async()=>correct.props.onClick());
+  assert.equal(root.root.findByType('input').props.value,task.answer);assert.equal(answers.length,0);
+  await act(async()=>root.root.findByType('form').props.onSubmit({preventDefault(){}}));assert.deepEqual(answers,[task.answer]);
+  await act(async()=>help.props.onClick());assert.equal(hints,1);
+  await act(async()=>root.unmount());
+  await act(async()=>{root=create(h(CheckScreen,{value:{id:'check',level:'B1',quarter:1,tasks:[task],index:0},onAnswer(){}}));});
+  assert.match(visible(root.toJSON()),/Смысл пропуска/);assert.equal(root.root.findAllByProps({className:'gapSupport'}).length,0);assert.ok(!visible(root.toJSON()).includes(task.answer));
+  await act(async()=>root.unmount());
+  await act(async()=>{root=create(h(Pronunciation,{text:'recommend'}));});
+  assert.equal(root.root.findAllByType('svg').length,1);assert.match(visible(root.toJSON()),/Послушать/);
+  await act(async()=>root.root.findByProps({className:'soundButton'}).props.onClick());assert.equal(spoken.at(-1).text,'recommend');assert.equal(spoken.at(-1).lang,'en-US');
+  const old=spoken.at(-1);await act(async()=>root.root.findByProps({'aria-label':'Британский акцент'}).props.onClick());
+  assert.equal(old.onend,null);await act(async()=>root.root.findByProps({className:'soundButton'}).props.onClick());assert.equal(spoken.at(-1).lang,'en-GB');
+  await act(async()=>spoken.at(-1).onerror({error:'not-allowed'}));assert.match(visible(root.toJSON()),/Не удалось включить звук/);
+  await act(async()=>root.root.findByProps({className:'soundButton'}).props.onClick());assert.ok(!visible(root.toJSON()).includes('Не удалось'));
+  const before=cancelled;await act(async()=>root.unmount());assert.equal(cancelled,before+1);assert.equal(listeners.voiceschanged,undefined);
+  assert.equal(network,0);
+  console.log('✓ optional gap choices fill, never auto-submit, mark assistance, remain absent in checks; SVG sound button selects English US/UK, recovers errors and stops on unmount');
+} finally {if(root)await act(async()=>root.unmount());globalThis.fetch=fetchOriginal;delete globalThis.speechSynthesis;delete globalThis.SpeechSynthesisUtterance;await server.close();}

@@ -44,7 +44,7 @@ test('400 original word cards have two distinct translated situations and usage 
   }
 });
 test('catalogue counts headwords, not examples, task variants or duplicate legacy cards',()=>{
-  assert.equal(TOTAL_LEXICAL_UNITS,1312);
+  assert.equal(TOTAL_LEXICAL_UNITS,1330);
   for(const level of ['A2','B1','B2','C1']) {
     const pool=lexiconForLevel(level);
     assert.equal(new Set(pool.map(item=>lexicalKey(item.phrase))).size,pool.length);

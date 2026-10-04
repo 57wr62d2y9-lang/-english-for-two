@@ -148,8 +148,10 @@ export function chooseTask(items, progress, session, time = Date.now()) {
   const allowed = item => !seen.slice(-gap).includes(item.id) && (visits[item.id] || 0) < 3;
   const fresh = items.filter(item => !progress[item.id] || progress[item.id].s === 'NEW')
     .sort((a,b)=>Number(b.pack==='2026-10')-Number(a.pack==='2026-10'));
-  const priority=fresh[0]?.pack==='2026-10';
-  const freshChoice=fresh.find(item=>(item.pack==='2026-10')===priority && item.kind===(Number(session.newCount || 0)%2?'phrase':'word')) || fresh[0];
+  const conversation=fresh.filter(item=>item.pack==='conversation-2026-10'),base=fresh.filter(item=>item.pack!=='conversation-2026-10');
+  const newPool=Number(session.newCount||0)%3===1&&conversation.length?conversation:base.length?base:conversation;
+  const priority=newPool[0]?.pack==='2026-10';
+  const freshChoice=newPool.find(item=>(item.pack==='2026-10')===priority && item.kind===(Number(session.newCount || 0)%2?'phrase':'word')) || newPool[0];
   const canIntroduce = fresh.length && Number(session.newCount || 0) < newItemLimit(session)+Number(session.extraNew || 0);
   // Both morning and evening reserve one in three tasks for new learning.
   if (canIntroduce && session.step % 3 === 0) return {item:freshChoice,type:'intro',reason:'new'};
