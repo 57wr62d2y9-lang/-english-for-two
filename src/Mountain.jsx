@@ -35,6 +35,6 @@ export default function Mountain({level,ascent,course,compact=false,celebrate=fa
       <g style={{transform:`translate(${x-25}px, ${y-88}px)`}}><foreignObject width="50" height="90"><Gopher/></foreignObject></g>
     </svg>
     {celebrate && <div className="ascentMoment" aria-label={`Практика сохранена, награда ${reward} долларов`}><div className="climbGopher"><Gopher celebrate/></div><div className="earnedCoin">{reward ? `+$${reward}` : '✓'}</div><strong>Практика сохранена</strong></div>}
-    <div className="mountainFoot"><div><strong>{step}<small> / {total}</small></strong><span>{course?'слов и фраз закреплено':'учебных этапов'}</span></div><p>{course?`Встречалось: ${course.introduced}. Это еще не знание.`:celebrate && climb ? `+${Math.round(climb*10)/10} за этот урок` : 'Пройденные уроки остаются с тобой'}</p></div>
+    <div className="mountainFoot"><div><strong>{step}<small> / {total}</small></strong><span>{course?'подтверждено контрольной':'учебных этапов'}</span></div><p>{course?`В работе: ${course.introduced}. Повторения сохранены.${course.ready?` К проверке: ${course.ready}.`:''}`:celebrate && climb ? `+${Math.round(climb*10)/10} за этот урок` : 'Пройденные уроки остаются с тобой'}</p></div>
   </section>;
 }

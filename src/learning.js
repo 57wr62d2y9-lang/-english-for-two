@@ -1,6 +1,6 @@
 import { lexiconForLevel, progressFor } from './lexicon.js';
 import {REVIEW_INTERVALS,scheduledReviewAt} from './review-schedule.js';
-import {isSecured,readyForCheck,recordRecallEvidence} from './mastery.js';
+import {isSecured,readyForCheck,recordRecallEvidence,legacyRecallDays} from './mastery.js';
 export const DAY = 86400000;
 export const LEVELS = ['A2', 'B1', 'B2', 'C1'];
 export const COURSE_SIZE = 400;
@@ -104,7 +104,7 @@ export function reviewItem(raw, action, time = Date.now(), event = '', evidence 
       }
     }
   }
-  p=recordRecallEvidence(p,action,time,evidence);
+  p=recordRecallEvidence(p,action,time,{...evidence,legacyDays:evidence.checkpoint?legacyRecallDays(old,time):[]});
   p.v=isSecured(p);
   if(p.v){p.s='MASTERED';if(due)p.n=time+Math.max(30,INTERVALS[p.step]||30)*DAY;}
   else if(p.s==='MASTERED')p.s='STABLE';

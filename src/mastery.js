@@ -10,6 +10,18 @@ const dateKey = time => new Intl.DateTimeFormat('en-CA', {timeZone:'Europe/Istan
 const validDays = days => [...new Set((Array.isArray(days)?days:[]).filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d)))].sort().slice(-8);
 const span = days => days.length>1 ? (Date.parse(days.at(-1))-Date.parse(days[0]))/DAY : 0;
 
+// Before this release, SRS days recorded repetitions without distinguishing
+// hints from independent answers. Retain that history as a prerequisite for
+// a fresh unaided check, never as automatic mastery or new recall evidence.
+const PROOF_RELEASE_DAY='2026-10-04';
+export function legacyRecallDays(p={},time=Date.now()) {
+  if(p.selfKnown || p.rcl<2 || time-Number(p.f||time)<7*DAY ||
+    Number(p.lastCorrect||p.l)<=Number(p.lastWrong||0))return [];
+  const wrongDay=p.lastWrong?dateKey(p.lastWrong):'';
+  const days=validDays(p.days).filter(day=>day<PROOF_RELEASE_DAY && day>wrongDay);
+  return days.length>=3 && span(days)>=7?days:[];
+}
+
 export function recallEvidence(p = {}) {
   const days = validDays(p.proofDays);
   return {days,span:span(days),ready:days.length>=2 && span(days)>=3,
@@ -27,15 +39,16 @@ export function readyForCheck(p, time=Date.now()) {
   if(recallEvidence(p).retained)return true;
   // Old SRS days cannot prove which task was answered unaided. They may make a
   // card eligible for a new, hint-free check, but never grant mastery directly.
-  const oldDays=validDays(p.days);
-  return p.proofVersion!==MASTERY_VERSION && p.rcl>=2 && oldDays.length>=3 && span(oldDays)>=7 &&
-    Number(p.lastCorrect||p.l)>Number(p.lastWrong||0) && time-Number(p.f||time)>=7*DAY;
+  return legacyRecallDays(p,time).length>=3;
 }
-export function recordRecallEvidence(p, action, time, {unaided=true,typed=action==='recall',checkpoint=false}={}) {
+export function recordRecallEvidence(p, action, time, {unaided=true,typed=action==='recall',checkpoint=false,legacyDays=[]}={}) {
   if(action==='wrong')return {...p,proofVersion:MASTERY_VERSION,proofDays:[],proofAt:0,checkAt:0};
   if(action==='known')return {...p,proofVersion:MASTERY_VERSION,proofDays:[],proofAt:0,checkAt:0};
   if(!typed || !unaided || !['recall','context'].includes(action))return p;
   const days=validDays(p.proofDays),today=dateKey(time);
+  // A passing new check can validate eligible pre-release spaced practice.
+  // Normal lessons, choices and hinted checks cannot convert that history.
+  if(checkpoint && !recallEvidence(p).retained && validDays(legacyDays).length>=3)days.push(...legacyDays,today);
   // Keep the initial retention milestone stable. Later successful SRS reviews
   // must not move that milestone past an already passed check. A lapse resets
   // the proof above; the separate SRS day history continues recording reviews.

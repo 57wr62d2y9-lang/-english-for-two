@@ -1,4 +1,16 @@
-# English for Two · 0.7.2
+# English for Two · 0.7.3
+
+## Preserved repetition history (0.7.3)
+
+- Three recorded repetition dates spanning at least seven days before the
+  October 4 proof release can qualify a word for a new unaided typed check.
+  Passing that check now validates the historical repetition dates; previously
+  it saved a check timestamp without usable retention evidence.
+- The first post-release ordinary recall no longer removes that eligibility.
+  History before the latest mistake, hints, self-declarations, fewer than three
+  old dates, and post-release ambiguous practice cannot grant this transition.
+- The progress screen explains that zero means no new confirmation yet and
+  displays preserved work and available checks without inflating level progress.
 
 ## Opening artwork (0.7.2)
 
