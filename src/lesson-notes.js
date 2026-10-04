@@ -1,5 +1,6 @@
 // Authored bilingual explanations. No network translation is needed for rules.
 export const GUIDES = {
+  endUp: {title:'End up: неожиданный итог',formula:'end up + V-ing · end up + место / состояние',en:'End up describes the eventual result, often different from the original intention.',ru:'End up означает «в итоге оказаться» или «в конце концов сделать». Если дальше называем действие, нужна форма с -ing: ended up staying — в итоге остался. I — я, we — мы; само выражение не задает лицо.',example:'We ended up taking a taxi.',translation:'В итоге мы поехали на такси.'},
   perfectFuture: { title:'Future Perfect', formula:'will have + past participle · by + future deadline', en:'Look back from a future point. Future perfect shows what will already be complete, or how long a situation will have lasted by that point.', ru:'Смотрим назад из будущего момента. Future Perfect показывает, что к этому сроку уже завершится или сколько продлится состояние. By next June — «к следующему июню».', example:'By Friday, we will have finished the report.', translation:'К пятнице мы закончим отчёт.' },
   perfectPast: { title:'Действие до момента в прошлом', formula:'had + past participle · had been + verb-ing', en:'Past perfect places an event before another past point. Past perfect continuous focuses on the duration or repeated activity leading up to that point, often explaining a past result.', ru:'Past Perfect — действие до другого момента в прошлом. Had been + -ing подчёркивает длительность процесса и часто объясняет результат: устал, потому что долго работал.', example:'She was tired because she had been working all night.', translation:'Она устала, потому что работала всю ночь.' },
   subjunctive: { title:'Рекомендация: that + начальная форма', formula:'recommend / suggest / insist + that + subject + base verb', en:'In formal recommendations, use the base form after that, including be with every subject. British English also commonly uses should + base verb. The recommended action is not a statement of fact.', ru:'В официальной рекомендации после that возможна начальная форма глагола: that the policy be reviewed. Be не меняется по лицам. Также возможно should be reviewed. Это предлагаемое действие, а не сообщение о факте.', example:'They recommended that the plan be revised.', translation:'Они рекомендовали пересмотреть план.' },
@@ -87,14 +88,17 @@ export const DEPEND_EXAMPLES = [
 
 export function examplesFor(item) {
   if (item?.phrase === 'It depends.') return DEPEND_EXAMPLES.map(([en,ru]) => ({en,ru}));
-  const texts = [...new Set([...(item?.examples || []), ...(item?.variations || [])])];
-  return texts.map((en,index) => ({en,ru:item?.exampleRu?.[index] || ''}));
+  const paired=new Map();
+  (item?.examples || []).forEach((en,index)=>{if(en&&!paired.has(en))paired.set(en,{en,ru:item?.exampleRu?.[index] || ''});});
+  (item?.variations || []).forEach(en=>{if(en&&!paired.has(en))paired.set(en,{en,ru:''});});
+  return [...paired.values()];
 }
 
 export function guideFor(item, sentence = '') {
   if (item?.guide) return GUIDES[item.guide];
   const text = `${item?.phrase || ''} ${sentence}`.toLowerCase().replaceAll('’',"'");
   const key = /depend/.test(text) ? 'depend'
+    : /\bend(?:ed|s|ing)? up\b/.test(text) ? 'endUp'
     : /makes? sense/.test(text) ? 'makeSense'
     : /fair enough/.test(text) ? 'fairEnough'
     : /used to/.test(text) ? 'used'

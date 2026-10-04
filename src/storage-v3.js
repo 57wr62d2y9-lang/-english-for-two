@@ -83,7 +83,7 @@ export function loadPairIdentity() {
 // parts, written before the base part so a partial write cannot lose old data.
 // New fields are only appended, so every existing compact CloudStorage record
 // remains readable without resetting Artur's or Anna's history.
-const FIELDS = ['s','c','w','l','n','f','step','rec','ctx','days','xp','v','known','rewardDay','event','rcl','lis','selfKnown','knownAt','lastWrong','lastCorrect','sv'];
+const FIELDS = ['s','c','w','l','n','f','step','rec','ctx','days','xp','v','known','rewardDay','event','rcl','lis','selfKnown','knownAt','lastWrong','lastCorrect','sv','proofVersion','proofDays','proofAt','checkAt'];
 export const packItems = items => Object.fromEntries(Object.entries(items).map(([id,p]) => [id, FIELDS.map(f => p[f] ?? null)]));
 export const unpackItems = items => Object.fromEntries(Object.entries(items || {}).map(([id,v]) => [id, Array.isArray(v) ? normaliseItem(Object.fromEntries(FIELDS.map((f,i) => [f,v[i] ?? undefined]))) : normaliseItem(v)]));
 export function progressChunks(items,limit=3900) {

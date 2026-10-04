@@ -15,9 +15,9 @@ export default function Mountain({level,ascent,course,compact=false,celebrate=fa
   const next={A2:'B1',B1:'B2',B2:'C1',C1:'C1+'}[level];
   const percent=course?course.percent:ascent.percent,total=course?course.total:ascent.total;
   const [x,y]=position(percent/100);
-  const step=course?course.practised:Math.round(ascent.steps*10)/10;
-  return <section className={`mountainCard ${compact?'mountainCompact':''} ${celebrate ? 'celebration' : ''} ${entered ? 'entered' : ''}`} aria-label={`Путь ${level} — ${next}: ${step} из ${total} ${course?'карточек':'учебных этапов'}`}>
-    <div className="mountainHeading"><span>ТВОЁ ВОСХОЖДЕНИЕ</span><strong>{level}<i>→</i>{next}</strong></div>
+  const step=course?course.verified:Math.round(ascent.steps*10)/10;
+  return <section className={`mountainCard ${compact?'mountainCompact':''} ${celebrate ? 'celebration' : ''} ${entered ? 'entered' : ''}`} aria-label={course?`Закрепление словаря ${level}: ${step} из ${total} карточек`:`Путь ${level} — ${next}: ${step} из ${total} учебных этапов`}>
+    <div className="mountainHeading"><span>{course?'ЗАКРЕПЛЕНИЕ СЛОВ':'ТВОЁ ВОСХОЖДЕНИЕ'}</span><strong>{course?`Словарь ${level}`:<>{level}<i>→</i>{next}</>}</strong></div>
     <svg className="landscape" viewBox="0 0 360 305" aria-hidden="true">
       <defs><linearGradient id="mountainSky" x2="0" y2="1"><stop stopColor="var(--sky-start, #edf0ff)"/><stop offset="1" stopColor="var(--page-bg, #fdf6ef)"/></linearGradient><linearGradient id="mountainFace" x2=".2" y2="1"><stop stopColor="var(--mountain-start, #b9c9b6)"/><stop offset="1" stopColor="var(--mountain-end, #739584)"/></linearGradient></defs>
       <rect width="360" height="305" rx="22" fill="url(#mountainSky)"/>
@@ -34,7 +34,7 @@ export default function Mountain({level,ascent,course,compact=false,celebrate=fa
       <text x="57" y="294" fontSize="11" fill="#4c655b" fontWeight="700">СТАРТ</text>
       <g style={{transform:`translate(${x-25}px, ${y-88}px)`}}><foreignObject width="50" height="90"><Gopher/></foreignObject></g>
     </svg>
-    {celebrate && <div className="ascentMoment" aria-label={`Подъём на ${Math.round(climb*10)/10} этапа, награда ${reward} долларов`}><div className="climbGopher"><Gopher celebrate/></div><div className="earnedCoin">{reward ? `+$${reward}` : '✓'}</div><strong>{climb ? 'Ещё один шаг к вершине' : 'Практика сохранена'}</strong></div>}
-    <div className="mountainFoot"><div><strong>{step}<small> / {total}</small></strong><span>{course?'слов и фраз потренировано':'учебных этапов'}</span></div><p>{celebrate && climb ? `+${Math.round(climb*10)/10} за этот урок` : 'Пройденные уроки остаются с тобой'}</p></div>
+    {celebrate && <div className="ascentMoment" aria-label={`Практика сохранена, награда ${reward} долларов`}><div className="climbGopher"><Gopher celebrate/></div><div className="earnedCoin">{reward ? `+$${reward}` : '✓'}</div><strong>Практика сохранена</strong></div>}
+    <div className="mountainFoot"><div><strong>{step}<small> / {total}</small></strong><span>{course?'слов и фраз закреплено':'учебных этапов'}</span></div><p>{course?`Встречалось: ${course.introduced}. Это еще не знание.`:celebrate && climb ? `+${Math.round(climb*10)/10} за этот урок` : 'Пройденные уроки остаются с тобой'}</p></div>
   </section>;
 }

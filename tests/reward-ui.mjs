@@ -4,6 +4,7 @@ import {create,act} from 'react-test-renderer';
 import {createServer} from 'vite';
 import {lexiconForLevel} from '../src/lexicon.js';
 import {courseProgress,awardMilestone} from '../src/learning.js';
+import {readyItem,securedItem} from './learning-fixtures.mjs';
 
 const server=await createServer({server:{middlewareMode:true},appType:'custom'});
 globalThis.IS_REACT_ACT_ENVIRONMENT=true;
@@ -19,14 +20,15 @@ try {
   const time=Date.parse('2026-09-22T12:00:00Z');
   await render(AttendanceCard,{time,wallet:{earned:{}},stats:{byDay:{'2026-09-22':{visitedAt:time}},lessons:{}}});
   assert.equal(root.root.findByType('progress').props.value,1);assert.match(text(),/Сегодня засчитано ✓/);assert.match(text(),/Уроки для бонуса не обязательны/);
-  const items=lexiconForLevel('A2'),progress=Object.fromEntries(items.map(i=>[i.id,{v:true,s:'MASTERED'}]));
+  const items=lexiconForLevel('A2'),progress=Object.fromEntries(items.map(i=>[i.id,readyItem()]));
   let wallet={earned:{},spent:{}};const clicked=[];
   const props={level:'A2',items,progress,path:courseProgress(items,progress),wallet,onCheck:q=>clicked.push(q)};
   await render(CheckRewardsSection,props);
-  assert.equal(root.root.findAllByType('button').length,4);assert.equal(root.root.findAllByType('button').at(-1).props.disabled,true);
-  await act(async()=>root.root.findAllByType('button')[0].props.onClick());assert.deepEqual(clicked,[1]);
+  assert.equal(root.root.findAllByType('button').length,2);assert.equal(root.root.findAllByType('button').at(-1).props.disabled,true);
+  await act(async()=>root.root.findAllByType('button')[0].props.onClick());assert.equal(clicked[0].mode,'mastery');assert.equal(clicked[0].count,10);
   for(const q of [1,2,3])wallet=awardMilestone(wallet,'A2',q,8,items.length);
-  await render(CheckRewardsSection,{...props,wallet});
+  items.forEach(i=>{progress[i.id]=securedItem();});
+  await render(CheckRewardsSection,{...props,wallet,path:courseProgress(items,progress)});
   assert.equal(root.root.findAllByType('button').at(-1).props.disabled,false);assert.match(text(),/Завершить A2 · \+\$100/);assert.match(text(),/426/);
   await render(CheckScreen,{value:{done:true,passed:true,score:16,tasks:Array(20).fill({}),quarter:0,level:'A2',awarded:100}});
   assert.match(text(),/100/);assert.match(text(),/за завершение программы A2/);assert.equal(root.root.findAllByProps({role:'status'}).length,1);

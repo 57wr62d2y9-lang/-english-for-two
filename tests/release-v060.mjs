@@ -9,6 +9,7 @@ import {makeSession,resumeVocabularySession,nextLessonTask} from '../src/lesson-
 import {backupRecords,mergeBackup} from '../src/private-backup.js';
 import {packItems,unpackItems,saveWallet,loadWallet} from '../src/storage-v3.js';
 import {themeFor} from '../src/themes.js';
+import {readyItem,securedItem} from './learning-fixtures.mjs';
 
 let count=0;const test=(name,fn)=>{fn();count++;console.log('✓ '+name);};
 const now=Date.parse('2026-10-03T08:00:00Z');
@@ -71,14 +72,14 @@ test('30 app visits without any lessons pay $10 once; a gap and Istanbul midnigh
   assert.equal(awardAttendanceBonus(restored.wallet,restored.stats,now+29*DAY).awarded,0);
   assert.deepEqual(restored.stats.byDay,s.byDay);
 });
-test('each quarter automatically offers a vocabulary check and pays $5 total for the replacement lesson',()=>{
-  const pool=lexiconForLevel('A2'),limit=checkpointThreshold('A2',1);
+test('ready vocabulary automatically offers a shorter check and pays $5 total for the replacement lesson',()=>{
+  const pool=lexiconForLevel('A2'),limit=5;
   let progress=Object.fromEntries(pool.slice(0,limit-1).map(i=>[i.id,{s:'LEARNING',c:1}]));
   assert.equal(pendingCheckpoint(pool,progress,wallet(),stats(),'A2',now),null);
-  progress[pool[limit-1].id]={s:'LEARNING',w:1};
+  pool.slice(0,10).forEach(i=>{progress[i.id]=readyItem(now);});
   assert.equal(pendingCheckpoint(pool,progress,wallet(),stats(),'A2',now).quarter,1);
-  const check=makeCheckpoint(pool,progress,'A2',1,now);
-  assert.equal(check.tasks.length,10);assert.ok(check.tasks.every(t=>['recall','recognition','meaning'].includes(t.type)));
+  const check=makeCheckpoint(pool,progress,'A2',pendingCheckpoint(pool,progress,wallet(),stats(),'A2',now),now);
+  assert.equal(check.tasks.length,10);assert.ok(check.tasks.every(t=>t.typed && ['recall','write','context'].includes(t.type)));
   const input={...state(),progress,draft:{at:now,data:{...check,index:4,score:3}}};
   const restored=mergeBackup({...input,draft:null},backupRecords(input));
   assert.equal(restored.draft.data.index,4);assert.equal(restored.draft.data.score,3);assert.equal(restored.draft.data.id,check.id);
@@ -91,15 +92,15 @@ test('each quarter automatically offers a vocabulary check and pays $5 total for
   assert.equal(finishCheckpoint(result.wallet,result.stats,check,pool,progress,now+200000).duplicate,true);
 });
 test('a failed completed check pays an ordinary $1, schedules errors, and leaves today for new vocabulary',()=>{
-  const pool=lexiconForLevel('B1'),progress=Object.fromEntries(pool.slice(0,checkpointThreshold('B1',1)).map(i=>[i.id,{s:'LEARNING',c:1}]));
-  const check=makeCheckpoint(pool,progress,'B1',1,now);
+  const pool=lexiconForLevel('B1'),progress=Object.fromEntries(pool.slice(0,10).map(i=>[i.id,readyItem(now)]));
+  const check=makeCheckpoint(pool,progress,'B1',pendingCheckpoint(pool,progress,wallet(),stats(),'B1',now),now);
   const result=finishCheckpoint(wallet(),stats(),{...check,score:7},pool,progress,now+180000);
   assert.equal(result.check.passed,false);assert.equal(result.check.checkReward,0);assert.equal(balanceOf(result.wallet),1);
   assert.equal(pendingCheckpoint(pool,progress,result.wallet,result.stats,'B1',now+180000),null);
-  assert.equal(pendingCheckpoint(pool,progress,result.wallet,result.stats,'B1',now+DAY).quarter,1);
+  assert.ok(pendingCheckpoint(pool,progress,result.wallet,result.stats,'B1',now+DAY));
 });
-test('A2 final remains $100 once after all practised cards and all three checkpoints',()=>{
-  const pool=lexiconForLevel('A2'),progress=Object.fromEntries(pool.map(i=>[i.id,{s:'LEARNING',c:1}]));
+test('A2 final remains $100 once after every card has independent secured evidence',()=>{
+  const pool=lexiconForLevel('A2'),progress=Object.fromEntries(pool.map(i=>[i.id,securedItem(now)]));
   let w=wallet();for(const q of [1,2,3])w=awardMilestone(w,'A2',q,8,pool.length,now-DAY);
   assert.equal(pendingCheckpoint(pool,progress,w,stats(),'A2',now).quarter,0);
   const check=makeCheckpoint(pool,progress,'A2',0,now);

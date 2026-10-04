@@ -1,4 +1,33 @@
-# English for Two · 0.6.1
+# English for Two · 0.7.0
+
+## Independent recall and honest progress (0.7.0)
+
+- Scored vocabulary tasks have no word lookup or sentence translation. They
+  alternate canonical meaning recognition, typed recall, typed cloze and full
+  typed sentence translation. The ambiguous situation/meaning format is retired.
+- Sentence rules explain structure without revealing the target sentence. Full
+  explanations, examples and translations appear during introduction or after
+  submission. The deterministic checker accepts contractions and punctuation;
+  a nonmatching sentence is described as a mismatch with the study model, not
+  a claim that all alternative translations are grammatically wrong.
+- Only 3 unaided typed recalls on different Istanbul dates, spanning at least
+  7 days, followed by a correct hint-free check count as secured vocabulary.
+  Multiple choice, exposure, elapsed lesson time and self-declared knowledge
+  never count toward the displayed route. A lapse removes proof, not money.
+- Automatic checks use ready vocabulary in batches of 5–10, with a smaller
+  residual batch at the end of the dictionary. First successful new batches
+  pay $5 instead of the normal $1. Repeat checks cannot farm another $5 from
+  already rewarded items. At most one scheduled check per level/date leaves
+  time for new lessons; failed attempts remain in history and can be retried.
+- A2 graduation needs every lexical unit secured and a 16/20 final. Existing
+  rewards, lesson history and SRS identifiers remain intact. Old unverified
+  exposure counts are shown separately and must earn new independent proof.
+- Append-only proof fields round-trip through local/Telegram/private backups.
+  Partner profiles carry versioned vocabulary counts in existing JSON metadata;
+  stale legacy percentages are not presented as mastery. No DB migration,
+  new service, auth/RLS change or paid dependency is required.
+
+The release sections below document historical behaviour, not current rules.
 
 ## Consistent lesson earnings (0.6.1)
 
@@ -46,8 +75,6 @@
 - New regression coverage exercises the reported A2 finish, old repeated phrase,
   visit-only bonuses, actual app check/reload/settlement, deletion/restore, season
   boundaries and daily status. No production QA users or test credits are created.
-
-The release sections below document historical behaviour, not current rules.
 
 ## Quiet practice and lesson corrections (0.5.2)
 
@@ -142,8 +169,8 @@ Private English practice for Artur and Anna: https://english-for-two.onrender.co
 ## Daily lessons
 
 - New units show meaning, usage and life examples before scored practice.
-- Recognition, meaning in context, cloze choice, typed recall and sentence
-  assembly exercise vocabulary in different ways. Examples rotate by encounters.
+- Canonical recognition, typed cloze, typed recall and typed translation of
+  an authored bilingual example exercise vocabulary. Examples rotate by encounters.
 - Daily lessons and checkpoints use vocabulary only. Russian translations
   cover the exact example or sentence being practised.
 - All added headwords have offline word-tap translations and usage notes.
@@ -154,12 +181,12 @@ Private English practice for Artur and Anna: https://english-for-two.onrender.co
 ## Progress and rewards
 
 - Existing SRS IDs, scheduled review dates and all earned dollars are retained.
-- A separate lesson ledger powers the gopher mountain and completion animation.
-  A full lesson adds one practice stage; a five-minute lesson adds one third.
-  The 80-stage practice goal does not itself certify a CEFR level.
+- The lesson ledger preserves completed practice and rewards independently.
+  The gopher mountain and main dictionary meter use secured vocabulary only,
+  never lesson count or first encounters, and do not certify a CEFR level.
 - Previous routine rewards migrate into the ledger once.
 - Paused lessons retain question, time and answers across reloads.
-- Rewards follow the completion and attendance rules in 0.6.0 above.
+- Ordinary and attendance rewards retain the 0.6.0 rules; checks use 0.7.0 above.
   A finished batch needs five checked answers, or three in a short lesson.
   Early manual finishes also need 12 / 4 active minutes. Errors and help are allowed.
 - One $1 lesson reward per morning/evening slot.

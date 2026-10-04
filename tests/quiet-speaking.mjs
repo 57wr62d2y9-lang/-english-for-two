@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {makeSession,resumeVocabularySession,nextLessonTask} from '../src/lesson-engine.js';
+import {makeSession,resumeVocabularySession,nextLessonTask,PROGRAMME_VERSION} from '../src/lesson-engine.js';
 import {normaliseSpeakingMode} from '../src/quiet-speaking.js';
 import {mergeBackup,backupRecords} from '../src/private-backup.js';
 
@@ -16,7 +16,7 @@ for(const type of ['video','listening','grammar','ielts']) {
     task:{type,practice:type==='ielts'},mediaBlock:{lesson:{id:'old-video'},index:1},recoveryQueue:[{id:'old-video:q0',dueStep:0,attempts:1}]};
   const changed=resumeVocabularySession(old,{}, {speakingMode:'quiet'});
   assert.equal(changed.id,old.id);assert.equal(changed.answers,8);assert.equal(changed.correct,5);assert.equal(changed.remainingMs,240000);
-  assert.equal(changed.mediaBlock,null);assert.equal(changed.programmeVersion,'vocabulary-2');
+  assert.equal(changed.mediaBlock,null);assert.equal(changed.programmeVersion,PROGRAMME_VERSION);
   assert.ok(!['video','listening','grammar','ielts'].includes(changed.task.type));
   assert.deepEqual(changed.recoveryQueue,[]);assert.equal(old.mediaBlock.index,1);
 }

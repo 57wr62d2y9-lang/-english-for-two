@@ -646,6 +646,12 @@ footer { display: flex; align-items: center; justify-content: center; gap: 7px; 
 .compactLesson .chooseAnswer {min-height:36px;border:0;border-radius:8px;background:var(--pink-soft);color:var(--pink-dark);padding:7px 9px;font-size:11px;flex-shrink:0;}
 .compactLesson .typedAnswer {margin-top:16px;}
 .compactLesson .typedAnswer input {font-size:16px;min-height:48px;padding:12px;border-radius:13px;}
+.compactLesson .typedAnswer textarea {display:block;width:100%;font:inherit;font-size:16px;line-height:1.5;resize:vertical;min-height:86px;padding:12px;border:1px solid #d6c7d0;border-radius:13px;background:#fff;}
+.sentenceRule {font-size:12px;line-height:1.5;padding:10px 12px;background:var(--page-bg);border:1px solid var(--line);border-radius:12px;margin:8px 0;}
+.sentenceRule summary {cursor:pointer;color:#64786b;font-weight:600;}
+.sentenceRule strong {display:block;margin-top:8px;font-size:13px;}
+.sentenceRule p {margin:7px 0;}
+.sentenceRule small {color:#8b7a85;}
 .compactLesson .typedAnswer button {min-height:44px;margin-top:9px;width:100%;font-size:14px;}
 .compactLesson .orderMode button {font-size:10px;min-height:34px;}
 .compactLesson .sentenceAssembly {padding:11px;margin-top:10px;min-height:60px;}

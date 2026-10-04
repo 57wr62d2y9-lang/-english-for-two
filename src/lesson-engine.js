@@ -1,9 +1,8 @@
 import {lexiconForLevel,progressFor} from './lexicon.js';
-import {examplesFor,guideFor} from './lesson-notes.js';
 import {chooseTask,isDue,queueRecovery,settleRecovery,shuffle,studySlot} from './learning.js';
 import {normaliseSpeakingMode} from './quiet-speaking.js';
-export const PROGRAMME_VERSION='vocabulary-2';
-const escapes = text => text.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+import {vocabularyTask} from './vocabulary-tasks.js';
+export const PROGRAMME_VERSION='vocabulary-3';
 export {normaliseAnswer,isAnswerCorrect} from './answer-check.js';
 
 export function optionsFor(item,pool,field='phrase') {
@@ -12,31 +11,14 @@ export function optionsFor(item,pool,field='phrase') {
   return shuffle([answer,...alternatives]);
 }
 
-function phraseTask(choice,pool,progress,session) {
-  const item=choice.item,previous=progressFor(item,progress),examples=examplesFor(item);
+export function phraseTask(choice,pool,progress,session) {
+  const item=choice.item,previous=progressFor(item,progress);
   const encounter=Number(previous?.c || 0)+Number(previous?.w || 0);
-  const exampleIndex=encounter % Math.max(1,examples.length);
-  const example=examples[exampleIndex] || {en:item.phrase,ru:item.ru};
   let type=choice.type==='intro'?'intro':previous?.known?'recall':
-    ['recognition','context','recall','order','meaning'][encounter % 5];
-  if(type==='order'&&!example.ru)type='recall';
+    ['recognition','recall','context','write'][encounter % 4];
   if(choice.recovery)type=choice.type==='recognition'?'context':choice.type;
-  const task={...choice,item,type,category:type,progressId:item.id,exampleIndex,example,examples,
-    guide:guideFor(item,example.en),answer:item.phrase};
-  if(type==='intro')return {...task,key:item.id+':intro',prompt:item.phrase};
-  if(type==='recognition')Object.assign(task,{prompt:item.phrase,answer:item.ru,options:optionsFor(item,pool,'ru'),instruction:'Выбери значение слова или выражения.'});
-  if(type==='meaning')Object.assign(task,{prompt:example.en,promptRu:example.ru,answer:item.ru,options:optionsFor(item,pool,'ru'),instruction:'Что означает выражение в этой ситуации?'});
-  if(type==='context') {
-    const core=item.phrase.replace(/[.!?…]+$/g,'').trim();
-    const pattern=new RegExp('(?<![a-z])'+escapes(core)+'(?![a-z])','i');
-    const found=pattern.test(example.en);
-    Object.assign(task,{prompt:found?example.en.replace(pattern,'_____'):item.ru,promptRu:example.ru || item.ru,options:optionsFor(item,pool),
-      instruction:found?'Вставь слово или выражение по смыслу.':'Выбери слово или выражение с этим значением.'});
-  }
-  if(type==='recall')Object.assign(task,{prompt:item.ru,subPrompt:item.explanation,instruction:'Вспомни изученное слово или выражение и напиши по-английски. Полная и сокращённая формы подходят: I would = I’d. Регистр и знаки препинания не важны.'});
-  if(type==='order')Object.assign(task,{prompt:example.ru || item.ru,answer:example.en,
-    tokens:shuffle(example.en.split(/\s+/).map((text,index)=>({id:index,text}))),instruction:'Собери жизненный пример из слов. Используй все слова.'});
-  return {...task,key:item.id+':'+type+':'+exampleIndex,wasDue:Boolean(previous && isDue(previous,session.now))};
+  const task={...choice,...vocabularyTask(item,type,pool,encounter,{optionsFor})};
+  return {...task,key:item.id+':'+task.type+':'+task.exampleIndex,wasDue:Boolean(previous && isDue(previous,session.now))};
 }
 export function makeSession(level,minutes=15,lessonIndex=0,time=Date.now(),speakingMode='quiet',vocabPace='normal') {
   return {version:3,programmeVersion:PROGRAMME_VERSION,id:globalThis.crypto?.randomUUID?.() || 'lesson-'+time+'-'+Math.random().toString(36).slice(2),level,minutes,lessonIndex,

@@ -1,5 +1,6 @@
 import { lexiconForLevel, progressFor } from './lexicon.js';
 import {REVIEW_INTERVALS,scheduledReviewAt} from './review-schedule.js';
+import {isSecured,readyForCheck,recordRecallEvidence} from './mastery.js';
 export const DAY = 86400000;
 export const LEVELS = ['A2', 'B1', 'B2', 'C1'];
 export const COURSE_SIZE = 400;
@@ -25,7 +26,8 @@ export const isDue = (p, time = Date.now()) => Boolean(p && (!scheduledReviewAt(
 export const emptyItem = () => ({
   s: 'NEW', c: 0, w: 0, l: 0, n: 0, f: 0, step: 0,
   rec: 0, rcl: 0, ctx: 0, lis: 0, days: [], xp: 0, v: false,
-  known: false, selfKnown: false, knownAt: 0, lastWrong: 0, lastCorrect: 0
+  known: false, selfKnown: false, knownAt: 0, lastWrong: 0, lastCorrect: 0,
+  proofVersion:0,proofDays:[],proofAt:0,checkAt:0
 });
 export function normaliseItem(raw = {}) {
   const defined = Object.fromEntries(Object.entries(raw || {}).filter(([, value]) => value !== undefined));
@@ -43,17 +45,17 @@ export function normaliseItem(raw = {}) {
 }
 // An intentionally transparent schedule, not an implementation of FSRS.
 // Early reviews can expose a lapse but cannot advance a stage or earn repeat XP.
-export function reviewItem(raw, action, time = Date.now(), event = '') {
+export function reviewItem(raw, action, time = Date.now(), event = '', evidence = {}) {
   const old = normaliseItem(raw);
   if (event && old.event === event) return { item: old, xp: 0 };
-  const p = { ...old, days: [...old.days], f: old.f || time, l: time, event,sv:2 };
+  let p = { ...old, days: [...old.days], f: old.f || time, l: time, event,sv:2 };
   if (action === 'intro') { p.s = old.s === 'NEW' ? 'LEARNING' : old.s; p.n = old.n || time; return { item: p, xp: 0 }; }
   // Self-declared knowledge skips the short learning queue, but must be proven
   // in a delayed recall check before it contributes to verified course progress.
   if (action === 'known') {
     p.s = 'SELF_KNOWN'; p.n = time + KNOWN_VERIFY_AFTER_DAYS * DAY;
     p.known = true; p.selfKnown = true; p.knownAt = time; p.v = false;
-    return { item: p, xp: 0 };
+    return { item: recordRecallEvidence(p,action,time,evidence), xp: 0 };
   }
   const correct = action !== 'wrong';
   p.c += correct ? 1 : 0; p.w += correct ? 0 : 1;
@@ -84,17 +86,17 @@ export function reviewItem(raw, action, time = Date.now(), event = '') {
       p.n = time + INTERVALS[p.step - 1] * DAY;
       p.rewardDay = today; xp = action === 'context' || action === 'listening' ? 8 : 5;
       if (old.known) {
-        // Passing the delayed test converts a claim into verified knowledge.
-        p.v = true; p.s = 'MASTERED'; p.selfKnown = false; p.known = true;
-        p.n = time + KNOWN_RECHECK_DAYS * DAY;
+        // One delayed answer confirms recall, not the entire learning route.
+        p.selfKnown = false; p.known = false;p.s='LEARNING';
       } else {
-        const distributedEvidence = p.days.length >= 4 && p.ctx >= 2 && (p.rcl >= 1 || p.lis >= 2) && time - p.f >= 30 * DAY;
-        p.v = old.v || distributedEvidence;
-        p.s = p.v ? 'MASTERED' : p.days.length >= 3 ? 'STABLE' : 'LEARNING';
-        if (p.v) p.n = time + Math.max(30, INTERVALS[p.step]) * DAY;
+        p.s = p.days.length >= 3 ? 'STABLE' : 'LEARNING';
       }
     }
   }
+  p=recordRecallEvidence(p,action,time,evidence);
+  p.v=isSecured(p);
+  if(p.v){p.s='MASTERED';if(due)p.n=time+Math.max(30,INTERVALS[p.step]||30)*DAY;}
+  else if(p.s==='MASTERED')p.s='STABLE';
   p.xp = old.xp + xp;
   return { item: p, xp };
 }
@@ -174,11 +176,13 @@ export const checkpointQuarters = () => [1,2,3];
 export const checkpointThreshold = (level,quarter) => Math.ceil(levelTarget(level)*quarter/4);
 export const hasPractised = p => Boolean(p && (p.c>0 || p.w>0 || p.rcl>0 || p.ctx>0 || p.known || p.v));
 export function courseProgress(items, progress, level = items[0]?.level) {
-  const current = items.filter(x => {const p=progressFor(x,progress);return p?.v && p.s === 'MASTERED';});
+  const current = items.filter(x => isSecured(progressFor(x,progress)));
   const learned = items.filter(x => {const p=progressFor(x,progress);return p && p.s !== 'NEW';});
   const practised=items.filter(x=>hasPractised(progressFor(x,progress)));
   const total=levelTarget(level);
-  return { verified: current.length, introduced: learned.length, practised:practised.length, available: items.length, total, points:practised.length*10, targetPoints:total*10, percent:Math.min(100,Math.floor(practised.length/total*100)) };
+  return { version:1,verified:current.length,ready:items.filter(x=>readyForCheck(progressFor(x,progress))).length,
+    introduced:learned.length,practised:practised.length,available:items.length,total,points:current.length*10,
+    targetPoints:total*10,percent:Math.min(100,Math.floor(current.length/Math.max(1,total)*100)) };
 }
 export function checkpointCandidates(items, progress, quarter) {
   if (!checkpointQuarters().includes(quarter)) return [];
@@ -195,13 +199,13 @@ export function levelCompletionId(level) {
 }
 export function finalLevelReady(items, progress, wallet, level) {
   const pool=items.filter(item=>item.level===level),route = courseProgress(pool, progress, level);
-  const milestones = checkpointQuarters(level).every(quarter => Boolean(wallet?.earned?.[`${COURSE_VERSION}:${level}:${quarter}`]));
-  return LEVELS.includes(level) && pool.length >= route.total && route.practised >= route.total && milestones;
+  // Existing quarter rewards stay in the wallet, but do not stand in for
+  // retained vocabulary under the new rules. Every card needs real evidence.
+  return LEVELS.includes(level) && pool.length >= route.total && route.verified >= route.total;
 }
 export function awardLevelCompletion(wallet, level, score, total = 20, time = Date.now(), verified = 0) {
   const id = levelCompletionId(level);
-  const milestones=checkpointQuarters(level).every(quarter=>Boolean(wallet.earned?.[`${COURSE_VERSION}:${level}:${quarter}`]));
-  if (!LEVELS.includes(level) || total !== 20 || !Number.isInteger(score) || score < 16 || score > total || !Number.isFinite(verified) || verified < levelTarget(level) || !milestones || wallet.earned?.[id]) return wallet;
+  if (!LEVELS.includes(level) || total !== 20 || !Number.isInteger(score) || score < 16 || score > total || !Number.isFinite(verified) || verified < levelTarget(level) || wallet.earned?.[id]) return wallet;
   return {
     ...wallet,
     earned: { ...wallet.earned, [id]: { at: time, level, amount: level === 'A2' ? 100 : 0, kind: 'level-completion', score, total } }

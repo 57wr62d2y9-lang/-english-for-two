@@ -5,6 +5,7 @@ import {createServer} from 'vite';
 import {lexiconForLevel} from '../src/lexicon.js';
 import {checkpointThreshold,DAY} from '../src/learning.js';
 import {makeSession,nextLessonTask} from '../src/lesson-engine.js';
+import {readyItem} from './learning-fixtures.mjs';
 
 const server=await createServer({server:{middlewareMode:true},appType:'custom'});
 globalThis.IS_REACT_ACT_ENVIRONMENT=true;
@@ -24,7 +25,7 @@ try {
   const {default:Card}=await server.ssrLoadModule('/src/DailyLessonCard.jsx');
   // Existing morning progress should produce a control, survive leaving it,
   // and settle one payment with a correctly completed daily badge.
-  const pool=lexiconForLevel('A2'),progress=Object.fromEntries(pool.slice(0,checkpointThreshold('A2',1)).map(i=>[i.id,{s:'LEARNING',c:1,rec:1,l:now-DAY,n:now+7*DAY}]));
+  const pool=lexiconForLevel('A2'),progress=Object.fromEntries(pool.slice(0,checkpointThreshold('A2',1)).map(i=>[i.id,readyItem(now)]));
   disk.set('eft3:browser:settings',JSON.stringify({at:now,data:{level:'A2',profileName:'Anna',minutes:15,updatedAt:now}}));
   disk.set('eft3:browser:progress:A2',JSON.stringify(progress));
   await act(async()=>{root=create(h(App));});

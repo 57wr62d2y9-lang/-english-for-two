@@ -21,8 +21,8 @@ export default function DailyLessonCard({settings,stats,wallet,session,checkpoin
   const check=checkActive?checkpoint:!state.active?scheduledCheck:null;
   return <section className="todayCard">
     <div className="todayTop"><div><div className="eyebrow">{title.toUpperCase()} УРОК</div>
-      <h1>{check?check.quarter?`Контрольная ${check.quarter}`:'Итог уровня':state.active?'Продолжим урок':current.done?`${title} урок завершён`:'Новые слова сегодня'}</h1>
-      <p>{check?`${check.quarter?10:20} карточек · ${check.quarter?'награда $5':settings.level==='A2'?'награда $100':'проверка всей программы'}`:`${settings.level} · ${state.minutes} минут практики сегодня`}</p></div>
+      <h1>{check?check.quarter?`Контрольная ${check.quarter}`:'Итог словаря':state.active?'Продолжим урок':current.done?`${title} урок завершён`:'Новые слова сегодня'}</h1>
+      <p>{check?`${check.count || check.tasks?.length || (check.quarter?10:20)} карточек · ${check.retest?'повторная проверка':check.quarter?'награда $5':settings.level==='A2'?'награда $100':'проверка всего словаря'}`:`${settings.level} · ${state.minutes} минут практики сегодня`}</p></div>
     </div>
     <p className="quietStudyNote">{check?'Эта проверка заменяет следующий урок. Занятие засчитается автоматически.':'Слова, перевод и жизненные примеры. Учимся без видео и без разговора вслух.'}</p>
     <button className="primary big" onClick={()=>onStart(minutes)}>{check?checkActive?'Продолжить контрольную':'Начать контрольную →':state.active?'Продолжить урок →':current.done?'Ещё попрактиковаться →':`Начать · ${minutes} минут →`}</button>

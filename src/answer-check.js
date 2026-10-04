@@ -6,6 +6,7 @@ const sameAsBase=new Set('read cut put set hit hurt shut cost let spread split b
 const baseEndingEd=new Set('need feed bleed speed breed succeed proceed exceed bed shed wed shred'.split(' '));
 const adverbs=new Set('not never already just always ever only really probably certainly still previously recently finally'.split(' '));
 const isParticiple=word=>participles.has(word) || (/ed$/.test(word) && !baseEndingEd.has(word));
+const spelling=new Map(Object.entries({colour:'color',colours:'colors',favourite:'favorite',favourites:'favorites',neighbour:'neighbor',neighbours:'neighbors',centre:'center',centres:'centers',organise:'organize',organised:'organized',organising:'organizing',travelling:'traveling',travelled:'traveled',learnt:'learned'}));
 
 function prepare(text) {
   return String(text ?? '').normalize('NFKC').toLowerCase().replace(/[’‘ʼ`]/g,"'")
@@ -13,7 +14,7 @@ function prepare(text) {
     .replace(/\bcan't\b/g,'cannot').replace(/\bcan\s+not\b/g,'cannot')
     .replace(/\bwon't\b/g,'will not').replace(/\bshan't\b/g,'shall not').replace(/n't\b/g,' not')
     .replace(/'re\b/g,' are').replace(/'ve\b/g,' have').replace(/'ll\b/g,' will')
-    .replace(/[^a-z0-9а-яё\s']/gi,' ').replace(/\s+/g,' ').trim();
+    .replace(/[^a-z0-9а-яё\s']/gi,' ').replace(/\s+/g,' ').trim().split(' ').map(word=>spelling.get(word)||word).join(' ');
 }
 const plain=text=>text.replace(/'/g,' ').replace(/\s+/g,' ').trim();
 

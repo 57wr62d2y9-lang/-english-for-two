@@ -4,6 +4,7 @@ import { attendanceProgress, awardAttendanceBonus, completedStudyDays, finishStu
 import { buildFinalCheck } from '../src/checkpoint.js';
 import { lexiconForLevel } from '../src/lexicon.js';
 import { backupRecords, mergeBackup } from '../src/private-backup.js';
+import {securedItem} from './learning-fixtures.mjs';
 
 let count=0;
 const test=(name,fn)=>{fn();count++;console.log('✓ '+name);};
@@ -62,6 +63,7 @@ test('A2 graduation is reachable only after all published units and three checkp
   let w=wallet();
   assert.equal(items.length,levelTarget('A2'));assert.equal(levelTarget('A2'),items.length);assert.deepEqual(checkpointQuarters('A2'),[1,2,3]);
   assert.equal(finalLevelReady(items,progress,w,'A2'),false);
+  items.forEach(i=>{progress[i.id]=securedItem();});
   for(const q of [1,2,3])w=awardMilestone(w,'A2',q,8,levelTarget('A2'),end(q));
   assert.equal(finalLevelReady(items,progress,w,'A2'),true);
   assert.equal(courseProgress(items,progress).percent,100);

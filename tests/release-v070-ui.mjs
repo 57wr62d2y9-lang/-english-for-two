@@ -1,0 +1,50 @@
+import assert from 'node:assert/strict';
+import React from 'react';
+import {create,act} from 'react-test-renderer';
+import {createServer} from 'vite';
+import {vocabularyTask} from '../src/vocabulary-tasks.js';
+import {makeSession,optionsFor} from '../src/lesson-engine.js';
+import {isAnswerCorrect} from '../src/answer-check.js';
+const server=await createServer({server:{middlewareMode:true},appType:'custom'});
+globalThis.IS_REACT_ACT_ENVIRONMENT=true;
+globalThis.document={hidden:false,body:{style:{}},createElement:()=>({})};
+const fetchOriginal=globalThis.fetch;let network=0,root;
+globalThis.fetch=async()=>{network++;throw Error('No production access in UI tests');};
+try {
+  const {default:Lesson,CheckScreen}=await server.ssrLoadModule('/src/VocabularyLesson.jsx');
+  const {VocabularyProgress}=await server.ssrLoadModule('/src/AppV5.jsx');
+  const item={id:'isolated-perfect',level:'B1',phrase:'send',ru:'отправить',kind:'word',examples:['I have already sent the report.'],exampleRu:['Я уже отправил отчет.']};
+  const task=vocabularyTask(item,'write',[item],0,{optionsFor});
+  const session={...makeSession('B1'),step:2,task};let submissions=[];
+  const props={session,ascent:{steps:40,total:80,percent:50},onAnswer:value=>submissions.push(value),onKnown(){},onFinish(){}};
+  const h=React.createElement;
+  const json=()=>JSON.stringify(root.toJSON());
+  const visible=node=>node==null?'':typeof node==='string'?node:Array.isArray(node)?node.map(visible).join(''):visible(node.children);
+  const forbidden=()=>{assert.equal(root.root.findAllByType('dialog').length,0);assert.equal(root.root.findAllByProps({className:'wordBank'}).length,0);assert.equal(root.root.findAllByProps({className:'optionalTranslation'}).length,0);assert.equal(root.root.findAllByProps({className:'wordTap'}).length,0);};
+  await act(async()=>{root=create(h(Lesson,props));});
+  assert.match(json(),/Present Perfect/);assert.ok(!json().includes(task.answer));forbidden();
+  assert.equal(root.root.findAllByType('input').length,0);assert.equal(root.root.findAllByType('textarea').length,1);
+  const field=root.root.findByType('textarea');assert.equal(field.props.autoCorrect,'off');assert.equal(field.props.spellCheck,false);
+  await act(async()=>field.props.onChange({target:{value:"I've already sent the report."}}));
+  await act(async()=>root.root.findByType('form').props.onSubmit({preventDefault(){}}));
+  assert.deepEqual(submissions,["I've already sent the report."]);assert.ok(isAnswerCorrect(task,submissions[0]));
+  await act(async()=>root.update(h(Lesson,{...props,session:{...session,feedback:'wrong',selected:'I sent wrong'}})));
+  assert.ok(visible(root.toJSON()).includes(task.answer));assert.match(json(),/Сравним с учебным вариантом/);assert.match(json(),/единственный возможный перевод/);
+  await act(async()=>root.unmount());
+  for(const type of ['recognition','context','recall']) {
+    const next=vocabularyTask(item,type,[item],0,{optionsFor});
+    await act(async()=>{root=create(h(Lesson,{...props,session:{...session,step:3,task:next}}));});forbidden();
+    if(next.typed)assert.ok(!json().includes(next.answer));
+    await act(async()=>root.unmount());
+  }
+  const check={id:'isolated-check',level:'B1',quarter:1,mode:'mastery',tasks:[task],index:0,score:0};
+  await act(async()=>{root=create(h(CheckScreen,{value:check,onAnswer(){}}));});forbidden();
+  assert.equal(root.root.findAllByType('details').length,0);assert.ok(!json().includes(task.answer));
+  await act(async()=>root.update(h(CheckScreen,{value:{...check,selected:'own attempt'},onAnswer(){}})));
+  assert.match(json(),/Ответ сохранён/);assert.ok(!json().includes(task.answer));assert.doesNotMatch(json(),/Верно!|Запомним правильный ответ/);
+  await act(async()=>root.unmount());
+  await act(async()=>{root=create(h(VocabularyProgress,{level:'B1',vocab:{introduced:226,available:411,verified:0,ready:0,remaining:185,due:5,words:200,phrases:211}}));});
+  assert.equal(root.root.findByProps({role:'progressbar'}).props['aria-valuenow'],0);assert.match(json(),/встречалось в уроках/);
+  await act(async()=>root.unmount());assert.equal(network,0);
+  console.log('✓ UI: free typing, answer-free rules, no lookup/translation in scored cards, explanations only after submission, silent controls and mastery-only progress meter');
+} finally {if(root)await act(async()=>root.unmount());globalThis.fetch=fetchOriginal;await server.close();}

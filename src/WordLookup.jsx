@@ -4,13 +4,13 @@ import {TranslateButton} from './InlineTranslation.jsx';
 
 const LookupContext=createContext(null);
 
-export function WordHelpProvider({children,level='B1',onHint}) {
+export function WordHelpProvider({children,level='B1',onHint,enabled=true}) {
   const [selection,setSelection]=useState(null);
   const trigger=useRef(null),hint=useRef(onHint);hint.current=onHint;
   const open=useCallback((value,element)=>{trigger.current=element;hint.current?.();setSelection({...value,level});},[level]);
   const close=useCallback(()=>{setSelection(null);trigger.current?.focus?.({preventScroll:true});},[]);
   const value=useMemo(()=>({open}),[open]);
-  return <LookupContext.Provider value={value}>{children}{selection&&<WordCard key={`${selection.text}:${selection.index}`} selection={selection} onClose={close}/>}</LookupContext.Provider>;
+  return <LookupContext.Provider value={enabled?value:null}>{children}{enabled&&selection&&<WordCard key={`${selection.text}:${selection.index}`} selection={selection} onClose={close}/>}</LookupContext.Provider>;
 }
 
 // Only exercise content is passed here, never typed answers or personal notes.

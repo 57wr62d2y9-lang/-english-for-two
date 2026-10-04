@@ -21,13 +21,14 @@ import {
   reviewItem,
   rotatingExample
 } from '../src/learning.js';
-import { packItems, summariseStats, unpackItems } from '../src/storage-v3.js';
+import { packItems, summariseStats, unpackItems,progressChunks } from '../src/storage-v3.js';
 import { mergeCoupleSnapshot, normalisePairCode } from '../src/couple-sync.js';
 import {lexiconForLevel} from '../src/lexicon.js';
 import {levelTarget,checkpointThreshold} from '../src/learning.js';
 import { IELTS_TASKS, recommendTaskType, tasksForMode } from '../src/ielts.js';
 import { chooseListeningLesson } from '../src/scheduler.js';
 import { buildCheckpoint, buildFinalCheck } from '../src/checkpoint.js';
+import {securedItem} from './learning-fixtures.mjs';
 
 let checks = 0;
 function test(name, fn) {
@@ -77,8 +78,10 @@ test('verified mastery requires distinct days, context evidence and long retenti
   let state = reviewItem(undefined, 'intro', start, 'intro').item;
   const reviewDays = [0, 1, 3, 5, 8, 12, 30];
   reviewDays.forEach((offset, index) => {
-    state = reviewItem(state, index % 2 ? 'recall' : 'context', start + offset * DAY + 2000, `r${index}`).item;
+    state = reviewItem(state, index % 2 ? 'recall' : 'context', start + offset * DAY + 2000, `r${index}`,{typed:true}).item;
   });
+  assert.equal(state.v,false,'spaced recall without a check does not secure vocabulary');
+  state=reviewItem(state,'recall',start+31*DAY,'check',{typed:true,checkpoint:true}).item;
   assert.equal(state.v, true);
   assert.equal(state.s, 'MASTERED');
   assert.ok(state.days.length >= 4);
@@ -94,10 +97,11 @@ test('very well known items wait for delayed verification and receive no early c
   assert.equal(isDue(known.item, start + 34 * DAY), false);
   assert.equal(isDue(known.item, start + 35 * DAY), true);
   const control = reviewItem(known.item, 'recall', start + 35 * DAY + 1000, 'control');
-  assert.equal(control.item.s, 'MASTERED');
-  assert.equal(control.item.v, true);
-  assert.equal(control.item.known, true);
-  assert.equal(isDue(control.item, start + 100 * DAY), false);
+  assert.equal(control.item.s, 'LEARNING');
+  assert.equal(control.item.v, false);
+  assert.equal(control.item.known, false);
+  assert.equal(control.item.proofDays.length,1);
+  assert.equal(isDue(control.item, start + 100 * DAY), true);
 });
 
 test('failing delayed known verification returns an item to learning', () => {
@@ -146,14 +150,14 @@ test('edited phrase families contain distinct natural variations', () => {
 test('course progress counts practised vocabulary and preserves separate verified knowledge', () => {
   const items = PHRASES.filter(item => item.level === 'B1').slice(0, 3);
   const progress = {
-    [items[0].id]: { s: 'MASTERED', v: true, xp: 20 },
+    [items[0].id]: securedItem(Date.now(),{xp:20}),
     [items[1].id]: { s: 'MASTERED', v: false, known: true, xp: 50 },
     [items[2].id]: { s: 'LEARNING', v: false, xp: 100 }
   };
   const result = courseProgress(items, progress);
   assert.equal(result.verified, 1);
   assert.equal(result.practised, 2);
-  assert.equal(result.points, 20);
+  assert.equal(result.points, 10);
   assert.equal(result.targetPoints, levelTarget('B1') * 10);
 });
 
@@ -182,8 +186,8 @@ test('checkpoint measures several skills rather than one repeated choice format'
   const progress = Object.fromEntries(items.map(item => [item.id,{s:'MASTERED',v:true}]));
   const tasks = buildCheckpoint(items, progress, 1, COLLOCATIONS, LISTENING_LESSONS, 'B1');
   assert.equal(tasks.length, 10);
-  assert.deepEqual(new Set(tasks.map(task => task.type)),new Set(['recognition','meaning','recall']));
-  assert.equal(tasks.filter(task => task.type === 'recall').length, 3);
+  assert.ok(tasks.every(task=>task.typed && ['recall','write','context'].includes(task.type)));
+  assert.ok(tasks.some(task=>task.type==='recall'));
   assert.ok(tasks.every(task=>!task.lesson && !['video','listening','grammar'].includes(task.type)));
   assert.ok(tasks.every(task=>task.item.level==='B1'));
 });
@@ -309,6 +313,7 @@ test('final level check stays locked until the whole published programme and all
   const progress = Object.fromEntries(items.map(item => [item.id, { s:'MASTERED', v:true }]));
   const incompleteWallet = { earned:{}, spent:{} };
   assert.equal(finalLevelReady(items, progress, incompleteWallet, 'B1'), false);
+  items.forEach(item=>{progress[item.id]=securedItem();});
   const earned = Object.fromEntries([1,2,3,4].map(quarter => [`route-2026-1:B1:${quarter}`, { amount:100 }]));
   const wallet = { earned, spent:{} };
   assert.equal(finalLevelReady(items, progress, wallet, 'B1'), true);
@@ -334,12 +339,12 @@ test('compact cloud format round-trips defaults without undefined corruption', (
   assert.deepEqual(unpacked.p001.days, ['2026-01-01']);
 });
 
-test('400 progress records stay below the Telegram limit in 64 buckets', () => {
+test('400 progress records stay below the Telegram limit in bounded bucket parts', () => {
   const records = Object.fromEntries(Array.from({ length: 400 }, (_, index) => [`unit-${index + 1}`, { s:'STABLE', c:4, w:1, l:123456789, n:223456789, f:100000000, step:4, rec:1, ctx:2, days:['2026-01-01','2026-01-02','2026-01-05','2026-02-01'], xp:31, v:false, known:false, rewardDay:'2026-02-01', event:`session-123456789-step-${index}` }]));
   const hash = id => [...id].reduce((number, char) => (number * 31 + char.charCodeAt(0)) >>> 0, 0) % 64;
   for (let bucket = 0; bucket < 64; bucket += 1) {
     const subset = Object.fromEntries(Object.entries(records).filter(([id]) => hash(id) === bucket));
-    assert.ok(JSON.stringify(packItems(subset)).length <= 4096, `bucket ${bucket}`);
+    for(const chunk of progressChunks(subset))assert.ok(JSON.stringify(chunk).length <= 4096, `bucket ${bucket}`);
   }
 });
 

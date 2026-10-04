@@ -1,5 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.112.3';
 import { lessonRewardTotal } from './lesson-reward.js';
+import {cleanVocabularySummary} from './vocabulary-summary.js';
 
 const encoder = new TextEncoder();
 const APP_ORIGIN = Deno.env.get('APP_ORIGIN') || 'https://english-for-two.onrender.com';
@@ -129,6 +130,7 @@ async function authenticate(request: Request): Promise<Account> {
 }
 
 function cleanProfile(payload: Record<string, unknown>, telegram: TelegramUser | null) {
+  const vocabulary=cleanVocabularySummary(payload.vocabulary);
   const requested = String(payload.displayName || '');
   const rawGoals = Array.isArray(payload.goals) ? payload.goals.slice(0, 12) : [];
   const goals = rawGoals.map(value => {
@@ -145,10 +147,12 @@ function cleanProfile(payload: Record<string, unknown>, telegram: TelegramUser |
     display_name:['Artur', 'Anna'].includes(requested) ? requested : telegram?.firstName || 'Learner',
     username:telegram?.username || null,
     level:['A2', 'B1', 'B2', 'C1'].includes(String(payload.level)) ? String(payload.level) : 'A2',
-    percent:Math.max(0, Math.min(100, Math.round(Number(payload.percent) || 0))),
+    percent:vocabulary?Math.floor(vocabulary.verified/vocabulary.total*100):Math.max(0, Math.min(100, Math.round(Number(payload.percent) || 0))),
     balance:Math.max(0, Math.min(10000, Math.round(Number(payload.balance) || 0))),
     today_minutes:Math.max(0, Math.min(1440, Math.round(Number(payload.todayMinutes) || 0))),
-    routines:{ morning:payload.morningDone === true, evening:payload.eveningDone === true },
+    // Versioned progress metadata alongside the existing JSON profile flags.
+    // No schema or auth change; old clients simply have no verified summary.
+    routines:{ morning:payload.morningDone === true, evening:payload.eveningDone === true, vocabulary },
     goals,
     updated_at:new Date().toISOString()
   };
@@ -184,6 +188,7 @@ async function snapshot(accountId: string) {
     todayMinutes:partnerResult.data.today_minutes,
     morningDone:partnerResult.data.routines?.morning === true,
     eveningDone:partnerResult.data.routines?.evening === true,
+    vocabulary:cleanVocabularySummary(partnerResult.data.routines?.vocabulary),
     goals:Array.isArray(partnerResult.data.goals) ? partnerResult.data.goals : [],
     updatedAt:partnerResult.data.updated_at
   } : null;
@@ -278,7 +283,7 @@ async function handle(action: string, payload: Record<string, unknown>, account:
     // Report settled payments without adding any credit to the wallet.
     // Legacy $3 lessons + an A2 final + attendance cannot exceed $113.
     const earned=Math.min(113,lessonRewardTotal(lesson));
-    const isCheck=lesson.kind==='checkpoint',quarter=isCheck?Math.max(0,Math.min(3,Math.trunc(Number(lesson.quarter)||0))):undefined;
+    const isCheck=lesson.kind==='checkpoint',quarter=isCheck?Math.max(0,Math.min(10000,Math.trunc(Number(lesson.quarter)||0))):undefined;
     const notice={kind:isCheck?'checkpoint':'lesson',...(isCheck?{quarter,passed:lesson.passed===true}:{}),from:user.display_name,level:lesson.level,reward:earned,seconds:Math.max(0,Math.min(3600,Math.round(Number(lesson.seconds)||0))),answers:Math.max(0,Math.min(500,Math.round(Number(lesson.answers)||0))),accuracy:Math.max(0,Math.min(100,Math.round(Number(lesson.accuracy)||0))),steps:Math.max(0,Math.min(10000,Number(lesson.steps)||0))};
     const {data:existing,error:lookupError}=await db.from('eft_notifications').select('id').eq('id',`${account.id}:${id}`).maybeSingle();
     if(lookupError) throw lookupError;

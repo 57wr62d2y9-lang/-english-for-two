@@ -2,6 +2,7 @@ import {PHRASES,COLLOCATIONS} from './catalog.js';
 import {VOCABULARY} from './vocabulary.js';
 import {AUTUMN_VOCABULARY} from './vocabulary-autumn.js';
 import {scheduledReviewAt} from './review-schedule.js';
+import {isSecured,readyForCheck} from './mastery.js';
 
 export const lexicalKey=text=>String(text).toLowerCase().replaceAll('’',"'").replace(/[.!?…]+$/g,'').trim();
 const levels=['A2','B1','B2','C1'];
@@ -33,6 +34,7 @@ export function vocabularyStats(items,progress,time=Date.now()) {
     introduced:learned.length,remaining:items.length-learned.length,
     recall:learned.filter(item=>progressFor(item,progress)?.rcl>0).length,
     due:learned.filter(item=>{const p=progressFor(item,progress);return !scheduledReviewAt(p) || scheduledReviewAt(p)<=time;}).length,
-    verified:learned.filter(item=>{const p=progressFor(item,progress);return p.v && p.s==='MASTERED';}).length};
+    ready:learned.filter(item=>readyForCheck(progressFor(item,progress),time)).length,
+    verified:learned.filter(item=>isSecured(progressFor(item,progress))).length};
 }
 export const TOTAL_LEXICAL_UNITS=new Set(LEXICON.map(item=>lexicalKey(item.phrase))).size;

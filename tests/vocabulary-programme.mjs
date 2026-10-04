@@ -6,6 +6,7 @@ import {reviewItem,chooseTask,newItemLimit,DAY,evaluateSessionReward,courseProgr
 import {packItems,unpackItems,progressChunks} from '../src/storage-v3.js';
 import {buildWordCard} from '../src/word-lookup.js';
 import {buildCheckpoint,buildFinalCheck} from '../src/checkpoint.js';
+import {securedItem} from './learning-fixtures.mjs';
 
 let count=0;
 function test(name,fn){fn();count++;console.log('✓ '+name);}
@@ -158,8 +159,8 @@ test('vocabulary-only lessons earn the fixed completion reward without any media
 test('checkpoint and final use lexical evidence only, with no recordings',()=>{
   const pool=lexiconForLevel('B1'),progress=Object.fromEntries(pool.map(item=>[item.id,{s:'MASTERED',v:true}]));
   const tasks=buildCheckpoint(pool,progress,1);
-  assert.equal(tasks.length,10);assert.ok(tasks.every(t=>!t.lesson && ['meaning','recognition','recall'].includes(t.type)));
-  const full=lexiconForLevel('A2'),all=Object.fromEntries(full.map(item=>[item.id,{s:'MASTERED',v:true}]));
+  assert.equal(tasks.length,10);assert.ok(tasks.every(t=>!t.lesson && t.typed && ['write','context','recall'].includes(t.type)));
+  const full=lexiconForLevel('A2'),all=Object.fromEntries(full.map(item=>[item.id,securedItem()]));
   assert.equal(buildFinalCheck(full,all).length,20);
   assert.ok(courseProgress(full,all).percent<=100);
 });
