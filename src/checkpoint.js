@@ -29,7 +29,7 @@ const batchRewardId=(level,ids)=>{
 
 export function buildCheckpoint(items,progress,quarter) {
   const candidates=checkpointCandidates(items,progress,quarter);
-  return candidates.length===10?candidates.map((item,index)=>typedVocabularyTask(item,index%3===1?'write':index%3===2?'context':'recall',items,index)):[];
+  return candidates.length===10?candidates.map((item,index)=>typedVocabularyTask(item,index%2?'context':'recall',items,index)):[];
 }
 export function buildFinalCheck(items,progress,level=items[0]?.level) {
   // Old callers passed unrelated banks as the third argument.
@@ -37,7 +37,7 @@ export function buildFinalCheck(items,progress,level=items[0]?.level) {
   const pool=items.filter(item=>item.level===level);
   const candidates=shuffle(pool.filter(item=>isSecured(progressFor(item,progress))));
   if(candidates.length<levelTarget(level))return [];
-  return candidates.slice(0,20).map((item,index)=>typedVocabularyTask(item,index%2?'write':'recall',pool,index));
+  return candidates.slice(0,20).map((item,index)=>typedVocabularyTask(item,index%2?'context':'recall',pool,index));
 }
 
 // A check replaces the next lesson, and an unsuccessful attempt leaves room
@@ -56,17 +56,17 @@ export function makeCheckpoint(items,progress,level,quarter,time=Date.now()) {
   const descriptor=typeof quarter==='object'?quarter:null,q=descriptor?.quarter??quarter;
   const tasks=descriptor?.mode==='mastery'?descriptor.itemIds.map(id=>items.find(i=>i.id===id))
     .filter(i=>i&&i.level===level&&readyForCheck(progressFor(i,progress),time))
-    .map((item,index)=>typedVocabularyTask(item,index%3===1?'write':index%3===2?'context':'recall',items,index)):
+    .map((item,index)=>typedVocabularyTask(item,index%2?'context':'recall',items,index)):
     q?buildCheckpoint(items,progress,q):buildFinalCheck(items,progress,level);
   if(descriptor?.mode==='mastery'?(tasks.length!==descriptor.count || tasks.length<1 || tasks.length>CHECK_BATCH_SIZE):tasks.length!==(q?10:20))return null;
-  return {...descriptor,version:5,kind:'checkpoint',id:globalThis.crypto?.randomUUID?.() || `check-${time}-${Math.random().toString(36).slice(2)}`,quarter:q,level,tasks,index:0,score:0,startedAt:time,
+  return {...descriptor,version:6,kind:'checkpoint',id:globalThis.crypto?.randomUUID?.() || `check-${time}-${Math.random().toString(36).slice(2)}`,quarter:q,level,tasks,index:0,score:0,startedAt:time,
     verifiedAtStart:courseProgress(items,progress,level).verified};
 }
 
 export function resumeCheckpoint(draft,items) {
-  if(draft.version===5)return draft;
+  if(draft.version===6)return draft;
   // Do not discard an already answered question, saved score or payment ID.
-  return {...draft,version:5,tasks:draft.tasks.map((task,index)=>index<draft.index ||
+  return {...draft,version:6,tasks:draft.tasks.map((task,index)=>index<draft.index ||
     (index===draft.index&&draft.selected!==undefined)?task:typedVocabularyTask(task.item,'recall',items,index))};
 }
 

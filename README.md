@@ -1,4 +1,26 @@
-# English for Two · 0.7.0
+# English for Two · 0.7.1
+
+## Writing variants and focused vocabulary checks (0.7.1)
+
+- Sentence translation accepts narrow documented alternatives: optional
+  complement `that`, simple-clause time-adverb positions, `already` at the end
+  of an affirmative perfect clause, and `please` positions in modal requests.
+  Subject, tense, negation and every other word remain checked. Latin accents
+  and additional standard UK/US spellings also compare correctly.
+- A nonmatching free translation is inconclusive about lexical recall. It
+  records a writing retry, preserves existing mastery proof and schedules a
+  focused word recall. An incorrect focused recall still resets proof normally.
+  After submission, feedback points to person, negation or construction where
+  detectable, with an explicit limit on arbitrary paraphrase recognition.
+- Checkpoints and finals assess typed words/phrases or a contextual blank;
+  whole-sentence translation remains ordinary practice with construction notes.
+  Paused v4/v5 checks upgrade to v6 without losing answered questions, score,
+  identity, reward ID or elapsed time. Payout policy is unchanged.
+- Typed-card submit controls stay in the footer, visible independently of
+  scrolling rules or examples. Empty fields cannot submit. Russian focus labels
+  clarify the target lexical unit without showing its English answer.
+- Two appended writing fields survive compact/Telegram/private backups. No
+  backend deployment, schema change or paid service is needed.
 
 ## Independent recall and honest progress (0.7.0)
 
@@ -27,7 +49,8 @@
   stale legacy percentages are not presented as mastery. No DB migration,
   new service, auth/RLS change or paid dependency is required.
 
-The release sections below document historical behaviour, not current rules.
+Older release sections below document historical behaviour; 0.7.1 refines the
+0.7.0 mastery rules above without resetting them.
 
 ## Consistent lesson earnings (0.6.1)
 
@@ -173,8 +196,8 @@ Private English practice for Artur and Anna: https://english-for-two.onrender.co
   an authored bilingual example exercise vocabulary. Examples rotate by encounters.
 - Daily lessons and checkpoints use vocabulary only. Russian translations
   cover the exact example or sentence being practised.
-- All added headwords have offline word-tap translations and usage notes.
-  Unknown surrounding words can use the existing translator on demand.
+- Introductions and feedback provide offline word-tap translations and usage
+  notes. Active scored cards keep lookup and sentence translations hidden.
 - Legacy media/grammar files remain in the repository for history, but external
   media is not imported by the active lesson/checkpoint programme.
 
@@ -186,7 +209,7 @@ Private English practice for Artur and Anna: https://english-for-two.onrender.co
   never lesson count or first encounters, and do not certify a CEFR level.
 - Previous routine rewards migrate into the ledger once.
 - Paused lessons retain question, time and answers across reloads.
-- Ordinary and attendance rewards retain the 0.6.0 rules; checks use 0.7.0 above.
+- Ordinary and attendance rewards retain the 0.6.0 rules; checks use 0.7.1 above.
   A finished batch needs five checked answers, or three in a short lesson.
   Early manual finishes also need 12 / 4 active minutes. Errors and help are allowed.
 - One $1 lesson reward per morning/evening slot.

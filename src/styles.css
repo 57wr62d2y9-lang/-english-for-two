@@ -652,6 +652,10 @@ footer { display: flex; align-items: center; justify-content: center; gap: 7px; 
 .sentenceRule strong {display:block;margin-top:8px;font-size:13px;}
 .sentenceRule p {margin:7px 0;}
 .sentenceRule small {color:#8b7a85;}
+.compactYourAnswer.sentenceAttempt {text-decoration:none;}
+.sentenceFeedback {margin:10px 0;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--page-bg);font-size:13px;line-height:1.5;}
+.sentenceFeedback p {margin:6px 0 0;}
+.sentenceFocus {font-size:12px;color:#64786b;line-height:1.4;margin:8px 0;}
 .compactLesson .typedAnswer button {min-height:44px;margin-top:9px;width:100%;font-size:14px;}
 .compactLesson .orderMode button {font-size:10px;min-height:34px;}
 .compactLesson .sentenceAssembly {padding:11px;margin-top:10px;min-height:60px;}

@@ -14,7 +14,7 @@ export function optionsFor(item,pool,field='phrase') {
 export function phraseTask(choice,pool,progress,session) {
   const item=choice.item,previous=progressFor(item,progress);
   const encounter=Number(previous?.c || 0)+Number(previous?.w || 0);
-  let type=choice.type==='intro'?'intro':previous?.known?'recall':
+  let type=choice.type==='intro'?'intro':previous?.known||previous?.sentenceRecallPending?'recall':
     ['recognition','recall','context','write'][encounter % 4];
   if(choice.recovery)type=choice.type==='recognition'?'context':choice.type;
   const task={...choice,...vocabularyTask(item,type,pool,encounter,{optionsFor})};
@@ -76,4 +76,8 @@ export function applySessionEvidence(session,task,correct) {
     unaidedCorrect:session.unaidedCorrect+(unaided ? 1 : 0),fastCorrect:session.fastCorrect+(unaided && elapsed <= 18 ? 1 : 0),
     dueSuccess:session.dueSuccess+(correct && task.wasDue ? 1 : 0),recovered:session.recovered+(scored && correct && wasQueued ? 1 : 0),recoveryQueue,
     mediaBlock:null};
+}
+export function reviewActionFor(task,correct) {
+  return task.practice?'intro':!correct?(task.type==='write'?'sentenceRetry':'wrong'):
+    task.type==='recognition'?'recognition':task.type==='recall'?'recall':'context';
 }

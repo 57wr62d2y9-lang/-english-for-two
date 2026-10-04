@@ -13,7 +13,7 @@ export function vocabularyTask(item,type,pool,index=0,{optionsFor}={}) {
   if(type==='recognition')return {...task,prompt:item.phrase,answer:item.ru,options:optionsFor(item,pool,'ru'),instruction:'Выбери перевод именно этого слова или выражения.'};
   if(type==='write') {
     const usable=examples.filter(e=>e.ru && e.en.split(/\s+/).length<=20 && !/^["“]/.test(e.en));
-    if(usable.length){const chosen=usable[index%usable.length];return {...task,prompt:chosen.ru,answer:chosen.en,example:chosen,
+    if(usable.length){const chosen=usable[index%usable.length];return {...task,prompt:chosen.ru,answer:chosen.en,example:chosen,focusRu:item.ru,
       rule:sentenceRule(chosen.en),typed:true,instruction:'Переведи учебный пример целиком. Используй слова и выражения из этой карточки; сохраняй лицо, время и отрицание.'};}
     type='recall';
   }

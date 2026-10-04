@@ -27,7 +27,7 @@ export const emptyItem = () => ({
   s: 'NEW', c: 0, w: 0, l: 0, n: 0, f: 0, step: 0,
   rec: 0, rcl: 0, ctx: 0, lis: 0, days: [], xp: 0, v: false,
   known: false, selfKnown: false, knownAt: 0, lastWrong: 0, lastCorrect: 0,
-  proofVersion:0,proofDays:[],proofAt:0,checkAt:0
+  proofVersion:0,proofDays:[],proofAt:0,checkAt:0,sentenceRetries:0,sentenceRecallPending:false
 });
 export function normaliseItem(raw = {}) {
   const defined = Object.fromEntries(Object.entries(raw || {}).filter(([, value]) => value !== undefined));
@@ -57,6 +57,17 @@ export function reviewItem(raw, action, time = Date.now(), event = '', evidence 
     p.known = true; p.selfKnown = true; p.knownAt = time; p.v = false;
     return { item: recordRecallEvidence(p,action,time,evidence), xp: 0 };
   }
+  // A free translation that does not match the model is inconclusive about
+  // lexical knowledge. Keep existing recall proof, record the writing attempt,
+  // and request a focused recall rather than marking the word forgotten.
+  if(action==='sentenceRetry') {
+    p.sentenceRetries=Number(old.sentenceRetries||0)+1;p.sentenceRecallPending=true;
+    p.n=Math.min(old.n||time,time+DAY);p.v=isSecured(p);
+    if(p.s==='NEW')p.s='LEARNING';
+    if(p.s==='MASTERED'&&!p.v)p.s='STABLE';
+    return {item:p,xp:0};
+  }
+  if(['recall','context','wrong'].includes(action))p.sentenceRecallPending=false;
   const correct = action !== 'wrong';
   p.c += correct ? 1 : 0; p.w += correct ? 0 : 1;
   const due = isDue(old,time);

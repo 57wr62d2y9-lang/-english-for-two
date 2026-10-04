@@ -3,12 +3,14 @@ import {WordHelpProvider,EnglishText} from './WordLookup.jsx';
 import {TranslateButton} from './InlineTranslation.jsx';
 import {examplesFor} from './lesson-notes.js';
 import Mountain from './Mountain.jsx';
+import {sentenceFeedback} from './sentence-feedback.js';
 
-export function TextAnswer({onSubmit,disabled,sentence=false}) {
+export function TextAnswer({onSubmit,disabled,sentence=false,formId,submitOutside=false,onValueChange}) {
   const [value,setValue]=useState('');
-  return <form className="typedAnswer" onSubmit={e=>{e.preventDefault();if(value.trim())onSubmit(value);}}>
-    {sentence?<textarea aria-label="Предложение по-английски" rows={3} value={value} onChange={e=>setValue(e.target.value)} placeholder="Напиши перевод целиком" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} disabled={disabled}/>:<input aria-label="Ответ по-английски" value={value} onChange={e=>setValue(e.target.value)} placeholder="Напиши по-английски" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} disabled={disabled}/>}
-    <button className="primary" disabled={disabled||!value.trim()}>Проверить</button>
+  const change=e=>{setValue(e.target.value);onValueChange?.(Boolean(e.target.value.trim()));};
+  return <form id={formId} className="typedAnswer" onSubmit={e=>{e.preventDefault();if(!disabled&&value.trim())onSubmit(value);}}>
+    {sentence?<textarea aria-label="Предложение по-английски" rows={3} value={value} onChange={change} placeholder="Напиши перевод целиком" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} disabled={disabled}/>:<input aria-label="Ответ по-английски" value={value} onChange={change} placeholder="Напиши по-английски" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} disabled={disabled}/>}
+    {!submitOutside&&<button className="primary" disabled={disabled||!value.trim()}>Проверить</button>}
   </form>;
 }
 
@@ -44,13 +46,16 @@ const taskName={recognition:'Значение',meaning:'Смысл в ситуа
 function RuleNote({rule}) {return rule?<details className="sentenceRule"><summary>Как построить предложение · {rule.title}</summary><strong>{rule.formula}</strong><p>{rule.ru}</p><small>Здесь только правило, без готового ответа.</small></details>:null;}
 
 export default function Lesson({session,ascent,course,onIntro,onKnown,onAnswer,onNext,onFinish,onBack,onHome,onHint,onMore,onAddNew}) {
+  const [entry,setEntry]=useState({key:'',filled:false});
   if(session.done)return <div className="app lessonFinish"><div className="eyebrow">УРОК СОХРАНЁН</div><h1>Практика сохранена</h1>
     <Mountain level={session.level} ascent={ascent} course={course} celebrate reward={(session.routineReward||0)+(session.attendanceReward||0)} climb={session.climb}/>
-    <div className="resultSummary"><div><strong>{session.correct}/{session.answers}</strong><span>Верных ответов</span></div><div><strong>+${(session.routineReward||0)+(session.attendanceReward||0)}</strong><span>В копилку</span></div></div>
+    <div className="resultSummary"><div><strong>{session.correct}/{session.answers}</strong><span>Совпало с учебным ответом</span></div><div><strong>+${(session.routineReward||0)+(session.attendanceReward||0)}</strong><span>В копилку</span></div></div>
     <p>{session.rewardAlready?'Награда за эту часть дня уже получена. Ответы сохранены.':session.rewardReasons?.join(' · ')}</p>
     {session.attendanceReward>0&&<p className="bonusNotice" role="status">+${session.attendanceReward} за 30 дней подряд с входом в приложение!</p>}
     <button className="primary big" onClick={onHome}>На главную</button><button className="quietButton" onClick={onMore}>Ещё один урок</button></div>;
   const task=session.task,seconds=Math.max(0,Math.ceil(session.remainingMs/1000)),intro=task?.type==='intro';
+  const answerId=`answer-${session.id}-${session.step}`,typed=['recall','write','order','context'].includes(task?.type);
+  const issue=task?.type==='write'&&session.feedback==='wrong'?sentenceFeedback(task,session.selected):null;
   return <WordHelpProvider key={session.id+':'+session.step} level={session.level} onHint={onHint} enabled={intro||Boolean(session.feedback)}><div className="compactLesson">
     <header className="compactTopbar"><button className="iconButton" onClick={onBack} aria-label="Сохранить урок и выйти">×</button><div className="sessionProgress"><i style={{width:Math.min(100,100-session.remainingMs/session.plannedMs*100)+'%'}}/></div><span className="compactTimer">{Math.floor(seconds/60)}:{String(seconds%60).padStart(2,'0')}</span></header>
     <main className={`compactCard ${task?.item?.phrase?.length>32?'compactLong':''}`} key={session.id+':'+session.step}>
@@ -64,24 +69,26 @@ export default function Lesson({session,ascent,course,onIntro,onKnown,onAnswer,o
         <Examples examples={task.examples?.length?task.examples:examplesFor(task.item)}/>
         <small className="compactLookupHint">Нажми на английское слово для перевода.</small>
       </>:session.feedback?<><span className={'feedbackTitle '+session.feedback}>{session.feedback==='correct'?'Верно!':task.type==='write'?'Сравним с учебным вариантом':'Запомним правильный ответ'}</span>
-        {session.feedback==='wrong'&&<p className="compactYourAnswer">Твой ответ: {session.selected}</p>}
+        {session.feedback==='wrong'&&<p className={`compactYourAnswer${task.type==='write'?' sentenceAttempt':''}`}>Твой ответ: {session.selected}</p>}
         <h1 className="feedbackAnswer"><EnglishText text={['write','order','context'].includes(task.type)?task.answer:task.item.phrase} ru={['write','order'].includes(task.type)?task.prompt:task.item.ru}/></h1>
         <p className="compactMeaning">{['write','order'].includes(task.type)?task.prompt:task.item.ru}</p>
         {task.type==='write'&&<RuleNote rule={task.rule}/>}
+        {issue&&<section className="sentenceFeedback"><strong>{issue.title}</strong><p>{issue.text}</p></section>}
         {task.guide?.ru&&<details className="compactUsage"><summary>Почему так говорят</summary><strong>{task.guide.formula}</strong><p>{task.guide.ru}</p></details>}
         <Examples examples={task.examples?.length?task.examples:examplesFor(task.item)}/>
-        {session.feedback==='wrong'&&<p className="compactRecovery">Повторим после других карточек. {task.type==='write'?'Это учебный образец, а не единственный возможный перевод. Полный и сокращенный варианты равнозначны.':'Полная и сокращённая формы равнозначны.'}</p>}
+        {session.feedback==='wrong'&&<p className="compactRecovery">{task.type==='write'?'Это учебный образец, а не единственный возможный перевод. Закрепление слова не сброшено: проверим его отдельно после других карточек.':'Повторим после других карточек. Полная и сокращённая формы равнозначны.'}</p>}
       </>:<><span className="eyebrow">{taskName[task.type]} · {session.level}</span>
         {task.recovery&&<small className="recoveryTag">Повтор после ошибки</small>}
         <h1 className="compactPrompt">{task.prompt}</h1>
         <p className="compactInstruction">{task.instruction || 'Выбери перевод именно показанного слова или выражения.'}</p>
+        {task.type==='write'&&task.focusRu&&<p className="sentenceFocus">Тренируем: {task.focusRu}</p>}
         {task.type==='write'&&<RuleNote rule={task.rule}/>}
-        {['recall','write','order','context'].includes(task.type)?<TextAnswer sentence={['write','order'].includes(task.type)} onSubmit={onAnswer}/>:<div className="options">{task.options.map(option=><button type="button" key={option} onClick={()=>onAnswer(option)}>{option}</button>)}</div>}
+        {typed?<TextAnswer formId={answerId} submitOutside sentence={['write','order'].includes(task.type)} onValueChange={filled=>setEntry({key:answerId,filled})} onSubmit={onAnswer}/>:<div className="options">{task.options.map(option=><button type="button" key={option} onClick={()=>onAnswer(option)}>{option}</button>)}</div>}
       </>}
     </main>
     <footer className="compactActions">
       {!task?<><button className="primary" onClick={onFinish}>Завершить урок</button>{session.moreAvailable&&<button className="secondary" onClick={onAddNew}>Ещё новые слова</button>}</>:
-      <>{intro?<button className="primary" onClick={()=>onIntro(false)}>Потренировать →</button>:session.feedback?<button className="primary" onClick={onNext}>{seconds===0?'Завершить урок':'Дальше →'}</button>:null}
+      <>{intro?<button className="primary" onClick={()=>onIntro(false)}>Потренировать →</button>:session.feedback?<button className="primary" onClick={onNext}>{seconds===0?'Завершить урок':'Дальше →'}</button>:typed?<button type="submit" form={answerId} className="primary" disabled={entry.key!==answerId||!entry.filled}>Проверить</button>:null}
         <button type="button" className="knownButton" onClick={()=>onKnown?onKnown():onIntro(true)}>Очень хорошо знаю · повтор через 35 дней</button></>}
       <button className="compactFinishLink" onClick={onFinish}>Завершить сейчас</button>
     </footer>
@@ -89,17 +96,19 @@ export default function Lesson({session,ascent,course,onIntro,onKnown,onAnswer,o
 }
 
 export function CheckScreen({value,onAnswer,onNext,onDone,onBack}) {
+  const [entry,setEntry]=useState({key:'',filled:false});
   if(value.done)return <div className="app lessonFinish"><h1>{value.score} / {value.tasks.length}</h1><p>{value.passed?'Контрольная пройдена!':'Повторим трудные карточки и попробуем ещё раз.'}</p>
     <p>Занятие за эту часть дня засчитано.</p>{value.awarded>0&&<p className="bonusNotice" role="status">+${value.awarded} в копилку{!value.quarter&&value.level==='A2'?' за завершение программы A2':''}!</p>}
     {(value.responses||[]).filter(r=>!r.correct).length>0&&<section className="checkMistakes"><h2>Разбор после проверки</h2>{value.responses.filter(r=>!r.correct).map(r=>{const task=value.tasks[r.index];return <article key={r.index}><strong>{task.item.phrase}</strong><p>{task.item.ru}</p><p lang="en">Учебный ответ: {task.answer}</p><small>Твой ответ: {r.value}</small><RuleNote rule={task.rule}/></article>;})}<p className="helper">Ошибки сохранены и вернутся в следующих уроках.</p></section>}
     <button className="primary big" onClick={onDone}>На главную</button></div>;
   const task=value.tasks[value.index],answered=value.selected!==undefined;
+  const answerId=`check-answer-${value.id}-${value.index}`,typed=['recall','write','context'].includes(task.type);
   return <WordHelpProvider key={value.id+':'+value.index} level={value.level} enabled={false}><div className="compactLesson checkpointLesson">
     <header className="compactTopbar"><button className="iconButton" onClick={onBack} aria-label="Сохранить контрольную и выйти">×</button><div className="sessionProgress"><i style={{width:(value.index/value.tasks.length*100)+'%'}}/></div><span>{value.index+1}/{value.tasks.length}</span></header>
     <main className="compactCard"><span className="eyebrow">{value.quarter?`${value.retest?'ПОВТОРНАЯ ПРОВЕРКА':'КОНТРОЛЬНАЯ'} ${value.quarter}`:'ИТОГ СЛОВАРЯ'} · {value.level}</span><h1 className="compactPrompt">{task.prompt}</h1>
       <p className="compactInstruction">{task.instruction || (task.type==='recall'?'Напиши по-английски. Полная и сокращённая формы подходят.':'Выбери правильное значение.')}</p>
-      {['recall','write','context'].includes(task.type)?<TextAnswer sentence={task.type==='write'} disabled={answered} onSubmit={onAnswer}/>:<div className="options">{task.options.map(option=><button key={option} disabled={answered} onClick={()=>onAnswer(option)}>{option}</button>)}</div>}
+      {typed?<TextAnswer formId={answerId} submitOutside sentence={task.type==='write'} disabled={answered} onValueChange={filled=>setEntry({key:answerId,filled})} onSubmit={onAnswer}/>:<div className="options">{task.options.map(option=><button key={option} disabled={answered} onClick={()=>onAnswer(option)}>{option}</button>)}</div>}
       {answered&&<p className="checkSaved">Ответ сохранён. Разбор ошибок — после контрольной.</p>}
-    </main><footer className="compactActions">{answered&&<button className="primary" onClick={onNext}>{value.index+1===value.tasks.length?'Завершить контрольную':'Дальше →'}</button>}<small>Проходной результат: {Math.ceil(value.tasks.length*.8)} из {value.tasks.length}. Прогресс сохраняется.</small></footer>
+    </main><footer className="compactActions">{answered?<button className="primary" onClick={onNext}>{value.index+1===value.tasks.length?'Завершить контрольную':'Дальше →'}</button>:typed?<button type="submit" form={answerId} className="primary" disabled={entry.key!==answerId||!entry.filled}>Проверить</button>:null}<small>Проходной результат: {Math.ceil(value.tasks.length*.8)} из {value.tasks.length}. Прогресс сохраняется.</small></footer>
   </div></WordHelpProvider>;
 }
