@@ -1,4 +1,11 @@
-# English for Two · 0.7.1
+# English for Two · 0.7.2
+
+## Opening artwork (0.7.2)
+
+- The opening screen uses the supplied English for Two couple artwork. A
+  square CSS crop shows only the central image, without screenshot controls.
+- The same splash appears in the initial HTML before the app bundle loads;
+  the image is preloaded. Account loading and saved progress are unchanged.
 
 ## Writing variants and focused vocabulary checks (0.7.1)
 
