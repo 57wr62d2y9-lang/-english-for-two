@@ -25,7 +25,7 @@ try {
   const props={level:'A2',items,progress,path:courseProgress(items,progress),wallet,onCheck:q=>clicked.push(q)};
   await render(CheckRewardsSection,props);
   assert.equal(root.root.findAllByType('button').length,2);assert.equal(root.root.findAllByType('button').at(-1).props.disabled,true);
-  await act(async()=>root.root.findAllByType('button')[0].props.onClick());assert.equal(clicked[0].mode,'mastery');assert.equal(clicked[0].count,10);
+  await act(async()=>root.root.findAllByType('button')[0].props.onClick());assert.equal(clicked[0].mode,'weekly');assert.equal(clicked[0].count,10);
   for(const q of [1,2,3])wallet=awardMilestone(wallet,'A2',q,8,items.length);
   items.forEach(i=>{progress[i.id]=securedItem();});
   await render(CheckRewardsSection,{...props,wallet,path:courseProgress(items,progress)});
@@ -35,7 +35,7 @@ try {
   await render(CheckScreen,{value:{done:true,passed:false,score:7,tasks:Array(10).fill({}),quarter:1,level:'A2',awarded:0}});
   assert.equal(root.root.findAllByProps({role:'status'}).length,0);
   await render(Lesson,{session:{done:true,level:'A2',correct:0,answers:5,climb:1,routineReward:1,attendanceReward:10,rewardReasons:['$1 за урок']},ascent:{steps:60,total:80,lessons:60,percent:75},onHome(){},onMore(){}});
-  assert.match(text(),/\+\$11/);assert.match(text(),/за 30 дней подряд/);
+  assert.match(text(),/\+\$11/);assert.match(text(),/за 30 накопленных дней/);
   assert.match(root.root.findByProps({className:'resultSummary'}).findAllByType('strong').map(n=>n.children.join('')).join(' '),/\+\$11/);
   await act(async()=>root.unmount());assert.equal(requests,0);
   console.log('✓ reward UI: fixed rates, daily entry attendance, reachable A2, actual checkpoint payouts and $1 + $10 finish result');

@@ -3,6 +3,7 @@ import {finishStudySession} from './rewards.js';
 import {progressFor} from './lexicon.js';
 import {readyForCheck,isSecured,CHECK_BATCH_SIZE,CHECK_REVIEW_DAYS} from './mastery.js';
 import {vocabularyTask as typedVocabularyTask} from './vocabulary-tasks.js';
+import {weekKey} from '../supabase/functions/english-for-two-sync/arcade-summary.js';
 const DAY=86400000;
 const CHECK_VERSION='vocabulary-proof-1';
 
@@ -52,13 +53,29 @@ export function pendingCheckpoint(items,progress,wallet,stats,level,time=Date.no
     amount:candidate.retest?0:5,rewardId:batchRewardId(level,ids)};
 }
 
+// Every calendar week (Monday–Sunday, Istanbul), independent of mastery gates.
+// Ready items go first; a correct answer still cannot bypass mastery evidence.
+export function weeklyCheckpoint(items,progress,wallet,stats,level,time=Date.now()) {
+  const week=weekKey(time),rewardId='weekly-check:'+week;
+  if(wallet.earned?.[rewardId]||Object.values(stats.lessons||{}).some(r=>r.mode==='weekly'&&r.week===week&&r.passed))return null;
+  const pool=items.filter(i=>i.level===level),practised=pool.filter(i=>{const p=progressFor(i,progress);return p&&p.s!=='NEW';});
+  const rank=i=>{const p=progressFor(i,progress);return readyForCheck(p,time)?0:p?.w>0&&!isSecured(p)?1:2;};
+  const selected=shuffle(practised).sort((a,b)=>rank(a)-rank(b)).slice(0,10);
+  for(const item of pool)if(selected.length<5&&!selected.some(i=>i.id===item.id))selected.push(item);
+  if(!selected.length)return null;
+  return {mode:'weekly',week,rewardId,quarter:1+Object.values(stats.lessons||{}).filter(r=>r.kind==='checkpoint').length,
+    level,itemIds:selected.map(i=>i.id),count:selected.length,amount:5,starter:practised.length<5,
+    retest:Object.values(stats.lessons||{}).some(r=>r.mode==='weekly'&&r.week===week)};
+}
+
 export function makeCheckpoint(items,progress,level,quarter,time=Date.now()) {
   const descriptor=typeof quarter==='object'?quarter:null,q=descriptor?.quarter??quarter;
-  const tasks=descriptor?.mode==='mastery'?descriptor.itemIds.map(id=>items.find(i=>i.id===id))
-    .filter(i=>i&&i.level===level&&readyForCheck(progressFor(i,progress),time))
+  const scheduled=['mastery','weekly'].includes(descriptor?.mode);
+  const tasks=scheduled?descriptor.itemIds.map(id=>items.find(i=>i.id===id))
+    .filter(i=>i&&i.level===level&&(descriptor.mode==='weekly'||readyForCheck(progressFor(i,progress),time)))
     .map((item,index)=>typedVocabularyTask(item,index%2?'context':'recall',items,index)):
     q?buildCheckpoint(items,progress,q):buildFinalCheck(items,progress,level);
-  if(descriptor?.mode==='mastery'?(tasks.length!==descriptor.count || tasks.length<1 || tasks.length>CHECK_BATCH_SIZE):tasks.length!==(q?10:20))return null;
+  if(scheduled?(tasks.length!==descriptor.count || tasks.length<(descriptor.mode==='weekly'?5:1) || tasks.length>CHECK_BATCH_SIZE):tasks.length!==(q?10:20))return null;
   return {...descriptor,version:6,kind:'checkpoint',id:globalThis.crypto?.randomUUID?.() || `check-${time}-${Math.random().toString(36).slice(2)}`,quarter:q,level,tasks,index:0,score:0,startedAt:time,
     verifiedAtStart:courseProgress(items,progress,level).verified};
 }
@@ -73,13 +90,15 @@ export function resumeCheckpoint(draft,items) {
 export function finishCheckpoint(wallet,stats,check,items,progress,time=Date.now()) {
   if(!check || check.done || stats.lessons?.[check.id])return {wallet,stats,check,duplicate:true};
   const total=check.tasks.length,path=courseProgress(items,progress,check.level);
-  const passed=(check.mode==='mastery'?total>=1&&total<=CHECK_BATCH_SIZE:total===(check.quarter?10:20)) &&
+  const passed=(['mastery','weekly'].includes(check.mode)?total>=(check.mode==='weekly'?5:1)&&total<=CHECK_BATCH_SIZE:total===(check.quarter?10:20)) &&
     Number.isInteger(check.score) && check.score>=Math.ceil(total*.8) && check.score<=total;
-  const rewardId=check.mode==='mastery'?check.rewardId:check.quarter?`${COURSE_VERSION}:${check.level}:${check.quarter}`:levelCompletionId(check.level);
+  const rewardId=check.mode==='weekly'?'weekly-check:'+check.week:check.mode==='mastery'?check.rewardId:check.quarter?`${COURSE_VERSION}:${check.level}:${check.quarter}`:levelCompletionId(check.level);
   const covered=rewardedVocabulary(wallet,check.level);
   const newReward=check.mode==='mastery' && passed && !check.retest && !wallet.earned?.[rewardId] &&
     Array.isArray(check.itemIds) && check.itemIds.length===total && new Set(check.itemIds).size===total && check.itemIds.every(id=>!covered.has(id));
-  const rewarded=check.mode==='mastery'?(newReward?{...wallet,earned:{...wallet.earned,[rewardId]:{at:time,level:check.level,quarter:check.quarter,amount:5,kind:'checkpoint',mastery:true,itemIds:check.itemIds,score:check.score,total}}}:wallet):
+  const weeklyReward=check.mode==='weekly'&&passed&&!wallet.earned?.[rewardId]&&check.week===weekKey(check.startedAt)&&check.week<=weekKey(time);
+  const rewarded=check.mode==='weekly'?(weeklyReward?{...wallet,earned:{...wallet.earned,[rewardId]:{at:time,level:check.level,week:check.week,amount:5,kind:'checkpoint',mode:'weekly',score:check.score,total}}}:wallet):
+    check.mode==='mastery'?(newReward?{...wallet,earned:{...wallet.earned,[rewardId]:{at:time,level:check.level,quarter:check.quarter,amount:5,kind:'checkpoint',mastery:true,itemIds:check.itemIds,score:check.score,total}}}:wallet):
     check.quarter?awardMilestone(wallet,check.level,check.quarter,check.score,path.practised,time):
     check.verifiedAtStart>=path.total || finalLevelReady(items,progress,wallet,check.level)?awardLevelCompletion(wallet,check.level,check.score,total,time,Math.max(path.verified,check.verifiedAtStart||0)):wallet;
   const checkReward=balanceOf(rewarded)-balanceOf(wallet);
@@ -92,7 +111,7 @@ export function finishCheckpoint(wallet,stats,check,items,progress,time=Date.now
   const snapshot={id:check.id,level:check.level,plannedMs:900000,remainingMs:900000-seconds*1000,exhausted:true,
     answers:total,scoredAnswers:total,correct:check.score,scoredCorrect:check.score,taskCounts:{checkpoint:total}};
   const settled=finishStudySession(next,stats,snapshot,time);
-  const record={...settled.stats.lessons[check.id],kind:'checkpoint',quarter:check.quarter,checkReward,passed,mode:check.mode,retest:check.retest};
+  const record={...settled.stats.lessons[check.id],kind:'checkpoint',quarter:check.quarter,checkReward,passed,mode:check.mode,week:check.week,retest:check.retest};
   return {wallet:settled.wallet,stats:{...settled.stats,lessons:{...settled.stats.lessons,[check.id]:record}},
     check:{...check,done:true,passed,awarded:checkReward+(settled.session.routineReward||0)+(settled.session.attendanceReward||0),checkReward,routineReward:settled.session.routineReward||0},duplicate:false};
 }

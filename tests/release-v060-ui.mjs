@@ -7,7 +7,7 @@ import {checkpointThreshold,DAY} from '../src/learning.js';
 import {makeSession,nextLessonTask} from '../src/lesson-engine.js';
 import {readyItem} from './learning-fixtures.mjs';
 
-const server=await createServer({server:{middlewareMode:true},appType:'custom'});
+const server=await createServer({define:{'import.meta.env.VITE_COUPLE_SYNC_URL':'""'},server:{middlewareMode:true},appType:'custom'});
 globalThis.IS_REACT_ACT_ENVIRONMENT=true;
 const now=Date.parse('2026-10-03T08:00:00Z'),oldNow=Date.now,oldFetch=globalThis.fetch;
 Date.now=()=>now;let network=0;
@@ -23,14 +23,15 @@ try {
   const {default:App,Lesson,CheckScreen}=await server.ssrLoadModule('/src/AppV5.jsx');
   const {default:Gifts}=await server.ssrLoadModule('/src/Gifts.jsx');
   const {default:Card}=await server.ssrLoadModule('/src/DailyLessonCard.jsx');
-  // Existing morning progress should produce a control, survive leaving it,
-  // and settle one payment with a correctly completed daily badge.
+  // The weekly control is now separate from regular lessons. It must still
+  // survive leaving it and settle one payment with a completed daily badge.
   const pool=lexiconForLevel('A2'),progress=Object.fromEntries(pool.slice(0,checkpointThreshold('A2',1)).map(i=>[i.id,readyItem(now)]));
   disk.set('eft3:browser:settings',JSON.stringify({at:now,data:{level:'A2',profileName:'Anna',minutes:15,updatedAt:now}}));
   disk.set('eft3:browser:progress:A2',JSON.stringify(progress));
   await act(async()=>{root=create(h(App));});
-  assert.ok(button('Начать контрольную →'));
-  await act(async()=>button('Начать контрольную →').props.onClick());
+  const weeklyButton=root.root.findByProps({className:'weeklyCheckButton '});
+  assert.equal(weeklyButton.props.disabled,false);
+  await act(async()=>weeklyButton.props.onClick());
   let current=root.root.findByType(CheckScreen).props.value;
   assert.equal(current.tasks.length,10);
   await act(async()=>root.root.findByType(CheckScreen).props.onAnswer(current.tasks[0].answer));
@@ -55,11 +56,11 @@ try {
   assert.equal(Object.values(saved.earned).reduce((n,x)=>n+x.amount,0),5);
   await act(async()=>root.root.findAllByType('button').find(n=>n.findAllByType('span').some(s=>s.children.includes('Пройдено уроков'))).props.onClick());
   const history=root.root.findByProps({className:'history'});
-  assert.equal(history.findByType('small').children.join(''),'Контрольная 1 · пройдена');
+  assert.equal(history.findByType('small').children.join(''),'Контрольная недели · пройдена');
   assert.equal(history.findByType('b').children.join(''),'+$5');
   assert.deepEqual(JSON.parse(disk.get('eft3:browser:wallet')),saved);
   await act(async()=>root.unmount());
-  console.log('✓ app UI: auto-check replaces lesson, persists through exit/reload, pays $5 and marks morning complete');
+  console.log('✓ app UI: weekly check persists through exit/reload, pays $5 and marks morning complete');
 
   disk.clear();document.hidden=true;
   await act(async()=>{root=create(h(App));});

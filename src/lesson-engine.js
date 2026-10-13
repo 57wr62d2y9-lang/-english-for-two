@@ -2,6 +2,7 @@ import {lexiconForLevel,progressFor} from './lexicon.js';
 import {chooseTask,isDue,queueRecovery,settleRecovery,shuffle,studySlot} from './learning.js';
 import {normaliseSpeakingMode} from './quiet-speaking.js';
 import {vocabularyTask,contextSupport} from './vocabulary-tasks.js';
+import {dailyThemes} from './arcade.js';
 export const PROGRAMME_VERSION='vocabulary-4';
 export {normaliseAnswer,isAnswerCorrect} from './answer-check.js';
 
@@ -18,6 +19,10 @@ export function phraseTask(choice,pool,progress,session) {
     encounter<2?['recognition','recall'][encounter]:
     ['recall','context','recall','recognition','context','write','recall'][Number(session.formatStep||0)%7];
   if(choice.recovery)type=choice.type==='recognition'?'context':choice.type;
+  if(session.adventure&&choice.type!=='intro'&&!choice.recovery&&!previous?.known&&!previous?.sentenceRecallPending&&encounter>=2) {
+    const pattern=(dailyThemes.find(t=>t.id===session.adventure.theme)||dailyThemes[0]).pattern;
+    type=pattern[Number(session.formatStep||0)%pattern.length];
+  }
   const task={...choice,...vocabularyTask(item,type,pool,encounter,{optionsFor})};
   return {...task,key:item.id+':'+task.type+':'+task.exampleIndex,wasDue:Boolean(previous && isDue(previous,session.now))};
 }
@@ -31,8 +36,14 @@ export function nextLessonTask(base,progress,time=Date.now()) {
   const session={...base,programmeVersion:PROGRAMME_VERSION,now:time,visits:base.visits || {},recent:base.recent || [],
     introducedIds:base.introducedIds || [],mediaBlock:null,feedback:null,selected:null,hintUsed:false,exhausted:false};
   const pool=lexiconForLevel(session.level);
+  if(session.adventure&&session.answers>=session.adventure.target)return {...session,task:null,exhausted:true,moreAvailable:false};
   session.recoveryQueue=(session.recoveryQueue || []).filter(entry=>pool.some(item=>item.id===entry.id));
-  const choice=chooseTask(pool,progress,session,time);
+  let choice=chooseTask(pool,progress,session,time);
+  if(!choice&&session.adventure&&session.answers<session.adventure.target) {
+    const consolidation=pool.filter(item=>{const p=progressFor(item,progress);return p&&p.s!=='NEW'&&!p.known;})
+      .sort((a,b)=>(session.visits[a.id]||0)-(session.visits[b.id]||0));
+    if(consolidation.length)choice={item:consolidation[0],type:'recall',reason:'adventure-consolidation'};
+  }
   let task;
   if(!task && choice)task=phraseTask(choice,pool,progress,session);
   if(!task)return {...session,task:null,exhausted:true,moreAvailable:pool.some(item=>!progressFor(item,progress) || progressFor(item,progress).s==='NEW')};

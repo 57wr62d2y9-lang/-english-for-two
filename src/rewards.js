@@ -48,17 +48,16 @@ function streakBlocks(stats,wallet,time) {
   const claimed=Object.values(wallet?.earned || {}).filter(entry=>entry.kind==='attendance-bonus' && validDay(entry.startDay) && validDay(entry.endDay));
   const blocks=[];let pending=[],previous=null,consecutive=0;
   for(const day of fullDays) {
-    if(previous===null || dayNumber(day)-dayNumber(previous)!==1){pending=[];consecutive=0;}
+    if(previous===null || dayNumber(day)-dayNumber(previous)!==1)consecutive=0;
     consecutive++;
     // Claim ranges, not just end dates: late backup merges must never create
     // a second overlapping 30-day payment by shifting a block's starting date.
-    if(claimed.some(entry=>day>=entry.startDay && day<=entry.endDay))pending=[];
-    else pending.push(day);
-    if(pending.length===STREAK_DAYS){blocks.push({startDay:pending[0],endDay:day});pending=[];}
+    if(!claimed.some(entry=>Array.isArray(entry.paidDays)?entry.paidDays.includes(day):day>=entry.startDay && day<=entry.endDay))pending.push(day);
+    if(pending.length===STREAK_DAYS){blocks.push({startDay:pending[0],endDay:day,paidDays:[...pending]});pending=[];}
     previous=day;
   }
   const alive=previous!==null && dayNumber(dayKey(time))-dayNumber(previous)<=1;
-  return {days,blocks,pending:alive?pending:[],consecutive:alive?consecutive:0};
+  return {days,blocks,pending,consecutive:alive?consecutive:0};
 }
 
 export function attendanceProgress(stats,wallet,time=Date.now()) {
@@ -72,7 +71,7 @@ export function awardAttendanceBonus(wallet,stats,time=Date.now()) {
   for(const block of streakBlocks(stats,wallet,time).blocks) {
     const id=`attendance30:${block.startDay}:${block.endDay}`;
     if(next.earned?.[id])continue;
-    next={...next,earned:{...next.earned,[id]:{...block,at:time,amount:STREAK_REWARD,kind:'attendance-bonus',basis:'daily-visit'}}};
+    next={...next,earned:{...next.earned,[id]:{...block,at:time,amount:STREAK_REWARD,kind:'attendance-bonus',basis:'accumulated-visits'}}};
     awarded+=STREAK_REWARD;
   }
   return {wallet:next,awarded};

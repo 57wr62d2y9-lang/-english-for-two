@@ -702,3 +702,49 @@ footer { display: flex; align-items: center; justify-content: center; gap: 7px; 
 .checkMistakes article {padding:10px 0;border-bottom:1px solid var(--line);}
 .checkMistakes article p {font-size:14px;margin:5px 0;}
 .checkMistakes article small {font-size:11px;color:#a37d8b;}
+
+/* 0.8 — short adventures and a friendly, equal-deck weekly arena. */
+.adventureHub {padding:22px 18px;border:1px solid #e5d9ef;border-radius:26px;background:linear-gradient(145deg,#fff5e8,#fbf0fa 52%,#eef1ff);margin-bottom:18px;}
+.adventureHeading {display:flex;justify-content:space-between;align-items:center;gap:12px;}
+.adventureHeading h2 {font-size:25px;line-height:1.15;margin:8px 0;color:#352642;letter-spacing:-.6px;}
+.adventureHub>p {font-size:13px;line-height:1.5;color:#736678;margin:8px 0 16px;}
+.adventureHub .eyebrow {font-size:10px;letter-spacing:1.5px;}
+.wheelMini {min-width:48px;min-height:48px;border:1px solid #d9c5ea;border-radius:50%;background:conic-gradient(#ffe0a3,#fbb7db,#d6c8ff,#ffe0a3);font-size:28px;color:#693c86;}
+.speedLaunchers {display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:12px 0 16px;}
+.speedLaunchers button {min-height:84px;padding:13px 10px;border:1px solid #deceea;border-radius:17px;background:#fff9;color:#483452;text-align:left;}
+.speedLaunchers b {display:block;font-size:15px;}
+.speedLaunchers span {display:block;font-size:11px;line-height:1.5;margin-top:6px;color:#84738f;}
+.weeklyArena {padding:19px 15px 14px;background:#292239;color:#fff;border-radius:20px;}
+.weeklyArena>.eyebrow {color:#dfc9a5;}
+.championBelt {display:flex;align-items:center;justify-content:center;gap:6px;margin:18px auto;max-width:290px;filter:drop-shadow(0 5px 0 #09081144);}
+.championBelt>span {display:grid;place-items:center;flex:1;padding:9px 7px;background:linear-gradient(#edbc63,#b27e32);border:2px solid #ffe0a2;color:#574016;font-size:20px;border-radius:8px;}
+.championBelt>strong {display:flex;flex-direction:column;align-items:center;gap:6px;padding:15px 10px;border:3px solid #fff0bc;border-radius:24px;background:linear-gradient(130deg,#edb951,#ffe6a2,#c69343);color:#503711;font-size:19px;letter-spacing:.8px;}
+.championBelt small {font-size:7px;letter-spacing:1.2px;}
+.arenaScores {display:grid;grid-template-columns:1fr 28px 1fr;align-items:center;text-align:center;gap:8px;}
+.arenaScores>div {display:flex;flex-direction:column;gap:3px;}
+.arenaScores span {font-size:13px;color:#e9d9ee;}.arenaScores strong{font-size:30px;line-height:1.15;color:#ffe2ac;}.arenaScores small{font-size:10px;color:#c4b5cf;}.arenaScores i{font-size:11px;color:#a998b4;font-style:normal;}
+.leagueWinner {font-size:12px;line-height:1.5;text-align:center;color:#e8d4ee;margin:17px 0 11px;}
+.weeklyArena details {border-top:1px solid #fff2;padding-top:10px;font-size:11px;line-height:1.55;color:#d4c7df;}.weeklyArena summary{cursor:pointer;color:#e6c5ed;min-height:30px;}
+.weeklyArena .errorText {color:#ffc7c7;font-size:11px;}
+.weeklyCheckButton {display:flex;flex-direction:column;gap:5px;width:100%;text-align:left;padding:16px;border:1px solid #d4c4e2;border-radius:16px;background:#fff9;color:#604679;margin-top:13px;min-height:70px;}
+.weeklyCheckButton span{font-size:14px;font-weight:700;}.weeklyCheckButton b{font-size:11px;font-weight:500;}.weeklyCheckButton.complete{color:#487562;background:#f0fcf5;opacity:1;}
+.drawBackdrop {position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:#292033b8;backdrop-filter:blur(6px);padding:12px;}
+.dailyDraw {position:relative;width:100%;max-width:410px;max-height:calc(100dvh - 24px);overflow:auto;overscroll-behavior:contain;border-radius:28px;background:linear-gradient(150deg,#fffaf0,#faeffa);padding:35px 23px 20px;text-align:center;box-shadow:0 20px 70px #16072150;}
+.dailyDraw .eyebrow {font-size:9px;letter-spacing:1.2px;padding:0 20px;}.dailyDraw h1 {font-size:26px;letter-spacing:-.6px;line-height:1.15;margin:13px 0;}.dailyDraw>p{font-size:13px;line-height:1.5;color:#78677e;}
+.drawClose {position:absolute;right:6px;top:6px;min-width:44px;min-height:44px;}
+.dailyWheel {position:relative;width:190px;height:190px;margin:20px auto;border:7px solid #fff;border-radius:50%;box-shadow:0 0 0 2px #e9cae1,0 10px 22px #89579025;}
+.wheelDisc{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from -60deg,#ffc965 0 33.3%,#e8b4ea 33.3% 66.6%,#ada8ed 66.6%);}
+.dailyWheel:after {content:'▼';position:absolute;top:-24px;left:75px;color:#9c4379;font-size:27px;}.dailyWheel>b{position:absolute;inset:60px;display:grid;place-items:center;background:#fff9ee;border-radius:50%;font-size:30px;color:#834e85;}.wheelDisc>span{position:absolute;font-size:11px;font-weight:700;color:#553c61;}.wheelDisc>span:nth-child(1){top:30px;left:57px;}.wheelDisc>span:nth-child(2){top:110px;left:17px;transform:rotate(50deg);}.wheelDisc>span:nth-child(3){top:108px;right:18px;transform:rotate(-50deg);}
+.dailyWheel.spinning .wheelDisc {animation:daily-spin 1.1s cubic-bezier(.15,.65,.25,1) both;}.dailyWheel.revealed .wheelDisc{transform:rotate(var(--wheel-stop));}
+@keyframes daily-spin {to{transform:rotate(calc(1080deg + var(--wheel-stop)))}}
+.dailyDraw .drawVisit {font-weight:650;color:#37765d;background:#edf8ec;padding:11px;border-radius:13px;}.drawVisit small{font-size:10px;font-weight:400;}.dailyMissions{padding:0;list-style:none;text-align:left;font-size:12px;line-height:1.6;color:#625369;}.dailyMissions li{padding:5px 0;border-bottom:1px solid #e9dfeb;}.dailyMissions li:before{content:'✦';color:#b265b2;margin-right:9px;}
+.adventureRoundLabel {font-size:11px;color:#9861a5;text-align:center;line-height:1.3;flex:none;}.variantNote{font-size:12px;line-height:1.5;color:#50745f;background:#f0f8f2;padding:10px;border-radius:10px;}
+.speedIntro,.speedResult {padding:32px 24px;text-align:center;min-height:var(--lesson-height,100dvh);background:linear-gradient(150deg,#fff6ed,#f3edfc);}.speedIntro h1{font-size:30px;letter-spacing:-1px;}.speedClock{display:grid;place-items:center;margin:25px auto;width:145px;height:145px;border-radius:50%;border:9px solid #dbc8f0;background:#fff;font-size:60px;font-weight:800;color:#694786;box-shadow:0 8px 35px #6d4b8720;}.speedIntro>p{font-size:15px;line-height:1.65;}.speedIntro p.helper{font-size:12px;color:#7b6e84;}.speedIntro>.primary{margin-top:20px;}
+.speedGame {height:var(--lesson-height,100dvh);max-width:680px;margin:auto;display:flex;flex-direction:column;padding:16px 20px calc(16px + env(safe-area-inset-bottom));background:radial-gradient(ellipse at top right,#473558,#241e35 60%);color:#fff;overflow:hidden;}
+.speedGame header {display:flex;justify-content:space-between;align-items:center;gap:16px;}.speedGame header>.iconButton{color:#fff;background:#3b304a;border:1px solid #8b769d;border-radius:14px;min-width:44px;min-height:44px;}.speedTimer{font-size:37px;line-height:1;font-weight:800;color:#ffe3af;}.speedGame small{font-size:10px;display:block;font-weight:500;color:#d7c5de;margin-top:4px;}.speedGame header>strong{font-size:27px;text-align:right;}.speedTimer.urgent{color:#ff98bc;}
+.speedTimeTrack {height:5px;border-radius:4px;background:#ffffff20;margin:18px 0 20px;overflow:hidden;}.speedTimeTrack i{height:100%;display:block;background:linear-gradient(90deg,#eda6df,#ffd88e);transition:width .1s linear;}
+.speedGame main {flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;justify-content:center;}.speedCombo{font-size:13px;color:#e5bdeb;text-align:center;min-height:20px;}.speedGame h1 {font-size:clamp(27px,7vw,40px);line-height:1.2;text-align:center;margin:15px 0 25px;overflow-wrap:anywhere;}
+.speedOptions {display:grid;grid-template-columns:1fr 1fr;gap:10px;}.speedOptions button{min-height:80px;padding:15px 10px;border-radius:18px;background:#fff8ef;color:#48334f;border:2px solid #e7d5ed;font-size:16px;line-height:1.35;font-weight:600;touch-action:manipulation;}.speedOptions button:active{transform:scale(.98);background:#eed2f0;}.speedOptions button:disabled{opacity:.75;}.speedFeedback{height:40px;margin:15px 0;font-size:15px;text-align:center;line-height:1.4;}.speedFeedback.correct{color:#96e6b8;}.speedFeedback.wrong{color:#ffb2ca;}.speedGame>footer{font-size:11px;text-align:center;color:#c4b4d1;padding-top:13px;}
+.speedResult h1{font-size:85px;line-height:1;margin:30px 0 15px;color:#714a8f;}.speedResult h1 small{display:block;font-size:14px;line-height:1.5;font-weight:500;color:#97839e;}.speedResult>p{font-size:14px;line-height:1.6;color:#73607e;}.speedResultStats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:22px 0;}.speedResultStats span{display:flex;flex-direction:column;gap:5px;padding:14px 5px;background:#fff;border:1px solid #e5d8eb;border-radius:15px;font-size:10px;color:#8e7b97;}.speedResultStats b{font-size:25px;color:#5e496b;}.speedMistakes{text-align:left;border:1px solid #e5d8eb;border-radius:15px;background:#fff9;padding:15px;margin-bottom:20px;}.speedMistakes summary{font-size:13px;color:#95688e;cursor:pointer;}.speedMistakes p{display:flex;flex-direction:column;gap:3px;border-bottom:1px solid #eee1ed;padding-bottom:8px;font-size:14px;}.speedMistakes p span{font-size:12px;color:#887193;}.speedResult>small{display:block;color:#97849d;font-size:10px;margin-top:16px;}
+@media(max-height:650px){.dailyWheel{width:150px;height:150px;margin:12px auto;}.dailyWheel>b{inset:46px;}.dailyWheel:after{left:55px;}.wheelDisc>span:nth-child(1){top:20px;left:35px;}.wheelDisc>span:nth-child(2){top:86px;left:5px;}.wheelDisc>span:nth-child(3){top:86px;right:5px;}.dailyDraw{padding:30px 18px 15px;}.speedOptions button{min-height:64px;font-size:14px;}.speedGame h1{margin:8px 0 16px;}.speedGame{padding-top:10px;}.speedTimeTrack{margin:12px 0;}.speedFeedback{margin:10px 0;height:32px;}}
+@media(prefers-reduced-motion:reduce){.dailyWheel.spinning .wheelDisc{animation:none;}.speedTimeTrack i{transition:none;}}

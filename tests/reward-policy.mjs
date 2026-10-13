@@ -103,17 +103,17 @@ test('60 consecutive days pay two non-overlapping bonuses, not 31 sliding bonuse
   const sixty=awardAttendanceBonus(first,history(60),end(59));assert.equal(sixty.awarded,10);assert.equal(balanceOf(sixty.wallet),20);
   assert.equal(awardAttendanceBonus(wallet(),history(60),end(59)).awarded,20);
 });
-test('a missed whole date resets the pending streak and a new 30-day block can earn',()=>{
+test('a missed whole date preserves accumulated visits and the next unpaid block can earn',()=>{
   for(const slot of ['morning','evening']) {
     assert.equal(awardAttendanceBonus(wallet(),history(30,{missing:['15:morning','15:evening']}),end(29)).awarded,0);
-    assert.equal(attendanceProgress(history(30,{missing:['15:morning','15:evening']}),wallet(),end(29)).days,14);
+    assert.equal(attendanceProgress(history(30,{missing:['15:morning','15:evening']}),wallet(),end(29)).days,29);
     const result=awardAttendanceBonus(wallet(),history(46,{missing:['15:morning','15:evening']}),end(45));assert.equal(result.awarded,10);
-    assert.equal(Object.values(result.wallet.earned)[0].startDay,date(16));
+    assert.equal(Object.values(result.wallet.earned)[0].startDay,date(0));
   }
 });
-test('partial today preserves yesterday streak; a missed whole date clears it without clawback',()=>{
+test('missed dates preserve accumulated visits without clawing back old payments',()=>{
   const s=history(10);assert.equal(attendanceProgress(s,wallet(),end(10)).days,10);
-  assert.equal(attendanceProgress(s,wallet(),end(11)).days,0);
+  assert.equal(attendanceProgress(s,wallet(),end(11)).days,10);
   const paid=awardAttendanceBonus(wallet(),history(30),end(29)).wallet;
   assert.equal(awardAttendanceBonus(paid,history(30),end(40)).wallet,paid);assert.equal(balanceOf(paid),10);
 });
@@ -141,7 +141,7 @@ test('actual legacy completed lessons retain their recorded date and slot',()=>{
 test('late restored earlier history cannot overlap an already paid 30-day interval',()=>{
   const w=awardAttendanceBonus(wallet(),history(30,{offset:1}),end(30)).wallet;
   assert.equal(awardAttendanceBonus(w,history(31),end(30)).awarded,0);
-  assert.equal(awardAttendanceBonus(w,history(60),end(59)).awarded,0);
+  assert.equal(awardAttendanceBonus(w,history(60),end(59)).awarded,10);
   assert.equal(awardAttendanceBonus(w,history(61),end(60)).awarded,10);
 });
 test('finishing the 60th lesson settles $1 + $10 and preserves one ledger record on repeat',()=>{

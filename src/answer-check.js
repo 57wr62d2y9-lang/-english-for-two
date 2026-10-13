@@ -1,3 +1,4 @@
+import {acceptedVariants} from './answer-variants.js';
 // Compare spelling variants, never erase tense or negation. In particular,
 // 'd is not always would: "I'd better" and "I'd finished" contain had.
 // Reference: dictionary.cambridge.org/grammar/british-grammar/contractions
@@ -69,8 +70,9 @@ export function sentenceForms(text) {
 }
 export function isAnswerCorrect(task,value) {
   if(!String(value ?? '').trim())return false;
+  if(task?.requiredModal&&!new RegExp('^'+task.requiredModal+'\\b','i').test(String(value).trim()))return false;
   const forms=task?.type==='write'?sentenceForms:answerForms;
   const submitted=new Set(forms(value));
-  return [task?.answer,...(task?.accepted || [])].filter(answer=>String(answer ?? '').trim())
+  return [task?.answer,...(task?.accepted || []),...acceptedVariants(task)].filter(answer=>String(answer ?? '').trim())
     .some(answer=>forms(answer).some(form=>submitted.has(form)));
 }

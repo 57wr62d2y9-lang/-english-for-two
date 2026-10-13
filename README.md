@@ -1,4 +1,19 @@
-# English for Two · 0.7.4
+# English for Two · 0.8.0
+
+## Daily adventures and weekly arena (0.8.0)
+
+- Requests use curated equivalent answers: can/could only for an explicit list of request cards, plus to go/to take away for the two takeaway cards. Ability, past time, negation and full-sentence requirements stay strict. Existing drafts benefit from the central checker without losing history.
+- Daily wheel reveals a stable, date/profile-seeded focus: mixed, context or recall. It can be reopened without rerolling or gaining more visit days. Short adventures use three rounds of four scored answers, up to four new cards, ordinary SRS evidence and the existing once-per-slot $1 reward. Classic lessons remain available.
+- Personal speed review: 60 seconds, only introduced cards, choice recognition, a personal high score and mistake review. No mastery proof, new SRS interval or money is awarded for speed choices.
+- Weekly arena: the same base A2 word deck, order and distractors for both partners all week, +10 per correct answer / −8 per error, final score floored at zero. Best round wins; accuracy then longest streak break ties. Exact ties share the virtual champion belt. Hidden/aborted rounds are not eligible. Score metadata is bounded and shared only with the already linked partner. This is a friendly client-scored game, not a tamper-proof cash competition.
+- The previous week's belt is shown after the partner has synced during the new week, never by inventing a missing score. Offline records sync on reconnect. There is no cash prize or paid service.
+- Weekly checks: always available Monday–Sunday in Europe/Istanbul, 5–10 cards prioritising spaced-review readiness then studied items; new accounts get a starter check. $5 for at least 80%, once per week across levels; retries allowed. A check cannot bypass lexical mastery requirements. Old rewards and unfinished checks remain supported.
+- Attendance now counts 30 accumulated distinct visit days, not an unbroken streak. Prior paid ranges are excluded; new payouts store exact paid dates to prevent overlap after late backup restores.
+- Partner sync adds validated arena metadata in existing JSON fields; no database schema, permissions, credentials or balances are changed by deployment.
+
+Sources for request semantics: https://dictionary.cambridge.org/grammar/british-grammar/can-could and https://dictionary.cambridge.org/grammar/british-grammar/could .
+
+Mobile QA uses only isolated fixtures. Production accounts, wallets and Telegram notifications are never used for tests.
 
 ## Clear context tasks and conversation (0.7.4)
 

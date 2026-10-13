@@ -1,5 +1,6 @@
 import { loadPairIdentity } from './storage-v3.js';
 import {cleanVocabularySummary} from '../supabase/functions/english-for-two-sync/vocabulary-summary.js';
+import {cleanArcadeSummary} from '../supabase/functions/english-for-two-sync/arcade-summary.js';
 
 const ENDPOINT = String(import.meta.env?.VITE_COUPLE_SYNC_URL || '').trim().replace(/\/+$/, '');
 
@@ -28,6 +29,7 @@ export function mergeCoupleSnapshot(wallet, data = {}) {
       level: String(data.partner.level || ''),
       percent: Math.max(0, Math.min(100, Number(data.partner.percent) || 0)),
       vocabulary:cleanVocabularySummary(data.partner.vocabulary),
+      arcade:cleanArcadeSummary(data.partner.arcade),
       balance: Math.max(0, Math.round(Number(data.partner.balance) || 0)),
       todayMinutes: Math.max(0, Math.round(Number(data.partner.todayMinutes) || 0)),
       morningDone: data.partner.morningDone === true,

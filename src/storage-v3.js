@@ -1,4 +1,5 @@
 import { normaliseItem } from './learning.js';
+import {compareArena} from '../supabase/functions/english-for-two-sync/arcade-summary.js';
 const tg = () => typeof window !== 'undefined' ? window.Telegram?.WebApp : null;
 export const inTelegram = () => Boolean(tg()?.initData && tg()?.initDataUnsafe?.user?.id);
 export const telegramProfile = () => {
@@ -28,6 +29,13 @@ function cloudCall(method, ...args) {
 }
 const parse = s => { try { return JSON.parse(s || 'null'); } catch { return null; } };
 const choose = (a,b) => !a ? b : !b ? a : (a.at || 0) >= (b.at || 0) ? a : b;
+export function mergeStudyDay(a,b) {
+  if(!a||!b)return a||b;
+  const next={...choose(a,b)};
+  for(const field of ['arenaBest','speedBest'])if(a[field]||b[field])next[field]=compareArena(a[field],b[field])>=0?a[field]:b[field];
+  if(a.speedRounds||b.speedRounds)next.speedRounds=Math.max(a.speedRounds||0,b.speedRounds||0);
+  return next;
+}
 export function mergeItems(a = {}, b = {}) {
   const out = { ...a };
   for (const [id, item] of Object.entries(b)) {
@@ -166,14 +174,14 @@ export async function loadStats() {
   const keys = (keysResult.value || []).filter(k=>/^eft3_stats_\d{4}-\d{2}$/.test(k)).slice(-120);
   for (let start=0; start<keys.length; start+=50) {
     const remote = await cloudCall('getItems',keys.slice(start,start+50));
-    for (const value of Object.values(remote.value || {})) for (const [day,record] of Object.entries(parse(value)||{})) base.byDay[day] = choose(base.byDay[day],record);
+    for (const value of Object.values(remote.value || {})) for (const [day,record] of Object.entries(parse(value)||{})) base.byDay[day] = mergeStudyDay(base.byDay[day],record);
   }
   const dailyKeys = (keysResult.value || []).filter(k=>/^eft4_day_/.test(k));
   for (let start=0; start<dailyKeys.length; start+=50) {
     const remote = await cloudCall('getItems',dailyKeys.slice(start,start+50));
     for (const [key,value] of Object.entries(remote.value || {})) {
       const day=key.slice('eft4_day_'.length), record=parse(value);
-      if(record) base.byDay[day]=choose(base.byDay[day],record);
+      if(record) base.byDay[day]=mergeStudyDay(base.byDay[day],record);
     }
   }
   const remoteLegacy = parse((await cloudCall('getItem','eft3_stats_base')).value);

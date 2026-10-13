@@ -1,5 +1,5 @@
 import { invoke, coupleSyncConfigured } from './couple-sync.js';
-import { getLocalMeta, setLocalMeta, mergeItems, summariseStats } from './storage-v3.js';
+import { getLocalMeta, setLocalMeta, mergeItems, summariseStats, mergeStudyDay } from './storage-v3.js';
 
 export function backupRecords({level,progress,stats,wallet,draft,settings}) {
   const out=[];
@@ -22,7 +22,7 @@ export function mergeBackup(state,records) {
       const id=key.slice(`progress:${state.level}:`.length);
       next.progress=mergeItems(next.progress,{[id]:data});
     } else if(key.startsWith('lesson:') && data) next.stats.lessons[key.slice(7)]=pick(next.stats.lessons[key.slice(7)],data,at);
-    else if(key.startsWith('day:') && data) next.stats.byDay[key.slice(4)]=pick(next.stats.byDay[key.slice(4)],data,at);
+    else if(key.startsWith('day:') && data) next.stats.byDay[key.slice(4)]=mergeStudyDay(next.stats.byDay[key.slice(4)],data);
     else if(key === 'legacy' && data) for(const field of ['totalMinutes','sessions','answers','correct']) next.stats.legacy[field]=Math.max(next.stats.legacy[field] || 0,data[field] || 0);
     else if(key.startsWith('wallet:') && data) {
       const [,kind,...parts]=key.split(':');const id=parts.join(':');
