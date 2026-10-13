@@ -1,4 +1,13 @@
-# English for Two · 0.8.2
+# English for Two · 0.8.3
+
+## Personal arcade and weekly champion prize (0.8.3)
+
+- Home starts with learning and games, without the date-night promo. The prize collection is a collapsed section at the bottom. The wheel still appears automatically just once per Istanbul day; unclaimed spins can be opened inside the lower collection. Existing prizes, visits and money are retained.
+- Both speed modes draw words **and** phrases from the player's selected level, including unseen items. Each attempt has a fresh queue, with mistakes and unseen/least-recent cards first. The pair no longer shares a fixed A2 deck. Questions alternate EN → RU and RU → EN, with language labels and unique choices in either direction.
+- A correct answer in at most 3 seconds excludes the card from prompts and distractors in both speed modes for 14 days. Incorrect answers cancel that rest. The per-level memory survives local, bounded Telegram CloudStorage and private backup restoration. Interrupted rounds preserve this practice memory but never gain a record, 60 study seconds or money. SRS/mastery evidence remains separate.
+- Starting with the week of 2026-10-12, the weekly belt pays **$5 once to one winner**, after both linked profiles have synced after the week ended. Highest positive score wins, then accuracy, longest streak, earlier record timestamp; an exact timestamp tie uses stable account order. Individual runs do not earn money. Weeks use Europe/Istanbul. The latest eight weeks of scores remain supported, including legacy A2 arena records.
+- The existing private server-owned notifications table stores an immutable `arena-champion:<week>:<sorted pair IDs>` award. Unique INSERT plus conflict reread prevents concurrent duplicate winners and freezes the result against late uploads. The winner receives a fixed `weekly-arena:<week>` wallet credit. No schema, RLS, auth, credentials, paid infrastructure or Telegram-send changes. It remains a friendly client-scored game, not an anti-cheat cash tournament.
+- Tests cover both directions/all levels, fast/slow/error timing, cooldown boundaries, new devices, chunk failure/retry, current-week nonpayment, stale partner, simultaneous settlement, tie rules and idempotent wallet credits. Production accounts are not used for QA.
 
 ## Date-night collection (0.8.2)
 

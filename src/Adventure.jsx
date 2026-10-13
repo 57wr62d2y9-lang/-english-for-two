@@ -1,5 +1,5 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {dailyAdventure,championship,answerSpeedRound,createSpeedRound} from './arcade.js';
+import {dailyAdventure,championship,answerSpeedRound} from './arcade.js';
 import {attendanceProgress} from './rewards.js';
 import {WHEEL_PRIZES,dailyWheelReward,wheelPrize,wheelCollection} from './daily-wheel.js';
 import {PrizeIcon,DateCollection,datePartnerName} from './DateCollection.jsx';
@@ -43,31 +43,30 @@ export function DailyDraw({name,stats,wallet,onSpin,onClose,time}) {
   </section></div>;
 }
 
-export function WheelCollection({wallet,name,paired,time}) {
+export function WheelCollection({wallet,name,paired,time,onDraw}) {
   const collected=wheelCollection(wallet),today=wheelPrize(dailyWheelReward(wallet,time));
-  return <div className="wheelCollection">
+  return <details className="homeCollection"><summary>Коллекция призов <span>{collected.nextProgress} / 5 · {collected.completed} свиданий</span></summary><div className="wheelCollection">
+    {!today&&onDraw&&<button className="secondary big" aria-label="Открыть колесо дня" onClick={onDraw}>Сегодняшнее вращение →</button>}
     {today&&<p className="dailyPrizeStamp"><span><PrizeIcon prize={today}/></span><b>Приз дня: {today.label}</b><small>Получен ✓ · новое вращение завтра</small></p>}
     <DateCollection wallet={wallet} name={name} paired={paired}/>
     {collected.records.length>0&&<details className="wheelPrizeHistory"><summary>История призов · {collected.records.length}</summary><p>Денежные бонусы колеса: <b>+${collected.total}</b></p><div className="wheelHistory">{collected.records.slice(0,7).map(r=><p key={r.day}><span>{r.day.slice(8)}.{r.day.slice(5,7)}</span><b>{wheelPrize(r).label}</b></p>)}</div></details>}
-  </div>;
+  </div></details>;
 }
 
 export function AdventureHub({name,stats,wallet,paired,syncError,weekly,hasDraft,onDraw,onAdventure,onSpeed,onCheck,time}) {
-  const plan=dailyAdventure(name,time),league=championship(stats,wallet.partner,time);
-  const prize=dailyWheelReward(wallet,time);
-  const won=league.winner==='self'?ruName(name):league.winner==='partner'?ruName(wallet.partner?.name):league.winner==='tie'?'Оба чемпионы':null;
+  const plan=dailyAdventure(name,time),league=championship(stats,wallet.partner,time,wallet.championship);
+  const won=league.winner==='self'?ruName(name):league.winner==='partner'?ruName(wallet.partner?.name):null;
   return <section className="adventureHub">
-    <div className="dailyPrizeHeading"><div><div className="eyebrow">ТОЛЬКО ПРИЗЫ · РАЗ В ДЕНЬ</div><b>Колесо для двоих</b></div><button className="wheelMini" aria-label={prize?'Приз дня уже получен':'Открыть колесо дня'} disabled={Boolean(prize)} onClick={onDraw}>{prize?'✓':'✦'}</button></div>
-    <WheelCollection wallet={wallet} name={name} paired={paired} time={time}/>
     <div className="adventureHeading"><div><div className="eyebrow">СЕГОДНЯ ИГРАЕМ</div><h2>{plan.title}</h2></div></div>
     <p>{plan.description}. Задания чередуются автоматически, независимо от колеса.</p>
     <button className="primary big" onClick={onAdventure}>{hasDraft?'Продолжить сохранённое занятие':'Маршрут дня · 12 заданий →'}</button>
-    <div className="speedLaunchers"><button onClick={()=>onSpeed('review')}><b>ϟ Мои повторы</b><span>60 секунд · знакомые карточки</span></button><button onClick={()=>onSpeed('arena')}><b>★ Арена пары</b><span>60 секунд · побей рекорд</span></button></div>
+    <div className="speedLaunchers"><button onClick={()=>onSpeed('review')}><b>ϟ Мой словарь</b><span>60 секунд · EN ⇄ RU</span></button><button onClick={()=>onSpeed('arena')}><b>★ Арена пары</b><span>Твой словарь · пояс +$5</span></button></div>
     <section className="weeklyArena"><div className="eyebrow">ПОЯС НЕДЕЛИ · ПН–ВС</div><ChampionBelt/>
       <div className="arenaScores"><div><span>{ruName(name)}</span><strong>{league.current.own?.score??'—'}</strong><small>твой рекорд</small></div><i>VS</i><div><span>{ruName(wallet.partner?.name)||'Партнёр'}</span><strong>{league.current.other?.score??'—'}</strong><small>{paired?'рекорд партнёра':'свяжи кабинеты'}</small></div></div>
-      <p className="leagueWinner">{won?`Пояс за прошлую неделю: ${won} 🏆`:league.winner==='pending'&&paired?'Итог прошлой недели — после обновления кабинета партнёра':league.winner==='none'?'Новая неделя — новый пояс. Сделай первую попытку!':'Личный рекорд сохраняется. Для пояса свяжите кабинеты.'}</p>
+      <p className="arenaCashPrize">+$5 победителю по итогам недели</p>
+      <p className="leagueWinner">{won?`Пояс за прошлую неделю: ${won} 🏆 · +$5 в копилку`:league.winner==='pending'&&paired?'Итог прошлой недели — после обновления обоих кабинетов':league.winner==='none'?'Новая неделя — новый пояс. Сделай первую попытку!':'Личный рекорд сохраняется. Для пояса свяжите кабинеты.'}</p>
       {syncError&&<p className="errorText">Рекорд сохранён на устройстве. Сравнение обновится после восстановления связи.</p>}
-      <details><summary>Правила арены</summary><p>Одинаковые 60 секунд и общая колода базовых слов A2 для обоих. Верный ответ +10, ошибка −8; итог не ниже нуля. Колода и порядок одинаковы всю неделю, попыток сколько угодно — учитывается лучшая.</p><p>При равных очках сравниваем точность, затем лучшую серию без ошибок. Полная ничья — два чемпиона. После воскресенья пояс показывается за завершённую неделю, когда оба кабинета обновились. Это виртуальная награда, без дополнительного списания или начисления денег.</p><p>В «Моих повторах» — твои знакомые слова и фразы. Этот рекорд не участвует в общей арене. Скоростной выбор не заменяет письменное закрепление и не оплачивается как отдельный урок.</p></details>
+      <details><summary>Правила арены</summary><p>У каждого свой словарь выбранного уровня: слова и фразы, включая ещё не встречавшиеся. Вопросы EN → RU и RU → EN чередуются. У обоих 60 секунд; верный ответ +10, ошибка −8, итог не ниже нуля. Учитывается лучшая попытка недели.</p><p>Верный ответ за 3 секунды убирает карточку из обеих скоростных игр на 14 дней. Приоритет — ошибки и новые слова. Уроки и учебное закрепление от этого не меняются.</p><p>За пояс — $5 в копилку одному победителю, начиная с недели 12 октября 2026. Неделя заканчивается в воскресенье в 23:59 по Стамбулу. Начисление — после обновления обоих кабинетов на следующей неделе, один раз. При равных очках сравниваем точность, серию, затем время рекорда: кто поставил раньше. При совпадении до миллисекунды — постоянный порядок кабинетов. После начисления итог не меняется.</p><p>«Мой словарь» — личная тренировка, без участия в борьбе за пояс. Отдельные спринты не оплачиваются как уроки.</p></details>
     </section>
     <button className={`weeklyCheckButton ${weekly?'':'complete'}`} disabled={!weekly&&!hasDraft} onClick={onCheck}><span>{weekly?'Контрольная этой недели':'Контрольная недели пройдена ✓'}</span><b>{weekly?`${weekly.count} вопросов · до $5 →`:'Следующая — в понедельник'}</b></button>
   </section>;
@@ -80,7 +79,7 @@ export function SpeedRound({initial,onFinish,onBack}) {
   useEffect(()=>{if(!started)return;const tick=setInterval(()=>{const time=Date.now();setNow(time);if(time>=ref.current.deadline)finish();},100);
     const hide=()=>{if(document.hidden)finish(true);};document.addEventListener('visibilitychange',hide);return()=>{clearInterval(tick);document.removeEventListener('visibilitychange',hide);};},[started]);
   useEffect(()=>{if(!feedback)return;const timer=setTimeout(()=>setFeedback(null),450);return()=>clearTimeout(timer);},[feedback]);
-  if(!started)return <div className="app speedIntro"><div className="eyebrow">{initial.mode==='arena'?'АРЕНА ПАРЫ':'МОИ ПОВТОРЫ'}</div><h1>Есть 60 секунд?</h1><div className="speedClock">60</div><p>Выбирай перевод. Верно — <b>+10</b>, ошибка — <b>−8</b>. Бей личный рекорд и собирай серии без ошибок.</p><p className="helper">{initial.mode==='arena'?'Общая колода A2, одинаковая для вас обоих. Лучший результат недели участвует в борьбе за пояс.':'Только слова и фразы, которые уже встречались в твоих уроках. Без изменения закрепления и расписания повторений.'}</p><p className="helper">Если свернуть приложение или выйти, попытка не попадёт в рекорды. Денежная награда за спринт не начисляется.</p><button className="primary big" onClick={()=>{const time=Date.now(),next=initial.mode==='arena'?createSpeedRound('arena',initial.level,{},time):{...ref.current,startedAt:time,deadline:time+60000,lastAnswerAt:time};ref.current=next;setRound(next);setNow(time);setStarted(true);}}>Поехали!</button><button className="quietButton" onClick={onBack}>Не сейчас</button></div>;
+  if(!started)return <div className="app speedIntro"><div className="eyebrow">{initial.mode==='arena'?'АРЕНА ПАРЫ':'МОЙ СЛОВАРЬ'} · {initial.level}</div><h1>Есть 60 секунд?</h1><div className="speedClock">60</div><p>Английский → русский, затем наоборот. Верно — <b>+10</b>, ошибка — <b>−8</b>.</p><p className="helper">Весь твой словарь {initial.level}, слова и фразы. Верно за 3 секунды — карточка отдыхает 14 дней, а в следующих играх появляются другие.</p><p className="helper">{initial.mode==='arena'?'У партнёра своя подборка. Победитель недели получает пояс и $5 в копилку.':'Личная тренировка не участвует в арене и не меняет учебное закрепление.'} Если свернуть приложение или выйти, рекорд не засчитается.</p><button className="primary big" onClick={()=>{const time=Date.now(),next={...ref.current,startedAt:time,questionAt:time,deadline:time+60000,lastAnswerAt:time};ref.current=next;setRound(next);setNow(time);setStarted(true);}}>Поехали!</button><button className="quietButton" onClick={onBack}>Не сейчас</button></div>;
   const task=feedback?.task||round.questions[round.index%round.questions.length],seconds=Math.max(0,Math.ceil((round.deadline-now)/1000));
   function submit(value) {const time=Date.now();if(time<unlock.current)return;if(time>=ref.current.deadline){finish();return;}
     const current=ref.current,next=answerSpeedRound(current,value,time);if(next===current)return;unlock.current=time+450;
@@ -88,14 +87,17 @@ export function SpeedRound({initial,onFinish,onBack}) {
   }
   return <div className="speedGame"><header><button className="iconButton" aria-label="Прервать скоростной раунд" onClick={()=>finish(true)}>×</button><span className={seconds<=10?'speedTimer urgent':'speedTimer'}>{seconds}<small>сек</small></span><strong>{round.score}<small>очков</small></strong></header>
     <div className="speedTimeTrack" role="progressbar" aria-label="Осталось времени" aria-valuenow={seconds} aria-valuemin={0} aria-valuemax={60}><i style={{width:seconds/60*100+'%'}}/></div>
-    <main><div className="speedCombo">{round.streak>=3?`🔥 Серия ${round.streak}`:'Найди значение'}</div><h1 lang="en">{task.prompt}</h1><div className="speedOptions">{task.options.map(option=><button key={option} disabled={Boolean(feedback)} onClick={()=>submit(option)}>{option}</button>)}</div><p className={`speedFeedback ${feedback?.ok?'correct':'wrong'}`} role="status">{feedback?.text||' '}</p></main>
+    <main><div className="speedDirection">{task.direction==='ru-en'?'РУССКИЙ → ENGLISH':'ENGLISH → РУССКИЙ'}</div><div className="speedCombo">{round.streak>=3?`🔥 Серия ${round.streak}`:'Выбери перевод ниже'}</div><h1 lang={task.direction==='ru-en'?'ru':'en'}>{task.prompt}</h1><div className="speedOptions">{task.options.map(option=><button key={option} lang={task.direction==='ru-en'?'en':'ru'} disabled={Boolean(feedback)} onClick={()=>submit(option)}>{option}</button>)}</div><p className={`speedFeedback ${feedback?.ok?'correct':'wrong'}`} role="status">{feedback?.text||' '}</p></main>
     <footer>✓ {round.correct} верных · × {round.wrong} ошибок · рекорд серии {round.bestStreak}</footer>
   </div>;
 }
 
 export function SpeedResult({round,onAgain,onHome}) {
   const mistakes=round.answers.filter(a=>!a.correct).filter((a,i,all)=>all.findIndex(b=>b.id===a.id)===i);
+  const latest=new Map(round.answers.map(a=>[a.id,a]));
+  const rested=[...latest.values()].filter(a=>a.correct&&a.ms<=3000).length;
   return <div className="app speedResult"><div className="eyebrow">{round.completed?round.newBest?'НОВЫЙ ЛИЧНЫЙ РЕКОРД':'РАУНД ЗАВЕРШЁН':'РАУНД ПРЕРВАН'}</div><h1>{round.score}<small>очков</small></h1><p>{round.completed?round.mode==='arena'?'Результат сохранён для арены этой недели.':'Результат личных повторов сохранён.':'Рекорд не засчитан: для честного сравнения нужны полные 60 секунд без выхода.'}</p><div className="speedResultStats"><span><b>{round.correct}</b>верных</span><span><b>{round.wrong}</b>ошибок</span><span><b>{round.bestStreak}</b>лучшая серия</span></div>
     {mistakes.length>0&&<details className="speedMistakes" open><summary>Что повторить · {mistakes.length}</summary>{mistakes.map(item=><p key={item.id}><b lang="en">{item.en}</b><span>{item.ru}</span></p>)}</details>}
-    <button className="primary big" onClick={onAgain}>Попробовать ещё →</button><button className="quietButton" onClick={onHome}>На главную</button><small>Спринт не меняет закрепление слов и не начисляет деньги.</small></div>;
+    <p className="speedRestSummary">Карточек на отдыхе: {rested}. {rested?'Верно за 3 секунды — не появятся в скоростных играх 14 дней.':'Быстрые верные ответы освободят место новым словам.'}</p>
+    <button className="primary big" onClick={onAgain}>Новая подборка →</button><button className="quietButton" onClick={onHome}>На главную</button><small>Спринт не меняет закрепление. За победу в арене по итогам недели — $5.</small></div>;
 }

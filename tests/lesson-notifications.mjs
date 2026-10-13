@@ -32,6 +32,7 @@ const db={from(table){
     async maybeSingle(){
       if(table==='eft_users'&&selected==='secret_hash')return {data:{secret_hash:secretHash},error:null};
       if(table==='eft_users'&&selected==='routines')return {data:{routines:lastProfile?.routines||{}},error:null};
+      if(table==='eft_users'&&selected==='display_name, routines, updated_at')return {data:lastProfile,error:null};
       if(table==='eft_users'&&selected.startsWith('display_name, level'))return {data:{display_name:'Artur',level:'B1',percent:74,balance:23,today_minutes:12,routines:{dateCollection:partnerCollection,morning:true,evening:false,vocabulary:{version:1,total:411,introduced:226,verified:6,ready:10}},goals:[],updated_at:'2026-10-04T06:00:00Z'},error:null};
       if(table==='eft_pairs')return {data:{partner_id:'00000000-0000-4000-8000-000000000002'},error:null};
       if(table==='eft_notifications')return {data:notices.has(id)?{id}:null,error:null};
@@ -50,10 +51,11 @@ const context=vm.createContext({
 const source=await readFile(new URL('../supabase/functions/english-for-two-sync/index.ts',import.meta.url),'utf8');
 const compiled=await transform(source,{loader:'ts',format:'esm',target:'es2022'});
 const module=new vm.SourceTextModule(compiled.code,{context});
+const modules=new Map();
+for(const name of ['lesson-reward','vocabulary-summary','arcade-summary','date-collection','weekly-champion'])modules.set('./'+name+'.js',new vm.SourceTextModule(await readFile(new URL('../supabase/functions/english-for-two-sync/'+name+'.js',import.meta.url),'utf8'),{context}));
 await module.link(async specifier=>{
   if(specifier.startsWith('npm:@supabase/supabase-js@'))return new vm.SourceTextModule('export const createClient=globalThis.mockCreateClient;',{context});
-  assert.ok(['./lesson-reward.js','./vocabulary-summary.js','./arcade-summary.js','./date-collection.js'].includes(specifier));
-  return new vm.SourceTextModule(await readFile(new URL('../supabase/functions/english-for-two-sync/'+specifier.slice(2),import.meta.url),'utf8'),{context});
+  assert.ok(modules.has(specifier));return modules.get(specifier);
 });
 await module.evaluate();
 const request=(lesson,headers={'x-pair-id':identity,'x-pair-secret':secret})=>new Request('https://example.invalid/sync',{

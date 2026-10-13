@@ -47,7 +47,7 @@ try {
   assert.equal(Object.keys(first.earned).length,2);
   // Close before the animation timer fires, then reload.
   await close();await unmount();await mount();
-  assert.equal(dialogs(),0);assert.equal(root.root.findByProps({'aria-label':'Приз дня уже получен'}).props.disabled,true);
+  assert.equal(dialogs(),0);assert.equal(root.root.findAllByProps({'aria-label':'Открыть колесо дня'}).length,0);
   assert.match(visible(root.toJSON()),/Приз дня:/);
   await wake();assert.equal(dialogs(),0);assert.deepEqual(savedWallet().earned,first.earned);
   console.log('✓ spin credits once before animation, blocks double taps, survives closing mid-spin and disables further attempts');

@@ -30,9 +30,10 @@ try {
   await act(async()=>{delays.splice(0).forEach(fn=>fn());});assert.ok(button('Отлично, на главную'));assert.doesNotMatch(visible(root.toJSON()),/12 заданий|Начать маршрут/);
   await act(async()=>root.root.findByProps({'aria-label':'Закрыть колесо'}).props.onClick());assert.equal(closed,1);await unmount();
   let result;
-  await act(async()=>{root=create(h(SpeedRound,{initial:createSpeedRound('arena','B1',{},now),onFinish:(round,options)=>result={round,options},onBack(){}}));});
+  const initial=createSpeedRound('arena','B1',{},now);
+  await act(async()=>{root=create(h(SpeedRound,{initial,onFinish:(round,options)=>result={round,options},onBack(){}}));});
   await act(async()=>button('Поехали!').props.onClick());now+=500;
-  const round=createSpeedRound('arena','A2',{},now),answer=round.questions[0].answer;
+  const answer=initial.questions[0].answer;
   await act(async()=>button(answer).props.onClick());assert.match(visible(root.toJSON()),/10очков/);
   assert.ok(root.root.findByProps({className:'speedOptions'}).findAllByType('button').every(b=>b.props.disabled));
   await act(async()=>{delays.splice(0).forEach(fn=>fn());});assert.equal(root.root.findByProps({className:'speedOptions'}).findAllByType('button')[0].props.disabled,false);

@@ -3,6 +3,7 @@ import { lessonRewardTotal } from './lesson-reward.js';
 import {cleanVocabularySummary} from './vocabulary-summary.js';
 import {cleanArcadeSummary,mergeArcadeSummary} from './arcade-summary.js';
 import {cleanDateCollection,mergeDateCollection} from './date-collection.js';
+import {settleChampionship} from './weekly-champion.js';
 
 const encoder = new TextEncoder();
 const APP_ORIGIN = Deno.env.get('APP_ORIGIN') || 'https://english-for-two.onrender.com';
@@ -172,16 +173,19 @@ async function snapshot(accountId: string) {
   if (pairError) throw pairError;
   if (!pair?.partner_id) return { paired:false, partner:null, incoming:[], outgoing:[], notifications:[], telegramNotifications:Boolean(BOT_TOKEN) };
   const partnerId = String(pair.partner_id);
-  const [partnerResult, incomingResult, outgoingResult, noticesResult] = await Promise.all([
+  const [partnerResult, incomingResult, outgoingResult, noticesResult, ownResult] = await Promise.all([
     db.from('eft_users').select('display_name, level, percent, balance, today_minutes, routines, goals, updated_at').eq('account_id', partnerId).maybeSingle(),
     db.from('eft_gift_requests').select('id, title, cost, status, created_at, updated_at, resolved_at').eq('recipient_id', accountId).order('updated_at', { ascending:false }).limit(25),
     db.from('eft_gift_requests').select('id, title, cost, status, created_at, updated_at, resolved_at').eq('requester_id', accountId).order('updated_at', { ascending:false }).limit(25),
-    db.from('eft_notifications').select('id, payload, created_at').eq('recipient_id',accountId).order('created_at',{ascending:false}).limit(50)
+    db.from('eft_notifications').select('id, payload, created_at').eq('recipient_id',accountId).order('created_at',{ascending:false}).limit(50),
+    db.from('eft_users').select('display_name, routines, updated_at').eq('account_id',accountId).maybeSingle()
   ]);
   if (partnerResult.error) throw partnerResult.error;
   if (incomingResult.error) throw incomingResult.error;
   if (outgoingResult.error) throw outgoingResult.error;
   if (noticesResult.error) throw noticesResult.error;
+  if (ownResult.error) throw ownResult.error;
+  const championship=await settleChampionship(db,accountId,partnerId,ownResult.data,partnerResult.data);
   const partner = partnerResult.data ? {
     displayName:partnerResult.data.display_name,
     level:partnerResult.data.level,
@@ -198,6 +202,7 @@ async function snapshot(accountId: string) {
   } : null;
   return {
     paired:true,
+    ...championship,
     notifications:noticesResult.data || [],
     telegramNotifications:Boolean(BOT_TOKEN),
     partner,
@@ -268,7 +273,7 @@ async function handle(action: string, payload: Record<string, unknown>, account:
       const at=Math.trunc(Number(value.at));
       // Some stable lesson IDs contain a real word such as “café”. Rejecting
       // that one ID used to reject the learner's whole backup batch.
-      if(!/^(progress:(A2|B1|B2|C1):[\p{L}\p{N}_:-]+|lesson:[\w:-]+|day:\d{4}-\d{2}-\d{2}|wallet:(earned|spent|goals):[\w:-]+|legacy|draft|settings)$/u.test(key) || key.length>180 || !Number.isSafeInteger(at) || at<1 || at>Date.now()+86400000 || JSON.stringify(value.data ?? null).length>90000) throw new RequestError('Некорректная запись прогресса.');
+      if(!/^(progress:(A2|B1|B2|C1):[\p{L}\p{N}_:-]+|speed-word:(A2|B1|B2|C1):[\w-]+|lesson:[\w:-]+|day:\d{4}-\d{2}-\d{2}|wallet:(earned|spent|goals):[\w:-]+|legacy|draft|settings)$/u.test(key) || key.length>180 || !Number.isSafeInteger(at) || at<1 || at>Date.now()+86400000 || JSON.stringify(value.data ?? null).length>90000) throw new RequestError('Некорректная запись прогресса.');
       return {key,at,data:value.data ?? null};
     });
     const {error}=await db.rpc('eft_merge_private_records',{p_account_id:account.id,p_records:clean});

@@ -1,5 +1,6 @@
 import { invoke, coupleSyncConfigured } from './couple-sync.js';
 import { getLocalMeta, setLocalMeta, mergeItems, summariseStats, mergeStudyDay } from './storage-v3.js';
+import {cleanSpeedMemory,mergeSpeedMemory} from './speed-memory.js';
 
 export function backupRecords({level,progress,stats,wallet,draft,settings}) {
   const out=[];
@@ -7,6 +8,7 @@ export function backupRecords({level,progress,stats,wallet,draft,settings}) {
   for(const [id,item] of Object.entries(progress || {})) add(`progress:${level}:${id}`,item,item.l);
   for(const [id,item] of Object.entries(stats?.lessons || {})) add(`lesson:${id}`,item,item.updatedAt || item.at);
   for(const [day,item] of Object.entries(stats?.byDay || {})) add(`day:${day}`,item,item.at);
+  for(const [key,item] of Object.entries(cleanSpeedMemory(stats?.speedMemory)))add(`speed-word:${key}`,item,item.at);
   if(stats?.legacy) add('legacy',stats.legacy,1);
   for(const kind of ['earned','spent','goals']) for(const [id,item] of Object.entries(wallet?.[kind] || {})) add(`wallet:${kind}:${id}`,item,item.resolvedAt || item.updatedAt || item.at);
   if(draft) add('draft',draft.data,draft.at);
@@ -23,6 +25,7 @@ export function mergeBackup(state,records) {
       next.progress=mergeItems(next.progress,{[id]:data});
     } else if(key.startsWith('lesson:') && data) next.stats.lessons[key.slice(7)]=pick(next.stats.lessons[key.slice(7)],data,at);
     else if(key.startsWith('day:') && data) next.stats.byDay[key.slice(4)]=mergeStudyDay(next.stats.byDay[key.slice(4)],data);
+    else if(key.startsWith('speed-word:') && data)next.stats.speedMemory=mergeSpeedMemory(next.stats.speedMemory,{[key.slice(11)]:data});
     else if(key === 'legacy' && data) for(const field of ['totalMinutes','sessions','answers','correct']) next.stats.legacy[field]=Math.max(next.stats.legacy[field] || 0,data[field] || 0);
     else if(key.startsWith('wallet:') && data) {
       const [,kind,...parts]=key.split(':');const id=parts.join(':');

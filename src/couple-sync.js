@@ -21,7 +21,7 @@ function stamp(value) {
 export function mergeCoupleSnapshot(wallet, data = {}) {
   const next = {
     ...(wallet || {}),
-    earned: wallet?.earned || {},
+    earned: {...(wallet?.earned || {})},
     spent: { ...(wallet?.spent || {}) },
     goals: wallet?.goals || {},
     incoming: { ...(wallet?.incoming || {}) },
@@ -47,6 +47,15 @@ export function mergeCoupleSnapshot(wallet, data = {}) {
       automatic: true
     } : wallet?.partner || null
   };
+
+  if(data.paired===false)next.championship=null;
+  else if(data.championship)next.championship=data.championship;
+  // Only a server-finalised result can create this fixed once-per-week credit.
+  for(const award of data.championAwards||[]) {
+    if(award?.status!=='final'||award.winner!=='self'||award.amount!==5||!/^\d{4}-\d{2}-\d{2}$/.test(award.week)||!String(award.id).startsWith(`arena-champion:${award.week}:`))continue;
+    const id=`weekly-arena:${award.week}`;
+    if(!next.earned[id])next.earned[id]={amount:5,at:stamp(award.at)||Date.now(),kind:'weekly-champion',week:award.week,title:'Пояс чемпиона недели',awardId:award.id};
+  }
 
   for (const entry of data.incoming || []) {
     if (!entry?.id) continue;

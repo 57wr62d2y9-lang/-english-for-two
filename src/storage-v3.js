@@ -1,5 +1,6 @@
 import { normaliseItem } from './learning.js';
 import {compareArena} from '../supabase/functions/english-for-two-sync/arcade-summary.js';
+import {mergeSpeedMemory,speedMemoryChunks} from './speed-memory.js';
 const tg = () => typeof window !== 'undefined' ? window.Telegram?.WebApp : null;
 export const inTelegram = () => Boolean(tg()?.initData && tg()?.initDataUnsafe?.user?.id);
 export const telegramProfile = () => {
@@ -50,6 +51,7 @@ const BUCKETS = 64;
 const hash = id => [...id].reduce((n,c) => (n * 31 + c.charCodeAt(0)) >>> 0, 0) % BUCKETS;
 const queues = new Map();
 const dirtyStatsMonths = new Set();
+const dirtySpeedBuckets = new Set();
 let statsJob = null;
 let pairIdentityJob = null;
 async function setRemote(key, value) {
@@ -167,7 +169,7 @@ export function saveLevelProgress(level, items) {
   queues.set(level,job.catch(()=>false)); return job;
 }
 const emptyExam = () => Object.fromEntries(['Listening','Reading','Writing','Speaking'].map(skill => [skill,{attempts:0,correct:0,scored:0,last:0,taskTypes:{}}]));
-export const emptyStats = () => ({ totalMinutes:0, sessions:0, correct:0, answers:0, byDay:{}, lessons:{}, ielts:emptyExam(), legacy:{totalMinutes:0,sessions:0,correct:0,answers:0} });
+export const emptyStats = () => ({ totalMinutes:0, sessions:0, correct:0, answers:0, byDay:{}, lessons:{}, speedMemory:{}, ielts:emptyExam(), legacy:{totalMinutes:0,sessions:0,correct:0,answers:0} });
 export async function loadStats() {
   const local = localRead(prefix()+'stats');
   const legacy = localRead(legacyPrefix()+'stats') || emptyStats();
@@ -187,6 +189,11 @@ export async function loadStats() {
     }
   }
   const remoteLegacy = parse((await cloudCall('getItem','eft3_stats_base')).value);
+  const speedKeys=(keysResult.value||[]).filter(k=>/^eft5_speed_\d+(?:_\d+)?$/.test(k));
+  for(let start=0;start<speedKeys.length;start+=50) {
+    const remote=await cloudCall('getItems',speedKeys.slice(start,start+50));
+    for(const value of Object.values(remote.value||{}))base.speedMemory=mergeSpeedMemory(base.speedMemory,parse(value));
+  }
   if (remoteLegacy) for (const f of ['totalMinutes','sessions','correct','answers']) base.legacy[f] = Math.max(base.legacy[f]||0,remoteLegacy[f]||0);
   localWrite(prefix()+'stats',base);
   return summariseStats(base);
@@ -224,17 +231,27 @@ export function summariseStats(stats) {
 }
 export function saveStats(stats) {
   const previous = localRead(prefix()+'stats');
+  stats={...stats,speedMemory:mergeSpeedMemory(previous?.speedMemory,stats.speedMemory)};
   localWrite(prefix()+'stats',stats);
+  for(const [id,v] of Object.entries(stats.speedMemory||{}))if(JSON.stringify(v)!==JSON.stringify(previous?.speedMemory?.[id]))dirtySpeedBuckets.add(hash(id));
+  for(const bucket of localRead(prefix()+'pendingSpeed')||[])dirtySpeedBuckets.add(bucket);
+  localWrite(prefix()+'pendingSpeed',[...dirtySpeedBuckets]);
   const changed = Object.keys(stats.byDay||{}).filter(d=>JSON.stringify(previous?.byDay?.[d])!==JSON.stringify(stats.byDay[d])).map(d=>d.slice(0,7));
   (changed.length ? changed : Object.keys(stats.byDay||{}).map(d=>d.slice(0,7))).forEach(month=>dirtyStatsMonths.add(month));
   if (!statsJob) {
     statsJob = (async () => {
-      while (dirtyStatsMonths.size) {
+      while (dirtyStatsMonths.size||dirtySpeedBuckets.size) {
         const months = [...dirtyStatsMonths];
+        const speedBuckets=[...dirtySpeedBuckets];dirtySpeedBuckets.clear();
         dirtyStatsMonths.clear();
         const latest = localRead(prefix()+'stats') || stats;
         await setRemote('eft3_stats_base',latest.legacy||{});
         for (const month of months) for (const [day,record] of Object.entries(latest.byDay || {}).filter(([d])=>d.startsWith(month))) await setRemote('eft4_day_'+day,record);
+        for(const bucket of speedBuckets) {
+          const chunks=speedMemoryChunks(Object.fromEntries(Object.entries(latest.speedMemory||{}).filter(([id])=>hash(id)===bucket)));let ok=true;
+          for(let part=chunks.length-1;part>=0;part--)if(!await setRemote(`eft5_speed_${bucket}${part?'_'+part:''}`,chunks[part])){ok=false;break;}
+          if(ok&&!dirtySpeedBuckets.has(bucket))localWrite(prefix()+'pendingSpeed',(localRead(prefix()+'pendingSpeed')||[]).filter(b=>b!==bucket));
+        }
       }
     })().finally(() => { statsJob = null; });
   }

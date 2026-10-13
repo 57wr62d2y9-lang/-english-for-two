@@ -58,7 +58,7 @@ assert.equal(weeklyCheckpoint(a2,{},wallet(),stats(),'A2',time).count,5);
 console.log('✓ weekly check exists without mastery, prioritises studied cards, pays once across levels, retries safely; 30 distinct visits accumulate and do not double pay');
 
 let round=createSpeedRound('arena','B1',{},time),other=createSpeedRound('arena','A2',{},time+DAY);
-assert.deepEqual(round.questions,other.questions);assert.ok(round.questions.length>50);
+assert.notDeepEqual(round.questions,other.questions);assert.ok(round.questions.length>50);
 assert.ok(round.questions.every(t=>t.options.length===4&&new Set(t.options).size===4));
 assert.equal(answerSpeedRound(round,round.questions[0].answer,time+100),round);
 for(let i=0;i<12;i++){const task=round.questions[round.index];round=answerSpeedRound(round,i===4?task.options.find(x=>x!==task.answer):task.answer,time+(i+1)*1000);}
@@ -76,12 +76,12 @@ assert.equal(mergeArcadeSummary(summary,{version:1,records:[]},time+60000).recor
 const older=finished.stats.byDay[dayKey(time)],newer={...older,at:time+70000,arenaBest:{...older.arenaBest,correct:1,score:10}};
 assert.equal(mergeStudyDay(older,newer).arenaBest.score,102);
 assert.equal(championship(finished.stats,{arcade:summary,at:time},time+7*DAY).winner,'pending');
-assert.equal(championship(finished.stats,{arcade:summary,at:time+7*DAY},time+7*DAY).winner,'tie');
-assert.equal(championship(finished.stats,{arcade:{version:1,records:[]},at:time+7*DAY},time+7*DAY).winner,'self');
+assert.equal(championship(finished.stats,{arcade:summary,at:time+7*DAY},time+7*DAY).winner,'pending');
+assert.equal(championship(finished.stats,{arcade:summary,at:time+7*DAY},time+7*DAY,{week:weekKey(time),status:'final',winner:'self'}).winner,'self');
 const state={level:'B1',progress,stats:finished.stats,wallet:paid,settings:{level:'B1'}};
 const restored=mergeBackup({...state,stats:stats(),wallet:wallet()},backupRecords(state));assert.equal(arcadeSummary(restored.stats,time+60000).records[0].score,102);assert.equal(balanceOf(restored.wallet),10);
-const personal=createSpeedRound('review','B1',progress,time);assert.ok(personal.questions.every(t=>progress[t.item.id]));assert.equal(createSpeedRound('review','B1',{},time),null);
-console.log('✓ fair shared arena deck, timed cutoff, interruption, spam guard, scoring, ties, stale partner, bounded sanitisation, backup and record merge');
+const personal=createSpeedRound('review','B1',progress,time);assert.ok(personal.questions.some(t=>!progress[t.item.id]));assert.ok(createSpeedRound('review','B1',{},time));
+console.log('✓ personal arena decks, timed cutoff, interruption, spam guard, scoring, server-finalised winner, bounded sanitisation, backup and record merge');
 
 for(const theme of ['mix','context','recall','fresh']) {
   let session={...makeSession('B1',5,0,time),adventure:{target:12,theme}},p=theme==='fresh'?{}:{...progress};

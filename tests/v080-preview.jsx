@@ -1,7 +1,7 @@
 // Isolated fixtures only. No account, production sync, backup or wallet writes.
 import React,{useState} from 'react';
 import {createRoot} from 'react-dom/client';
-import {AdventureHub,DailyDraw,SpeedRound,SpeedResult} from '../src/Adventure.jsx';
+import {AdventureHub,DailyDraw,WheelCollection,SpeedRound,SpeedResult} from '../src/Adventure.jsx';
 import {createSpeedRound,finishSpeedRound} from '../src/arcade.js';
 import {weeklyCheckpoint,makeCheckpoint} from '../src/checkpoint.js';
 import {lexiconForLevel} from '../src/lexicon.js';
@@ -30,6 +30,6 @@ function Preview(){
   if(screen==='speed')return <SpeedRound key={speed.id} initial={speed} onBack={()=>setScreen('home')} onFinish={(round,options)=>{setSpeed(finishSpeedRound(round,stats,Date.now(),options).round);setScreen('result');}}/>;
   if(screen==='result')return <SpeedResult round={speed} onAgain={()=>start(speed.mode)} onHome={()=>setScreen('home')}/>;
   if(screen==='check')return <CheckScreen value={check} onAnswer={value=>setCheck(c=>({...c,selected:value}))} onNext={()=>setCheck(c=>({...c,index:Math.min(c.index+1,c.tasks.length-1),selected:undefined}))} onBack={()=>setScreen('home')}/>;
-  return <div className="app v5App"><AdventureHub name="Artur" stats={stats} wallet={prizeWallet} paired weekly={weekly} onDraw={()=>setDraw(true)} onAdventure={()=>{}} onSpeed={start} onCheck={()=>setScreen('check')}/>{draw&&<DailyDraw name="Artur" stats={stats} wallet={prizeWallet} onSpin={()=>{const result=claimDailyWheel(prizeWallet,'Artur');setPrizeWallet(result.wallet);return result.reward;}} onClose={()=>setDraw(false)}/>}</div>;
+  return <div className="app v5App"><AdventureHub name="Artur" stats={stats} wallet={prizeWallet} paired weekly={weekly} onAdventure={()=>{}} onSpeed={start} onCheck={()=>setScreen('check')}/><WheelCollection wallet={prizeWallet} name="Artur" paired onDraw={()=>setDraw(true)}/>{draw&&<DailyDraw name="Artur" stats={stats} wallet={prizeWallet} onSpin={()=>{const result=claimDailyWheel(prizeWallet,'Artur');setPrizeWallet(result.wallet);return result.reward;}} onClose={()=>setDraw(false)}/>}</div>;
 }
 createRoot(document.getElementById('root')).render(<Preview/>);
