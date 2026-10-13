@@ -761,3 +761,29 @@ footer { display: flex; align-items: center; justify-content: center; gap: 7px; 
 .wheelMini:disabled{opacity:1;background:#e6f2e4;color:#4d7b5c;border-color:#c7dec6;}
 .wheelCollection{margin:0 0 14px;}.dailyPrizeStamp{display:grid;grid-template-columns:35px 1fr;gap:2px 8px;align-items:center;background:#fff9;border:1px solid #e7d5e7;border-radius:13px;padding:10px 12px;font-size:13px;}.dailyPrizeStamp>span{grid-row:span 2;font-weight:800;font-size:20px;color:#835592;}.dailyPrizeStamp small{font-size:10px;color:#87708d;}.wheelCollection details{font-size:12px;color:#795c86;}.wheelCollection summary{padding:10px 0;min-height:38px;cursor:pointer;}.wheelCollection details>p{margin:4px 0 10px;}.badgeCollection{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;}.badgeCollection>span{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:8px;border:1px solid #e3d6e9;border-radius:10px;padding:9px 2px;background:#fff7;color:#82748b;opacity:.55;}.badgeCollection>span.owned{opacity:1;border-color:#dab6e7;background:#fef5ff;color:#6a4581;}.badgeCollection b{font-size:22px;}.badgeCollection small{font-size:11px;font-weight:700;}.wheelHistory p{display:flex;justify-content:space-between;gap:10px;margin:5px 0;padding:5px 0;border-bottom:1px solid #e4d6e8;}.wheelHistory span{color:#918098;}
 @media(max-height:650px){.dailyWheel.prizeWheel{width:190px;height:190px;--sector-radius:65px;margin:13px auto;}.prizeWheel>b{inset:58px;}.prizeWheel .wheelDisc>span:nth-child(n){font-size:19px;}.dailyDraw .drawVisit{padding:8px;}}
+
+/* 0.8.2 — a meaningful collection, separate from the lesson schedule. */
+.dailyPrizeHeading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;color:#4f3355;}
+.dailyPrizeHeading b{display:block;font-size:19px;margin-top:5px;}
+.dateCollection{padding:17px 13px 9px;margin:12px 0 18px;border:1px solid #e6cad5;border-radius:20px;background:linear-gradient(140deg,#fffaf2,#fff3f6 70%,#f3effc);color:#513849;}
+.dateCollectionHeading{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.dateCollectionHeading .eyebrow{font-size:9px;letter-spacing:1.3px;color:#a17382;}
+.dateCollection h3{font-size:20px;line-height:1.15;letter-spacing:-.5px;margin:7px 0 0;}
+.dateProgress{font-size:26px;font-weight:750;white-space:nowrap;color:#ad527c;}.dateProgress small{font-size:13px;color:#9c7b8c;font-weight:500;}
+.datePromise{font-size:12px;line-height:1.55;color:#886775;margin:12px 0;}
+.dateItems{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;margin:13px -3px;}
+.dateItems>div{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:0;padding:9px 1px 7px;border:1px dashed #d6c6cf;border-radius:12px;background:#fffc;color:#887480;}
+.dateItems .prizeIcon{width:44px;height:44px;max-width:100%;filter:grayscale(.75);opacity:.6;}
+.dateItems b{font-size:9px;line-height:1.25;text-align:center;white-space:nowrap;}.dateItems small{font-size:8px;line-height:1.25;}
+.dateItems .owned{border-style:solid;border-color:#cf99b4;background:#fbe4ef;color:#8d3b64;box-shadow:0 2px 5px #a56b9010;}
+.dateItems .owned .prizeIcon{filter:none;opacity:1;}.dateItems .owned small{font-size:11px;font-weight:750;}
+.dateUnlocked{display:flex;flex-direction:column;gap:5px;padding:13px;margin-top:13px;border:1px solid #dcba70;border-radius:13px;background:linear-gradient(125deg,#fff0c2,#fff9e8);color:#735127;}
+.dateUnlocked b{font-size:19px;}.dateUnlocked span{font-size:14px;font-weight:600;}.dateUnlocked small{font-size:11px;line-height:1.5;color:#8c714d;}
+.dateNextSet{font-size:11px;line-height:1.5;color:#917182;margin:10px 0;}
+.partnerDatePrize{display:flex;flex-direction:column;gap:5px;font-size:12px;line-height:1.4;background:#ede9f7;border:1px solid #d8cee9;border-radius:12px;padding:12px;margin:12px 0;color:#6d558b;}
+.dateRules{font-size:11px;line-height:1.6;color:#896d7e;}.dateRules summary{min-height:44px;padding:13px 0;cursor:pointer;}.dateRules ul{padding-left:18px;}.dateRules li{margin:6px 0;}
+.wheelCollection .dateRules{font-size:11px;}.wheelCollection .dateRules summary{min-height:44px;padding:13px 0;}
+.wheelPrizeHistory{padding-bottom:12px;border-bottom:1px solid #e5d4df;margin-bottom:22px;}
+.prizeWheel .prizeIcon{width:36px;height:36px;}.prizeWheel>b .prizeIcon{width:47px;height:47px;}.dailyPrizeStamp .prizeIcon{width:34px;height:34px;}
+.dailyDraw .drawCollectionProgress{padding:10px 12px;border-radius:12px;background:#fff8;font-size:13px;color:#875571;}
+@media(max-width:370px){.dateCollection{padding:15px 10px 7px;}.dateCollection h3{font-size:18px;}.dateItems{gap:3px;}.dateItems b{font-size:8px;}.dateItems small{font-size:7px;}}

@@ -19,7 +19,7 @@ const h=React.createElement,visible=n=>n==null?'':typeof n==='string'||typeof n=
 const button=label=>root.root.findAllByType('button').find(b=>visible(b)===label);
 const dialogs=()=>root.root.findAllByProps({role:'dialog'}).length;
 const savedWallet=()=>JSON.parse(disk.get('eft3:browser:wallet'));
-const close=async()=>act(async()=>root.root.findByProps({'aria-label':'Закрыть план дня'}).props.onClick());
+const close=async()=>act(async()=>root.root.findByProps({'aria-label':'Закрыть колесо'}).props.onClick());
 const unmount=async()=>{if(root){await act(async()=>root.unmount());root=null;}};
 const wake=async()=>{document.hidden=true;await act(async()=>listeners.get('visibilitychange')?.forEach(fn=>fn({type:'visibilitychange'})));document.hidden=false;await act(async()=>listeners.get('visibilitychange')?.forEach(fn=>fn({type:'visibilitychange'})));};
 try {

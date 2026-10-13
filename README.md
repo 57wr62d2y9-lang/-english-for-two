@@ -1,4 +1,12 @@
-# English for Two · 0.8.1
+# English for Two · 0.8.2
+
+## Date-night collection (0.8.2)
+
+- The wheel is prizes only: no lesson focus, task choice or lesson launch inside the draw. Daily adventures and their mixed formats are selected independently, without requiring a spin.
+- Five illustrated items replace decorative badges: Muse bouquet, two Cloud Lattes, travel ticket, Hermès-style cash-filled bag, supercar keys. Each complete set of five different items wins a date organised by the other partner. Duplicates count toward later sets; completed sets are derived from the permanent ledger, never paid again on reload. Items are symbolic, not purchases of a car, bag or trip.
+- Legacy awards are resolved without destructive migration: star → bouquet, lightning → coffee, crystal → ticket, clover → bag, crown → keys. Existing cash and the daily award key/seed are unchanged. A legacy/new client drawing the same date still produces the same money or equivalent item; backup merges do not add a second spin.
+- The collection and earned dates appear on home and Gifts. Bounded cumulative item counts sync only to the existing linked partner, who sees that they organise the date. Old clients and stale snapshots cannot erase the counts. No cash conversion, schema, permissions, authentication, paid service or Telegram-message change.
+- One automatic popup and one free spin per Istanbul day remain, including dismissal, reload and closing mid-animation. $1/$2/$3 sectors, attendance, lessons and weekly checks retain their rules.
 
 ## Daily prize wheel (0.8.1)
 

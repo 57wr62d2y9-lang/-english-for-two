@@ -10,6 +10,7 @@ import {makeCheckpoint,finishCheckpoint} from '../src/checkpoint.js';
 import {finishStudySession,lessonRewardTotal} from '../src/rewards.js';
 import {securedItem} from './learning-fixtures.mjs';
 import {ARENA_DECK} from '../supabase/functions/english-for-two-sync/arcade-summary.js';
+import {DATE_ITEMS} from '../supabase/functions/english-for-two-sync/date-collection.js';
 
 // Execute the actual endpoint with an isolated database and no outgoing network.
 // No production accounts, secrets, payments or Telegram messages are involved.
@@ -19,6 +20,7 @@ const stats=()=>({lessons:{},byDay:{}});
 const identity='00000000-0000-4000-8000-000000000001',secret='a'.repeat(43);
 const secretHash=Buffer.from(await webcrypto.subtle.digest('SHA-256',new TextEncoder().encode(secret))).toString('hex');
 const notices=new Map();let handler,inserts=0,network=0,lastProfile;
+let partnerCollection=null;
 const db={from(table){
   let selected='',id;
   return {
@@ -30,7 +32,7 @@ const db={from(table){
     async maybeSingle(){
       if(table==='eft_users'&&selected==='secret_hash')return {data:{secret_hash:secretHash},error:null};
       if(table==='eft_users'&&selected==='routines')return {data:{routines:lastProfile?.routines||{}},error:null};
-      if(table==='eft_users'&&selected.startsWith('display_name, level'))return {data:{display_name:'Artur',level:'B1',percent:74,balance:23,today_minutes:12,routines:{morning:true,evening:false,vocabulary:{version:1,total:411,introduced:226,verified:6,ready:10}},goals:[],updated_at:'2026-10-04T06:00:00Z'},error:null};
+      if(table==='eft_users'&&selected.startsWith('display_name, level'))return {data:{display_name:'Artur',level:'B1',percent:74,balance:23,today_minutes:12,routines:{dateCollection:partnerCollection,morning:true,evening:false,vocabulary:{version:1,total:411,introduced:226,verified:6,ready:10}},goals:[],updated_at:'2026-10-04T06:00:00Z'},error:null};
       if(table==='eft_pairs')return {data:{partner_id:'00000000-0000-4000-8000-000000000002'},error:null};
       if(table==='eft_notifications')return {data:notices.has(id)?{id}:null,error:null};
       throw Error(`Unexpected query: ${table} ${selected}`);
@@ -50,7 +52,7 @@ const compiled=await transform(source,{loader:'ts',format:'esm',target:'es2022'}
 const module=new vm.SourceTextModule(compiled.code,{context});
 await module.link(async specifier=>{
   if(specifier.startsWith('npm:@supabase/supabase-js@'))return new vm.SourceTextModule('export const createClient=globalThis.mockCreateClient;',{context});
-  assert.ok(['./lesson-reward.js','./vocabulary-summary.js','./arcade-summary.js'].includes(specifier));
+  assert.ok(['./lesson-reward.js','./vocabulary-summary.js','./arcade-summary.js','./date-collection.js'].includes(specifier));
   return new vm.SourceTextModule(await readFile(new URL('../supabase/functions/english-for-two-sync/'+specifier.slice(2),import.meta.url),'utf8'),{context});
 });
 await module.evaluate();
@@ -103,6 +105,7 @@ const syncRequest=profile=>new Request('https://example.invalid/sync',{method:'P
 const syncResponse=await handler(syncRequest({displayName:'Anna',level:'A2',percent:74,balance:39,vocabulary:{version:1,total:426,introduced:320,verified:9,ready:12}}));
 assert.equal(syncResponse.status,200,await syncResponse.clone().text());
 const syncData=await syncResponse.json();assert.equal(syncData.partner.vocabulary.verified,6);assert.equal(syncData.partner.balance,23);
+assert.equal(syncData.partner.dateCollection,null,'old partner profiles remain compatible');
 assert.equal(lastProfile.percent,2);assert.equal(lastProfile.balance,39);assert.equal(lastProfile.routines.vocabulary.verified,9);
 assert.equal((await handler(syncRequest({displayName:'Anna',level:'A2',percent:74,balance:39}))).status,200);
 assert.equal(lastProfile.routines.vocabulary,null);assert.equal(network,0);
@@ -113,7 +116,24 @@ assert.equal((await handler(syncRequest({displayName:'Anna'}))).status,200);
 assert.equal(lastProfile.routines.arcade.records[0].score,112,'old clients must preserve the new record');
 assert.equal((await handler(syncRequest({displayName:'Anna',arcade:{version:1,records:[{...arena,id:'qa-weaker',correct:1,wrong:0,bestStreak:1}]}}))).status,200);
 assert.equal(lastProfile.routines.arcade.records[0].score,112,'a later weaker run must not overwrite the best');
+const counts=Object.fromEntries(DATE_ITEMS.map(id=>[id,1]));
+assert.equal((await handler(syncRequest({displayName:'Anna',balance:39,dateCollection:{version:1,counts,completed:999}}))).status,200);
+assert.equal(lastProfile.routines.dateCollection.completed,1,'completed sets are recomputed, not trusted');
+assert.equal(lastProfile.balance,39,'a date must not alter cash');
+assert.equal((await handler(syncRequest({displayName:'Anna',balance:39}))).status,200);
+assert.equal(lastProfile.routines.dateCollection.completed,1,'old clients preserve the date collection');
+assert.equal((await handler(syncRequest({displayName:'Anna',dateCollection:{version:1,counts:{bouquet:2}}}))).status,200);
+assert.equal(lastProfile.routines.dateCollection.counts.bouquet,2);
+assert.equal(lastProfile.routines.dateCollection.completed,1,'partial/stale counts must not erase other items');
+partnerCollection={version:1,counts:Object.fromEntries(DATE_ITEMS.map(id=>[id,2])),completed:999};
+const partnerSnapshot=await (await handler(syncRequest({displayName:'Anna'}))).json();
+assert.equal(partnerSnapshot.partner.dateCollection.completed,2,'linked partner receives a sanitised collection');
+assert.equal(Object.keys(partnerSnapshot.partner.dateCollection.counts).length,5);
+const denied=syncRequest({dateCollection:{version:1,counts}});denied.headers.delete('x-pair-secret');
+const beforeDenied=JSON.stringify(lastProfile);
+assert.equal((await handler(denied)).status,401);assert.equal(JSON.stringify(lastProfile),beforeDenied);
 assert.equal(network,0);
+console.log('✓ actual offline endpoint preserves bounded date counts across stale/old clients, recomputes sets and rejects unauthorised updates');
 console.log('✓ actual offline endpoint sanitises weekly scores, preserves best records across old clients and weaker submissions, with unchanged account authentication');
 console.log('✓ actual offline notification endpoint: $1, $5, $100 and attendance totals match settled wallet amounts; duplicate and unauthorized requests cannot write news');
 console.log('✓ actual offline profile endpoint: versioned mastery counts round-trip, override stale exposure percentages and do not modify wallets or credentials');

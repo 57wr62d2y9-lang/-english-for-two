@@ -2,6 +2,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.112.3';
 import { lessonRewardTotal } from './lesson-reward.js';
 import {cleanVocabularySummary} from './vocabulary-summary.js';
 import {cleanArcadeSummary,mergeArcadeSummary} from './arcade-summary.js';
+import {cleanDateCollection,mergeDateCollection} from './date-collection.js';
 
 const encoder = new TextEncoder();
 const APP_ORIGIN = Deno.env.get('APP_ORIGIN') || 'https://english-for-two.onrender.com';
@@ -153,7 +154,7 @@ function cleanProfile(payload: Record<string, unknown>, telegram: TelegramUser |
     today_minutes:Math.max(0, Math.min(1440, Math.round(Number(payload.todayMinutes) || 0))),
     // Versioned progress metadata alongside the existing JSON profile flags.
     // No schema or auth change; old clients simply have no verified summary.
-    routines:{ morning:payload.morningDone === true, evening:payload.eveningDone === true, vocabulary, arcade:cleanArcadeSummary(payload.arcade) },
+    routines:{ morning:payload.morningDone === true, evening:payload.eveningDone === true, vocabulary, arcade:cleanArcadeSummary(payload.arcade), dateCollection:cleanDateCollection(payload.dateCollection) },
     goals,
     updated_at:new Date().toISOString()
   };
@@ -191,6 +192,7 @@ async function snapshot(accountId: string) {
     eveningDone:partnerResult.data.routines?.evening === true,
     vocabulary:cleanVocabularySummary(partnerResult.data.routines?.vocabulary),
     arcade:cleanArcadeSummary(partnerResult.data.routines?.arcade),
+    dateCollection:cleanDateCollection(partnerResult.data.routines?.dateCollection),
     goals:Array.isArray(partnerResult.data.goals) ? partnerResult.data.goals : [],
     updatedAt:partnerResult.data.updated_at
   } : null;
@@ -302,6 +304,7 @@ async function handle(action: string, payload: Record<string, unknown>, account:
     const {data:previous,error:previousError}=await db.from('eft_users').select('routines').eq('account_id',account.id).maybeSingle();
     if(previousError)throw previousError;
     profile.routines.arcade=mergeArcadeSummary(previous?.routines?.arcade,profile.routines.arcade);
+    profile.routines.dateCollection=mergeDateCollection(previous?.routines?.dateCollection,profile.routines.dateCollection);
     const { error } = await db.from('eft_users').update(profile).eq('account_id', account.id);
     if (error) throw error;
     return snapshot(account.id);

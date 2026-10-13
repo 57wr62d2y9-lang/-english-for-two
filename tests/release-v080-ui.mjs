@@ -24,11 +24,11 @@ try {
   globalThis.setInterval=(fn,ms,...args)=>ms===100?(ticks.push(fn),-100):oldInterval(fn,ms,...args);
   globalThis.setTimeout=(fn,ms,...args)=>[450,1100].includes(ms)?(delays.push(fn),-450):oldTimeout(fn,ms,...args);
   let closed=0;
-  await act(async()=>{root=create(h(DailyDraw,{name:'Anna',stats:{byDay:{}},wallet:{earned:{}},onSpin:()=>claimDailyWheel({earned:{}},'Anna',now).reward,onClose:()=>closed++,onStart(){},time:now}));});
+  await act(async()=>{root=create(h(DailyDraw,{name:'Anna',stats:{byDay:{}},wallet:{earned:{}},onSpin:()=>claimDailyWheel({earned:{}},'Anna',now).reward,onClose:()=>closed++,time:now}));});
   assert.equal(root.root.findAllByProps({role:'dialog'}).length,1);
   await act(async()=>button('Крутить колесо').props.onClick());assert.equal(button('Выбираем…').props.disabled,true);
-  await act(async()=>{delays.splice(0).forEach(fn=>fn());});assert.ok(button('Начать маршрут →'));assert.match(visible(root.toJSON()),/12 заданий/);
-  await act(async()=>root.root.findByProps({'aria-label':'Закрыть план дня'}).props.onClick());assert.equal(closed,1);await unmount();
+  await act(async()=>{delays.splice(0).forEach(fn=>fn());});assert.ok(button('Отлично, на главную'));assert.doesNotMatch(visible(root.toJSON()),/12 заданий|Начать маршрут/);
+  await act(async()=>root.root.findByProps({'aria-label':'Закрыть колесо'}).props.onClick());assert.equal(closed,1);await unmount();
   let result;
   await act(async()=>{root=create(h(SpeedRound,{initial:createSpeedRound('arena','B1',{},now),onFinish:(round,options)=>result={round,options},onBack(){}}));});
   await act(async()=>button('Поехали!').props.onClick());now+=500;
@@ -41,7 +41,7 @@ try {
   result=null;await act(async()=>{root=create(h(SpeedRound,{initial:createSpeedRound('arena','A2',{},now),onFinish:(round,options)=>result={round,options},onBack(){}}));});
   await act(async()=>button('Поехали!').props.onClick());document.hidden=true;
   await act(async()=>listeners.get('visibilitychange')?.forEach(fn=>fn()));assert.equal(result.options.aborted,true);document.hidden=false;await unmount();
-  console.log('✓ daily wheel reveals a stable plan; speed UI disables double taps, finishes once and rejects hidden rounds');
+  console.log('✓ daily wheel reveals only a prize; speed UI disables double taps, finishes once and rejects hidden rounds');
 
   const pool=lexiconForLevel('B1');
   disk.set('eft3:browser:settings',JSON.stringify({at:now,data:{level:'B1',profileName:'Artur',minutes:15,updatedAt:now}}));
@@ -49,7 +49,7 @@ try {
   disk.set('eft3:browser:wallet',JSON.stringify({earned:{old:{at:now-1000,amount:30}},spent:{},goals:{}}));
   await act(async()=>{root=create(h(App));});
   assert.match(visible(root.toJSON()),/Контрольная этой недели/);assert.match(visible(root.toJSON()),/Крутить колесо/);
-  await act(async()=>root.root.findByProps({'aria-label':'Закрыть план дня'}).props.onClick());
+  await act(async()=>root.root.findByProps({'aria-label':'Закрыть колесо'}).props.onClick());
   await act(async()=>button('Маршрут дня · 12 заданий →').props.onClick());
   for(let i=0;i<60;i++) {
     const props=root.root.findByType(Lesson).props;

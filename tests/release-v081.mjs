@@ -50,11 +50,11 @@ globalThis.window={Telegram:{WebApp:{initData:'offline-fixture',initDataUnsafe:{
   getItems:(keys,cb)=>cb(null,Object.fromEntries(keys.map(k=>[k,cloud.get(k)||'']))),
   setItem:(key,value,cb)=>{assert.ok(value.length<=4096);cloud.set(key,value);cb(null,true);}
 }}}};
-const badge=draws.get('star');
+const badge=draws.get('bouquet');
 await saveStats(seen);await saveWallet(badge.wallet);disk.clear();
 const restoredStats=await loadStats(),restoredWallet=await loadWallet();
 assert.equal(shouldShowDailyWheel(restoredStats,restoredWallet,now),false);
 assert.equal(balanceOf(restoredWallet),25);
-assert.equal(wheelCollection(restoredWallet).badges.find(p=>p.id==='star').count,1);
+assert.equal(wheelCollection(restoredWallet).items.find(p=>p.id==='bouquet').count,1);
 assert.equal(claimDailyWheel(restoredWallet,'Artur',now).duplicate,true);
 console.log('✓ cloud restore keeps dismissed status and zero-dollar badges; a new device cannot add another payment');
