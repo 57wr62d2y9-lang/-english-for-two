@@ -32,6 +32,8 @@ const choose = (a,b) => !a ? b : !b ? a : (a.at || 0) >= (b.at || 0) ? a : b;
 export function mergeStudyDay(a,b) {
   if(!a||!b)return a||b;
   const next={...choose(a,b)};
+  const wheelSeen=[a.wheelSeenAt,b.wheelSeenAt].filter(n=>Number.isFinite(n)&&n>0);
+  if(wheelSeen.length)next.wheelSeenAt=Math.min(...wheelSeen);
   for(const field of ['arenaBest','speedBest'])if(a[field]||b[field])next[field]=compareArena(a[field],b[field])>=0?a[field]:b[field];
   if(a.speedRounds||b.speedRounds)next.speedRounds=Math.max(a.speedRounds||0,b.speedRounds||0);
   return next;

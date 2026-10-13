@@ -1,14 +1,31 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {dailyAdventure,championship,answerSpeedRound,createSpeedRound} from './arcade.js';
 import {attendanceProgress} from './rewards.js';
+import {WHEEL_PRIZES,dailyWheelReward,wheelPrize,wheelCollection} from './daily-wheel.js';
 const ruName=name=>name==='Anna'?'Аня':name==='Artur'?'Артур':name||'Партнёр';
+
+function PrizeIcon({prize}) {
+  if(!prize)return '✦';
+  if(prize.amount)return <span className="prizeCash">${prize.amount}</span>;
+  const colors={star:['#ffd36e','#986b24'],lightning:['#ffe57c','#9b7923'],crystal:['#b8eaff','#4084ae'],clover:['#81c491','#357a56'],crown:['#ffcc66','#906723']};
+  const [fill,stroke]=colors[prize.id]||colors.star;
+  return <svg className="prizeIcon" viewBox="0 0 32 32" fill={fill} stroke={stroke} strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true">
+    {prize.id==='star'?<path d="m16 3 4 8.5 9.5 1.3-6.9 6.7 1.6 9.5L16 24.5 7.8 29l1.6-9.5-6.9-6.7 9.5-1.3Z"/>:
+      prize.id==='lightning'?<path d="M18 2 6 18h9l-1 12 13-18h-9Z"/>:
+      prize.id==='crystal'?<><path d="M8 5h16l6 9-14 16L2 14Z"/><path d="m8 5 8 25 8-25M2 14h28M8 5l8 9 8-9" fill="none"/></>:
+      prize.id==='clover'?<><path d="M16 18q4 8 12 11" fill="none" strokeWidth="3"/><circle cx="10" cy="9" r="6"/><circle cx="22" cy="9" r="6"/><circle cx="10" cy="21" r="6"/><circle cx="22" cy="21" r="6"/></>:
+      <><path d="m3 8 8 6 5-10 5 10 8-6-3 18H6Z"/><path d="M6 22h20" fill="none"/><circle cx="16" cy="18" r="2" fill="#fbf0c4"/></>}
+  </svg>;
+}
 
 export function ChampionBelt({label='Чемпион недели'}) {
   return <div className="championBelt" role="img" aria-label={label}><span>★</span><strong><small>ENGLISH FOR TWO</small>CHAMPION<small>★ ★ ★</small></strong><span>★</span></div>;
 }
 
-export function DailyDraw({name,stats,wallet,onClose,onStart,time}) {
-  const plan=dailyAdventure(name,time),[stage,setStage]=useState('ready'),dialogRef=useRef(null);
+export function DailyDraw({name,stats,wallet,onSpin,onClose,onStart,time}) {
+  const plan=dailyAdventure(name,time),saved=dailyWheelReward(wallet,time);
+  const [stage,setStage]=useState(saved?'result':'ready'),[reward,setReward]=useState(saved),dialogRef=useRef(null),spinLock=useRef(Boolean(saved));
+  const prize=wheelPrize(reward),sector=Math.max(0,WHEEL_PRIZES.findIndex(p=>p.id===prize?.id));
   const attended=attendanceProgress(stats,wallet,time);
   useEffect(()=>{
     const previous=globalThis.document?.activeElement,node=dialogRef.current;
@@ -20,22 +37,42 @@ export function DailyDraw({name,stats,wallet,onClose,onStart,time}) {
     node?.addEventListener('keydown',trap);return()=>{node?.removeEventListener('keydown',trap);previous?.focus?.();};
   },[]);
   useEffect(()=>{if(stage!=='spinning')return;const reduced=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;const timer=setTimeout(()=>setStage('result'),reduced?50:1100);return()=>clearTimeout(timer);},[stage]);
+  function spin(){
+    if(spinLock.current||stage!=='ready')return;
+    spinLock.current=true;
+    // The parent saves the reward before animation: closing mid-spin cannot
+    // lose a prize or grant another chance.
+    const next=onSpin?.();
+    if(!next){spinLock.current=false;return;}
+    setReward(next);setStage('spinning');
+  }
   return <div className="drawBackdrop"><section ref={dialogRef} className="dailyDraw" role="dialog" aria-modal="true" aria-labelledby="draw-title">
     <button className="drawClose iconButton" aria-label="Закрыть план дня" onClick={onClose}>×</button>
-    <div className="eyebrow">ТВОЙ ДЕНЬ В ENGLISH FOR TWO</div><h1 id="draw-title">{stage==='result'?plan.title:'Что сыграем сегодня?'}</h1>
-    <div className={`dailyWheel ${stage==='spinning'?'spinning':stage==='result'?'revealed':''}`} style={{'--wheel-stop':`${{recall:0,context:120,mix:240}[plan.id]}deg`}} aria-hidden="true"><div className="wheelDisc"><span>Вспомни</span><span>Примени</span><span>Выбери</span></div><b>{stage==='result'?plan.icon:'✦'}</b></div>
-    <p className="drawVisit">Вход сегодня засчитан ✓<br/><small>{attended.rewardedToday?'Бонус $10 уже в копилке':`${attended.days} из 30 дней к бонусу $10`} · не обнуляется при пропуске</small></p>
-    {stage==='result'?<><p>{plan.description}. Три мини-раунда по 4 ответа.</p><ul className="dailyMissions"><li>12 заданий · короткий маршрут</li><li>60 секунд · твои повторы</li><li>60 секунд · арена пары</li><li>Контрольная доступна каждую неделю</li></ul><button className="primary big" onClick={onStart}>Начать маршрут →</button><button className="quietButton" onClick={onClose}>Выбрать другой режим</button></>:
-      <><p>Колесо выберет акцент заданий дня. План один на день, повторный вход его не меняет.</p><button className="primary big" disabled={stage==='spinning'} onClick={()=>setStage('spinning')}>{stage==='spinning'?'Выбираем…':'Крутить колесо'}</button></>}
+    <div className="eyebrow">ПРИЗОВОЕ КОЛЕСО · РАЗ В ДЕНЬ</div><h1 id="draw-title">{stage==='result'?`Твой приз: ${prize?.label||'получен'}`:'Что тебе выпадет?'}</h1>
+    <div className={`dailyWheel prizeWheel ${stage==='spinning'?'spinning':stage==='result'?'revealed':''}`} style={{'--wheel-stop':`${(360-sector*45)%360}deg`}} aria-hidden="true"><div className="wheelDisc" style={{background:`conic-gradient(from -22.5deg,${WHEEL_PRIZES.map((p,i)=>`${p.color} ${i*45}deg ${(i+1)*45}deg`).join(',')})`}}>{WHEEL_PRIZES.map((p,i)=><span key={p.id} style={{'--sector-angle':`${i*45}deg`}}><PrizeIcon prize={p}/></span>)}</div><b>{stage==='result'?<PrizeIcon prize={prize}/>:'✦'}</b></div>
+    {stage==='result'?<><p className="wheelAward" role="status">{prize?.amount?`+$${prize.amount} уже в твоей копилке!`:'Значок добавлен в твою коллекцию.'}<br/><small>Следующее вращение — завтра.</small></p><p>{plan.title} · 12 заданий на сегодня</p><button className="primary big" onClick={onStart}>Начать маршрут →</button><button className="quietButton" onClick={onClose}>На главную</button></>:
+      <><p>Бонусы $1, $2, $3 и пять значков для коллекции. Все 8 секторов равновероятны.</p><button className="primary big" disabled={stage==='spinning'||!onSpin} onClick={spin}>{stage==='spinning'?'Выбираем…':'Крутить колесо'}</button><p className="wheelLimit">Одно бесплатное вращение за день · обновление в 00:00 по Стамбулу</p></>}
+    <p className="drawVisit">Вход сегодня засчитан ✓<br/><small>{attended.rewardedToday?'Бонус $10 уже в копилке':`${attended.days} из 30 дней к бонусу $10`}</small></p>
   </section></div>;
+}
+
+export function WheelCollection({wallet,time}) {
+  const collected=wheelCollection(wallet),today=wheelPrize(dailyWheelReward(wallet,time));
+  if(!collected.records.length)return null;
+  return <div className="wheelCollection">
+    {today&&<p className="dailyPrizeStamp"><span><PrizeIcon prize={today}/></span><b>Приз дня: {today.label}</b><small>Получен ✓ · новое вращение завтра</small></p>}
+    <details><summary>Коллекция призов · {collected.records.length}</summary><p>Денежные бонусы колеса: <b>+${collected.total}</b></p><div className="badgeCollection">{collected.badges.map(p=><span key={p.id} className={p.count?'owned':''}><b><PrizeIcon prize={p}/></b>{p.label}<small>×{p.count}</small></span>)}</div><div className="wheelHistory">{collected.records.slice(0,7).map(r=><p key={r.day}><span>{r.day.slice(8)}.{r.day.slice(5,7)}</span><b>{wheelPrize(r).label}</b></p>)}</div></details>
+  </div>;
 }
 
 export function AdventureHub({name,stats,wallet,paired,syncError,weekly,hasDraft,onDraw,onAdventure,onSpeed,onCheck,time}) {
   const plan=dailyAdventure(name,time),league=championship(stats,wallet.partner,time);
+  const prize=dailyWheelReward(wallet,time);
   const won=league.winner==='self'?ruName(name):league.winner==='partner'?ruName(wallet.partner?.name):league.winner==='tie'?'Оба чемпионы':null;
   return <section className="adventureHub">
-    <div className="adventureHeading"><div><div className="eyebrow">СЕГОДНЯ ИГРАЕМ</div><h2>{plan.title}</h2></div><button className="wheelMini" aria-label="Открыть колесо дня" onClick={onDraw}>✦</button></div>
+    <div className="adventureHeading"><div><div className="eyebrow">СЕГОДНЯ ИГРАЕМ</div><h2>{plan.title}</h2></div><button className="wheelMini" aria-label={prize?'Приз дня уже получен':'Открыть колесо дня'} disabled={Boolean(prize)} onClick={onDraw}>{prize?'✓':'✦'}</button></div>
     <p>{plan.description}. Короткие раунды — в твоём темпе.</p>
+    <WheelCollection wallet={wallet} time={time}/>
     <button className="primary big" onClick={onAdventure}>{hasDraft?'Продолжить сохранённое занятие':'Маршрут дня · 12 заданий →'}</button>
     <div className="speedLaunchers"><button onClick={()=>onSpeed('review')}><b>ϟ Мои повторы</b><span>60 секунд · знакомые карточки</span></button><button onClick={()=>onSpeed('arena')}><b>★ Арена пары</b><span>60 секунд · побей рекорд</span></button></div>
     <section className="weeklyArena"><div className="eyebrow">ПОЯС НЕДЕЛИ · ПН–ВС</div><ChampionBelt/>

@@ -4,6 +4,7 @@ import {create,act} from 'react-test-renderer';
 import {createServer} from 'vite';
 import {createSpeedRound} from '../src/arcade.js';
 import {lexiconForLevel} from '../src/lexicon.js';
+import {claimDailyWheel} from '../src/daily-wheel.js';
 const server=await createServer({define:{'import.meta.env.VITE_COUPLE_SYNC_URL':'""'},server:{middlewareMode:true},appType:'custom'});
 globalThis.IS_REACT_ACT_ENVIRONMENT=true;
 const oldNow=Date.now,oldFetch=globalThis.fetch,oldInterval=globalThis.setInterval,oldTimeout=globalThis.setTimeout;
@@ -23,7 +24,7 @@ try {
   globalThis.setInterval=(fn,ms,...args)=>ms===100?(ticks.push(fn),-100):oldInterval(fn,ms,...args);
   globalThis.setTimeout=(fn,ms,...args)=>[450,1100].includes(ms)?(delays.push(fn),-450):oldTimeout(fn,ms,...args);
   let closed=0;
-  await act(async()=>{root=create(h(DailyDraw,{name:'Anna',stats:{byDay:{}},wallet:{earned:{}},onClose:()=>closed++,onStart(){},time:now}));});
+  await act(async()=>{root=create(h(DailyDraw,{name:'Anna',stats:{byDay:{}},wallet:{earned:{}},onSpin:()=>claimDailyWheel({earned:{}},'Anna',now).reward,onClose:()=>closed++,onStart(){},time:now}));});
   assert.equal(root.root.findAllByProps({role:'dialog'}).length,1);
   await act(async()=>button('Крутить колесо').props.onClick());assert.equal(button('Выбираем…').props.disabled,true);
   await act(async()=>{delays.splice(0).forEach(fn=>fn());});assert.ok(button('Начать маршрут →'));assert.match(visible(root.toJSON()),/12 заданий/);

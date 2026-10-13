@@ -1,4 +1,11 @@
-# English for Two · 0.8.0
+# English for Two · 0.8.1
+
+## Daily prize wheel (0.8.1)
+
+- Automatic popup appears once per Istanbul calendar day, including when dismissed without spinning. Its display marker is saved in the study-day record and survives cloud/private backup merges. Before spinning, the wheel remains available manually from the home button.
+- Eight equally weighted sectors: $1, $2, $3 and five collectible badges (star, lightning, crystal, clover, crown). One free spin per day; no purchased spins, losses, rerolls or extra attempts for switching names or levels.
+- The result is saved before the animation. A date-only wallet ledger key prevents repeated payments on double taps, reloads, closing during animation and backup merges. The deterministic daily draw keeps the same account/date outcome on another device. Badges are permanent zero-dollar prize records; collection and recent prizes are shown on home.
+- Existing lesson, weekly-check and 30-visit rewards remain separate. No database, authentication or backend changes are required; rewards use the existing account-scoped wallet backup.
 
 ## Daily adventures and weekly arena (0.8.0)
 

@@ -8,6 +8,7 @@ import { makeSession, nextLessonTask, isAnswerCorrect, applySessionEvidence, res
 import {weeklyCheckpoint as pendingCheckpoint,makeCheckpoint,finishCheckpoint,resumeCheckpoint} from './checkpoint.js';
 import {dailyAdventure,createSpeedRound,finishSpeedRound,arcadeSummary} from './arcade.js';
 import {AdventureHub,DailyDraw,SpeedRound,SpeedResult} from './Adventure.jsx';
+import {claimDailyWheel,dailyWheelReward,shouldShowDailyWheel,markDailyWheelSeen} from './daily-wheel.js';
 import {awardAttendanceBonus,finishStudySession,registerDailyVisit,lessonRewardTotal} from './rewards.js';
 import Lesson,{OrderAnswer,CheckScreen} from './VocabularyLesson.jsx';
 import {themeFor} from './themes.js';
@@ -36,8 +37,9 @@ export default function App() {
   const [couple,setCouple]=useState({paired:false,notifications:[],code:'',busy:false}),[readNotices,setReadNotices]=useState(loadReadNotifications);
   const [saveMessage,setSaveMessage]=useState(''),[theme,setTheme]=useState(()=>themeFor());
   const [drawOpen,setDrawOpen]=useState(false),[speed,setSpeed]=useState(null);
-  const stateRef=useRef({settings,progress,stats,wallet}),sessionRef=useRef(null),busyRef=useRef(false),finishedRef=useRef(new Set()),levelToken=useRef(0),activityRef=useRef(Date.now());
+  const stateRef=useRef({settings,progress,stats,wallet}),screenRef=useRef(screen),sessionRef=useRef(null),busyRef=useRef(false),finishedRef=useRef(new Set()),levelToken=useRef(0),activityRef=useRef(Date.now());
   stateRef.current={settings,progress,stats,wallet};
+  screenRef.current=screen;
   const items=useMemo(()=>lexiconForLevel(settings.level),[settings.level]);
   const vocab=useMemo(()=>vocabularyStats(items,progress),[items,progress]);
   const path=useMemo(()=>courseProgress(items,progress),[items,progress]);
@@ -61,6 +63,22 @@ export default function App() {
     const s=stateRef.current,visited=registerDailyVisit(s.stats),bonus=awardAttendanceBonus(s.wallet,visited);
     if(visited!==s.stats)storeStats(visited);
     if(bonus.awarded){storeWallet(bonus.wallet);setNotice(`+$${bonus.awarded} за 30 накопленных дней входов!`);}
+  }
+  function openDailyWheel(automatic=false) {
+    const s=stateRef.current,time=Date.now();
+    if(document.hidden||screenRef.current!=='home'||dailyWheelReward(s.wallet,time))return;
+    if(automatic&&!shouldShowDailyWheel(s.stats,s.wallet,time))return;
+    // Mark the actual display, not just a completed spin: dismissing the popup
+    // must also prevent it from appearing again on this date.
+    const next=markDailyWheelSeen(s.stats,time);
+    if(next!==s.stats)storeStats(next);
+    setDrawOpen(true);
+  }
+  function spinDailyWheel() {
+    const s=stateRef.current,time=Date.now();
+    const result=claimDailyWheel(s.wallet,telegramProfile()?.id||s.settings.profileName,time);
+    if(!result.duplicate){storeWallet(result.wallet);storeStats(markDailyWheelSeen(s.stats,time));backUpNow();refreshCouple();}
+    return result.reward;
   }
   function bundle(draft=loadDraft()) { const s=stateRef.current;return {settings:s.settings,level:s.settings.level,progress:s.progress,stats:s.stats,wallet:s.wallet,draft}; }
   async function backUpNow({manual=false}={}) {
@@ -112,7 +130,7 @@ export default function App() {
       if([4,5,6].includes(draft?.version)&&draft.kind==='checkpoint'&&draft.level===config.level&&!loaded.stats.lessons?.[draft.id]&&!draft.done){const resumed=resumeCheckpoint(draft,lexiconForLevel(config.level));setCheckpoint(resumed);saveDraft(resumed);}
       else if(draft?.version===3 && !loaded.stats.lessons?.[draft.id] && !draft.done){const resumed=resumeVocabularySession(draft,loaded.progress,config);setCurrentSession(resumed);saveDraft(resumed);}
       else saveDraft(null);
-      setBackup(loaded.backupOk?'saved':'pending');setReady(true);setDrawOpen(true);saveSettings(config);
+      setBackup(loaded.backupOk?'saved':'pending');setReady(true);saveSettings(config);
     })().catch(()=>{if(active){setNotice('Не удалось загрузить все данные. Обнови страницу: сохранённые уроки не удалены.');setReady(true);}});
     return()=>{active=false;};
   },[]);
@@ -121,6 +139,8 @@ export default function App() {
     if(!ready)return;
     recordVisit();
   },[ready,theme.date]);
+
+  useEffect(()=>{if(ready)openDailyWheel(true);},[ready,screen,theme.date]);
 
   useEffect(()=>{
     if(!ready)return;
@@ -132,7 +152,7 @@ export default function App() {
     if(!ready)return;
     const start=setTimeout(()=>refreshCouple(),600);
     const timer=setInterval(()=>{if(!document.hidden){recordVisit();refreshCouple();if(backup==='pending')backUpNow();}},20000);
-    const wake=event=>{activityRef.current=Date.now();if(!document.hidden){recordVisit();refreshCouple();backUpNow();if(event?.type==='visibilitychange')setDrawOpen(true);}};
+    const wake=event=>{activityRef.current=Date.now();if(!document.hidden){recordVisit();if(event?.type==='visibilitychange')openDailyWheel(true);refreshCouple();backUpNow();}};
     window.addEventListener('online',wake);document.addEventListener('visibilitychange',wake);
     return()=>{clearTimeout(start);clearInterval(timer);window.removeEventListener('online',wake);document.removeEventListener('visibilitychange',wake);};
   },[ready,backup]);
@@ -315,7 +335,7 @@ export default function App() {
     {notice&&<button className="notice" onClick={()=>setNotice('')}>{notice}</button>}
     {screen==='home'&&<>
       {theme.holiday&&<div className="holidayRibbon">{theme.decoration} {theme.label}</div>}
-      <AdventureHub name={settings.profileName} stats={stats} wallet={wallet} paired={couple.paired} syncError={couple.error} weekly={scheduledCheck} hasDraft={Boolean(session&&!session.done||checkpoint&&!checkpoint.done)} onDraw={()=>setDrawOpen(true)} onAdventure={()=>startLesson(5,true)} onSpeed={startSpeed} onCheck={()=>checkpoint&&!checkpoint.done?setScreen('checkpoint'):scheduledCheck&&openCheck(scheduledCheck)}/>
+      <AdventureHub name={settings.profileName} stats={stats} wallet={wallet} paired={couple.paired} syncError={couple.error} weekly={scheduledCheck} hasDraft={Boolean(session&&!session.done||checkpoint&&!checkpoint.done)} onDraw={()=>openDailyWheel()} onAdventure={()=>startLesson(5,true)} onSpeed={startSpeed} onCheck={()=>checkpoint&&!checkpoint.done?setScreen('checkpoint'):scheduledCheck&&openCheck(scheduledCheck)}/>
       <DailyLessonCard settings={settings} stats={stats} wallet={wallet} session={session} checkpoint={checkpoint} scheduledCheck={scheduledCheck?.mode==='weekly'?null:scheduledCheck} onStart={startLesson}/>
       <Mountain level={settings.level} ascent={ascent} course={path} compact/>
       <AttendanceCard stats={stats} wallet={wallet}/>
@@ -332,9 +352,9 @@ export default function App() {
     {screen==='rewards'&&<Gifts wallet={wallet} couple={couple} profileName={settings.profileName} onCreate={createGift} onRemove={id=>{storeWallet(removeGoal(stateRef.current.wallet,id));refreshCouple();}} onRequest={requestGift} onResolve={resolveGift}/>}
     {screen==='settings'&&<ReminderSettings/>}
     {screen==='notifications'&&<section className="notificationList"><p>Здесь автоматически появляются завершённые уроки и заработок партнёра.</p>{couple.notifications.length?couple.notifications.map(entry=><article key={entry.id}><span className="notificationIcon">🐿</span><div><strong>{nameRu(entry.payload.from)} завершил{entry.payload.from==='Anna'?'а':''} {entry.payload.kind==='checkpoint'?entry.payload.quarter?`контрольную ${entry.payload.quarter}`:'итоговую проверку':'урок'} {entry.payload.level}</strong><p>{entry.payload.answers} {ruPlural(entry.payload.answers,'ответ','ответа','ответов')} · {entry.payload.accuracy}% верных · +${entry.payload.reward}</p><small>{new Date(entry.created_at).toLocaleString('ru-RU',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'})}</small></div></article>):<div className="emptyState">{couple.paired?'После следующего урока партнёра здесь появится первая новость.':'Свяжите кабинеты один раз в настройках.'}</div>}{couple.error&&<p className="errorText">{couple.error}</p>}</section>}
-    {screen==='settings'&&<><section className="settingsCard"><label>Твой кабинет</label><div className="segmented two">{['Artur','Anna'].map(name=><button key={name} className={settings.profileName===name?'active':''} onClick={()=>changeSettings({profileName:name})}>{nameRu(name)}</button>)}</div></section><Pairing couple={couple} onConnect={connect} onRefresh={refreshCouple}/><section className="settingsCard"><label>Уровень заданий</label><div className="segmented">{LEVELS.map(level=><button key={level} className={level===settings.level?'active':''} onClick={()=>changeLevel(level)}>{level}</button>)}</div><p>Для каждого уровня — своя программа. Прогресс других уровней сохраняется.</p></section><section className="settingsCard"><label>Новых слов и фраз за 15 минут</label><div className="segmented three">{[['gentle','До 8'],['normal','До 12'],['more','До 16']].map(([value,label])=><button key={value} className={(settings.vocabPace||'normal')===value?'active':''} onClick={()=>changeSettings({vocabPace:value})}>{label}</button>)}</div><p>Настройка для следующего урока: предел, а не обязательная норма. В коротком уроке — до 4. Если справишься раньше, можно добавить ещё. Уже знакомые слова не занимают лимит.</p></section><section className="settingsCard"><label>Продолжительность урока</label><div className="segmented two">{[5,15].map(value=><button key={value} className={settings.minutes===value?'active':''} onClick={()=>changeSettings({minutes:value})}>{value} минут</button>)}</div><label>Цель на день</label><div className="segmented three">{[15,30,45].map(value=><button key={value} className={settings.dailyGoal===value?'active':''} onClick={()=>changeSettings({dailyGoal:value})}>{value} минут</button>)}</div></section><section className="explainCard"><strong>Сохранение прогресса</strong><p>Ответы и начатый урок сохраняются на устройстве. При доступе к интернету создаётся личная резервная копия. В Telegram ключ кабинета также сохраняется в твоём аккаунте.</p><button className="secondary big" onClick={()=>backUpNow({manual:true})} disabled={backup==='saving'}>{backup==='saving'?'Сохраняю…':saveMessage&&backup==='pending'?'Повторить сохранение':'Сохранить сейчас'}</button><p className={`manualSaveStatus ${backup}`} role="status" aria-live="polite">{saveMessage || 'Изменения сохраняются автоматически. Здесь можно вручную обновить и проверить личную копию.'}</p></section><p className="versionLabel">Версия 0.8.0 · {itemCount(settings.level)} слов и фраз на уровне {settings.level}</p></>}
+    {screen==='settings'&&<><section className="settingsCard"><label>Твой кабинет</label><div className="segmented two">{['Artur','Anna'].map(name=><button key={name} className={settings.profileName===name?'active':''} onClick={()=>changeSettings({profileName:name})}>{nameRu(name)}</button>)}</div></section><Pairing couple={couple} onConnect={connect} onRefresh={refreshCouple}/><section className="settingsCard"><label>Уровень заданий</label><div className="segmented">{LEVELS.map(level=><button key={level} className={level===settings.level?'active':''} onClick={()=>changeLevel(level)}>{level}</button>)}</div><p>Для каждого уровня — своя программа. Прогресс других уровней сохраняется.</p></section><section className="settingsCard"><label>Новых слов и фраз за 15 минут</label><div className="segmented three">{[['gentle','До 8'],['normal','До 12'],['more','До 16']].map(([value,label])=><button key={value} className={(settings.vocabPace||'normal')===value?'active':''} onClick={()=>changeSettings({vocabPace:value})}>{label}</button>)}</div><p>Настройка для следующего урока: предел, а не обязательная норма. В коротком уроке — до 4. Если справишься раньше, можно добавить ещё. Уже знакомые слова не занимают лимит.</p></section><section className="settingsCard"><label>Продолжительность урока</label><div className="segmented two">{[5,15].map(value=><button key={value} className={settings.minutes===value?'active':''} onClick={()=>changeSettings({minutes:value})}>{value} минут</button>)}</div><label>Цель на день</label><div className="segmented three">{[15,30,45].map(value=><button key={value} className={settings.dailyGoal===value?'active':''} onClick={()=>changeSettings({dailyGoal:value})}>{value} минут</button>)}</div></section><section className="explainCard"><strong>Сохранение прогресса</strong><p>Ответы и начатый урок сохраняются на устройстве. При доступе к интернету создаётся личная резервная копия. В Telegram ключ кабинета также сохраняется в твоём аккаунте.</p><button className="secondary big" onClick={()=>backUpNow({manual:true})} disabled={backup==='saving'}>{backup==='saving'?'Сохраняю…':saveMessage&&backup==='pending'?'Повторить сохранение':'Сохранить сейчас'}</button><p className={`manualSaveStatus ${backup}`} role="status" aria-live="polite">{saveMessage || 'Изменения сохраняются автоматически. Здесь можно вручную обновить и проверить личную копию.'}</p></section><p className="versionLabel">Версия 0.8.1 · {itemCount(settings.level)} слов и фраз на уровне {settings.level}</p></>}
 
-    {drawOpen&&screen==='home'&&<DailyDraw key={theme.date} name={settings.profileName} stats={stats} wallet={wallet} onClose={()=>setDrawOpen(false)} onStart={()=>startLesson(5,true)}/>}
+    {drawOpen&&screen==='home'&&<DailyDraw key={theme.date} name={settings.profileName} stats={stats} wallet={wallet} onSpin={spinDailyWheel} onClose={()=>setDrawOpen(false)} onStart={()=>startLesson(5,true)}/>}
     <footer className="saveStatus" role="status"><span className={`syncDot ${backup==='saved'?'synced':backup==='saving'?'syncing':'pending'}`}/>{backup==='saved'?'Прогресс сохранён на устройстве и в личной копии':backup==='saving'?'Сохраняю прогресс…':'Сохранено на устройстве · резервная копия ждёт связи'}</footer>
     <nav className="bottomNav" aria-label="Основные разделы">{[['home','Занятия','⌂'],['progress','Восхождение','↗'],['rewards','Подарки','♢'],['settings','Настройки','⚙']].map(([id,label,icon])=><button key={id} className={screen===id?'active':''} onClick={()=>setScreen(id)}><span>{icon}</span>{label}</button>)}</nav>
   </div>;
