@@ -1,5 +1,12 @@
 # English for Two · 0.8.3
 
+## Notifications disabled (2026-11-03)
+
+- Outgoing Telegram activity notifications are disabled at the server delivery boundary, including lessons, checkpoints, pairing and gift events.
+- Bot credentials remain available for Telegram authentication. In-app history, partner sync, rewards, settings and saved progress are preserved.
+- Daily reminder delivery is separately disabled in the original Sites reminder backend. Its existing schedules are retained but ticks send no messages.
+- Historical release notes below describe prior notification behavior.
+
 ## Personal arcade and weekly champion prize (0.8.3)
 
 - Home starts with learning and games, without the date-night promo. The prize collection is a collapsed section at the bottom. The wheel still appears automatically just once per Istanbul day; unclaimed spins can be opened inside the lower collection. Existing prizes, visits and money are retained.
@@ -357,3 +364,4 @@ the already linked member server-side and patches only that person's schedule.
 Settings survive reloads and work every day, including weekends. The UI supports
 timezones and disabling reminders. The existing cron-job.org tick and
 delivery deduplication are preserved; no extra scheduler or paid service is added.
+

@@ -46,7 +46,7 @@ const context=vm.createContext({
   console,TextEncoder,Uint8Array,Request,Response,URLSearchParams,crypto:webcrypto,
   setTimeout,clearTimeout,mockCreateClient:()=>db,
   fetch:async()=>{network++;throw Error('Notification tests must stay offline');},
-  Deno:{env:{get:key=>({SUPABASE_URL:'https://example.invalid',SUPABASE_SERVICE_ROLE_KEY:'isolated-test'})[key]},serve:fn=>{handler=fn;}}
+  Deno:{env:{get:key=>({SUPABASE_URL:'https://example.invalid',SUPABASE_SERVICE_ROLE_KEY:'isolated-test',TELEGRAM_BOT_TOKEN:'isolated-notification-test'})[key]},serve:fn=>{handler=fn;}}
 });
 const source=await readFile(new URL('../supabase/functions/english-for-two-sync/index.ts',import.meta.url),'utf8');
 const compiled=await transform(source,{loader:'ts',format:'esm',target:'es2022'});
@@ -106,7 +106,7 @@ assert.equal(inserts,previous);assert.equal(network,0);
 const syncRequest=profile=>new Request('https://example.invalid/sync',{method:'POST',headers:{'content-type':'application/json','x-pair-id':identity,'x-pair-secret':secret},body:JSON.stringify({action:'sync',payload:{profile}})});
 const syncResponse=await handler(syncRequest({displayName:'Anna',level:'A2',percent:74,balance:39,vocabulary:{version:1,total:426,introduced:320,verified:9,ready:12}}));
 assert.equal(syncResponse.status,200,await syncResponse.clone().text());
-const syncData=await syncResponse.json();assert.equal(syncData.partner.vocabulary.verified,6);assert.equal(syncData.partner.balance,23);
+const syncData=await syncResponse.json();assert.equal(syncData.telegramNotifications,false,'push is disabled even with a configured bot token');assert.equal(syncData.partner.vocabulary.verified,6);assert.equal(syncData.partner.balance,23);
 assert.equal(syncData.partner.dateCollection,null,'old partner profiles remain compatible');
 assert.equal(lastProfile.percent,2);assert.equal(lastProfile.balance,39);assert.equal(lastProfile.routines.vocabulary.verified,9);
 assert.equal((await handler(syncRequest({displayName:'Anna',level:'A2',percent:74,balance:39}))).status,200);
@@ -139,3 +139,4 @@ console.log('✓ actual offline endpoint preserves bounded date counts across st
 console.log('✓ actual offline endpoint sanitises weekly scores, preserves best records across old clients and weaker submissions, with unchanged account authentication');
 console.log('✓ actual offline notification endpoint: $1, $5, $100 and attendance totals match settled wallet amounts; duplicate and unauthorized requests cannot write news');
 console.log('✓ actual offline profile endpoint: versioned mastery counts round-trip, override stale exposure percentages and do not modify wallets or credentials');
+

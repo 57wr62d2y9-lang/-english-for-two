@@ -171,7 +171,7 @@ function mapGift(row: Record<string, unknown>, from = '') {
 async function snapshot(accountId: string) {
   const { data: pair, error: pairError } = await db.from('eft_pairs').select('partner_id').eq('user_id', accountId).maybeSingle();
   if (pairError) throw pairError;
-  if (!pair?.partner_id) return { paired:false, partner:null, incoming:[], outgoing:[], notifications:[], telegramNotifications:Boolean(BOT_TOKEN) };
+  if (!pair?.partner_id) return { paired:false, partner:null, incoming:[], outgoing:[], notifications:[], telegramNotifications:false };
   const partnerId = String(pair.partner_id);
   const [partnerResult, incomingResult, outgoingResult, noticesResult, ownResult] = await Promise.all([
     db.from('eft_users').select('display_name, level, percent, balance, today_minutes, routines, goals, updated_at').eq('account_id', partnerId).maybeSingle(),
@@ -204,7 +204,7 @@ async function snapshot(accountId: string) {
     paired:true,
     ...championship,
     notifications:noticesResult.data || [],
-    telegramNotifications:Boolean(BOT_TOKEN),
+    telegramNotifications:false,
     partner,
     incoming:(incomingResult.data || []).map(row => mapGift(row, String(partner?.displayName || 'Partner'))),
     outgoing:(outgoingResult.data || []).map(row => mapGift(row))
@@ -225,19 +225,10 @@ async function telegramIdFor(accountId: string) {
   return data?.telegram_id ? String(data.telegram_id) : '';
 }
 
-async function notify(accountId: string, text: string) {
-  if (!BOT_TOKEN) return;
-  const chatId = await telegramIdFor(accountId);
-  if (!chatId) return;
-  try {
-    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-      method:'POST', headers:{ 'content-type':'application/json' },
-      body:JSON.stringify({
-        chat_id:chatId, text, parse_mode:'HTML', disable_web_page_preview:true,
-        reply_markup:{ inline_keyboard:[[{ text:'Открыть English for Two', web_app:{ url:APP_URL } }]] }
-      })
-    });
-  } catch (error) { console.error('Telegram notification failed', error); }
+// Notifications are disabled at the delivery boundary for every app event.
+// Keep BOT_TOKEN for Telegram init-data authentication and retain in-app history.
+async function notify(_accountId: string, _text: string) {
+  return;
 }
 
 async function pairFor(accountId: string) {
@@ -407,3 +398,4 @@ Deno.serve(async (request: Request) => {
     return response(request, { ok:false, error:error instanceof RequestError ? error.message : 'Синхронизация временно недоступна.' }, status);
   }
 });
+
