@@ -42,6 +42,7 @@ try {
   assert.equal(css.get('--lesson-height'),'680px');window.visualViewport.height=350;
   await act(async()=>{for(const fn of viewportListeners)fn();});assert.equal(css.get('--lesson-height'),'350px');
   window.visualViewport.height=680;await act(async()=>{for(const fn of viewportListeners)fn();});
+  await act(async()=>button('Прежние уроки и проверки').props.onClick());
   await act(async()=>button('Продолжить урок →').props.onClick());
   await act(async()=>root.root.findByType(Lesson).props.onAnswer('An entirely different sentence.'));
   const stored=JSON.parse(disk.get('eft3:browser:progress:B1'))[item.id];
@@ -54,6 +55,7 @@ try {
   await act(async()=>root.unmount());
   assert.equal(viewportListeners.size,0);
   await act(async()=>{root=create(h(App));});
+  await act(async()=>button('Прежние уроки и проверки').props.onClick());
   await act(async()=>button('Продолжить урок →').props.onClick());
   assert.equal(root.root.findByType(Lesson).props.session.selected,'An entirely different sentence.');
   assert.equal(isSecured(JSON.parse(disk.get('eft3:browser:progress:B1'))[item.id]),true);

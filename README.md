@@ -1,4 +1,14 @@
-# English for Two · 0.8.3
+# English for Two · 0.9.0
+
+## Quiet, finite practice (0.9.0)
+
+- The default home has one five-minute situation and a one-minute alternative. No compulsory morning/evening split, entry wheel, leaderboard, mountain, attendance target or countdown on the primary home. Legacy practice, weekly reward checks, games and prizes remain optional. Previously disabled notifications stay disabled; no backend or money rules are changed.
+- Six original scenario packs (plans, delays, preferences, clarification, disagreement and uncertainty) have level-specific focus expressions using existing A2/B1/B2/C1 vocabulary IDs. A five-minute session has at most two focus expressions, three personal reviews and a short written reply. After the starter expressions have been encountered, keep one anchor and introduce an unseen unit from the full selected-level lexicon, preferring the scenario subject and explicitly labelling separate vocabulary expansion. A one-minute session has one expression. After a week away, start with one expression and at most one review. Topics rotate by personal history.
+- Input, stage, submitted feedback and active practice time persist through the existing local/private draft mechanism. Closing pauses; stopping early ends without a debt. Hidden/idle time is excluded and practice time is capped at the selected budget. There is no requirement to wait out the timer.
+- Typed canonical-expression recall uses the existing spelling/contraction/accepted-variant checker. An unmatched translation is inconclusive and does not destroy previous mastery; the item is prioritized in later short reviews. Eligible delayed reviews can validate mastery using the existing proof requirements, at most one embedded check per week per level. Free replies are explicitly self-assessed against an example and never grant mastery.
+- New micro sessions save separate zero-dollar records; existing lesson/check rewards, money and SRS IDs remain intact. Do not claim micro sessions earn the legacy $1 or a complete CEFR level. Six situation packs are a starter set, not a complete B1–C1 course.
+- Static visual reset: light neutral background, text-focused cards, restrained buttons, no mascot on entry, no animation or transition anywhere. The optional wheel reveals its result immediately without spinning animation.
+- Validation: `node tests/micro-lessons.mjs` and `node tests/micro-ui.mjs` test actual app completion, pause/reload with partially typed input, duplicate answers, private backup restoration, level-specific content and wallet preservation. Real-browser visual QA is unavailable in this execution environment (Chromium cannot create its required process socket); no visual-device certification is claimed.
 
 ## Notifications disabled (2026-11-03)
 

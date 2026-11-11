@@ -26,7 +26,7 @@ try {
   let closed=0;
   await act(async()=>{root=create(h(DailyDraw,{name:'Anna',stats:{byDay:{}},wallet:{earned:{}},onSpin:()=>claimDailyWheel({earned:{}},'Anna',now).reward,onClose:()=>closed++,time:now}));});
   assert.equal(root.root.findAllByProps({role:'dialog'}).length,1);
-  await act(async()=>button('Крутить колесо').props.onClick());assert.equal(button('Выбираем…').props.disabled,true);
+  await act(async()=>button('Крутить колесо').props.onClick());assert.ok(button('Отлично, на главную'));
   await act(async()=>{delays.splice(0).forEach(fn=>fn());});assert.ok(button('Отлично, на главную'));assert.doesNotMatch(visible(root.toJSON()),/12 заданий|Начать маршрут/);
   await act(async()=>root.root.findByProps({'aria-label':'Закрыть колесо'}).props.onClick());assert.equal(closed,1);await unmount();
   let result;
@@ -49,8 +49,8 @@ try {
   disk.set('eft3:browser:progress:B1',JSON.stringify(Object.fromEntries(pool.slice(0,30).map(i=>[i.id,{s:'LEARNING',c:2,rec:1,rcl:1,l:now-86400000,n:now-1}]))));
   disk.set('eft3:browser:wallet',JSON.stringify({earned:{old:{at:now-1000,amount:30}},spent:{},goals:{}}));
   await act(async()=>{root=create(h(App));});
-  assert.match(visible(root.toJSON()),/Контрольная этой недели/);assert.match(visible(root.toJSON()),/Крутить колесо/);
-  await act(async()=>root.root.findByProps({'aria-label':'Закрыть колесо'}).props.onClick());
+  assert.equal(root.root.findAllByProps({role:'dialog'}).length,0);
+  await act(async()=>button('Игры и арена').props.onClick());
   await act(async()=>button('Маршрут дня · 12 заданий →').props.onClick());
   for(let i=0;i<60;i++) {
     const props=root.root.findByType(Lesson).props;
@@ -64,6 +64,7 @@ try {
   const done=root.root.findByType(Lesson).props.session;assert.equal(done.done,true);assert.equal(done.answers,12);assert.equal(done.routineReward,1);
   assert.equal(Object.values(JSON.parse(disk.get('eft3:browser:wallet')).earned).reduce((n,r)=>n+r.amount,0),31);
   await act(async()=>root.root.findByType(Lesson).props.onHome());
+  await act(async()=>button('Игры и арена').props.onClick());
   await act(async()=>root.root.findByProps({className:'weeklyCheckButton '}).props.onClick());
   const check=root.root.findByType(CheckScreen).props.value;assert.equal(check.mode,'weekly');
   for(let i=0;i<check.tasks.length;i++) {
@@ -74,8 +75,10 @@ try {
   }
   assert.equal(root.root.findByType(CheckScreen).props.value.checkReward,5);
   await act(async()=>root.root.findByType(CheckScreen).props.onDone());
+  await act(async()=>button('Игры и арена').props.onClick());
   assert.match(visible(root.toJSON()),/Контрольная недели пройдена/);
   await unmount();await act(async()=>{root=create(h(App));});
+  await act(async()=>button('Игры и арена').props.onClick());
   assert.match(visible(root.toJSON()),/Контрольная недели пройдена/);assert.equal(Object.values(JSON.parse(disk.get('eft3:browser:wallet')).earned).reduce((n,r)=>n+r.amount,0),36);
   assert.equal(requests,0);console.log('✓ actual app completes 12-answer route, preserves old $30, pays $1 then weekly $5 once, and restores completed week after reload');
 } finally {await unmount();Date.now=oldNow;globalThis.fetch=oldFetch;globalThis.setInterval=oldInterval;globalThis.setTimeout=oldTimeout;await server.close();}

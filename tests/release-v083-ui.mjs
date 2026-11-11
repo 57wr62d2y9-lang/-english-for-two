@@ -23,11 +23,11 @@ try {
  disk.set('eft3:browser:settings',JSON.stringify({at:now,data:{profileName:'Artur',level:'B1',minutes:15}}));
  disk.set('eft3:browser:wallet',JSON.stringify({earned:{old:{amount:30,at:1}},spent:{},goals:{}}));
  await act(async()=>{root=create(h(App));});
- await act(async()=>root.root.findByProps({'aria-label':'Закрыть колесо'}).props.onClick());
- const hub=root.root.findByType(AdventureHub);assert.equal(hub.findAllByType(WheelCollection).length,0);assert.doesNotMatch(text(hub),/Собери все 5|свидани|Букет/);
+ assert.equal(root.root.findAllByProps({role:'dialog'}).length,0);
  assert.equal(root.root.findByProps({className:'homeCollection'}).props.open,undefined);
- const app=root.root.findByProps({className:'app v5App'}),host=app.findAll(n=>typeof n.type==='string');
- assert.ok(host.findIndex(n=>n.props.className==='homeCollection')>host.findIndex(n=>n.props.className==='quickStats two'));
+ await act(async()=>button('Игры и арена').props.onClick());
+ const hub=root.root.findByType(AdventureHub);assert.equal(hub.findAllByType(WheelCollection).length,0);assert.doesNotMatch(text(hub),/Собери все 5|свидани|Букет/);
+
  assert.match(text(hub),/\+\$5 победителю/);
  await act(async()=>hub.props.onSpeed('arena'));
  const initial=root.root.findByType(SpeedRound).props.initial,first=initial.questions[0],second=initial.questions[1];
@@ -48,6 +48,7 @@ try {
  assert.ok(!root.root.findByType(SpeedRound).props.initial.questions.some(q=>q.item.id===first.item.id));
  await act(async()=>button('Не сейчас').props.onClick());await unmount();
  await act(async()=>{root=create(h(App));});assert.equal(root.root.findAllByProps({role:'dialog'}).length,0);
+ await act(async()=>button('Игры и арена').props.onClick());
  await act(async()=>root.root.findByType(AdventureHub).props.onSpeed('review'));
  assert.ok(!root.root.findByType(SpeedRound).props.initial.questions.some(q=>q.item.id===first.item.id));
  assert.equal(Object.values(JSON.parse(disk.get('eft3:browser:wallet')).earned).reduce((sum,r)=>sum+r.amount,0),30);

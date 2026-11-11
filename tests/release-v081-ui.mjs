@@ -27,41 +27,20 @@ try {
   const mount=async()=>act(async()=>{root=create(h(App));});
   disk.set('eft3:browser:settings',JSON.stringify({at:now,data:{level:'B1',profileName:'Artur',minutes:15,updatedAt:now}}));
   disk.set('eft3:browser:wallet',JSON.stringify({earned:{old:{at:1,amount:30}},spent:{},goals:{}}));
-  await mount();assert.equal(dialogs(),1);
-  assert.equal(JSON.parse(disk.get('eft3:browser:stats')).byDay[dayKey(now)].wheelSeenAt,now);
-  await close();
+  await mount();assert.equal(dialogs(),0);
   for(let i=0;i<3;i++){await wake();assert.equal(dialogs(),0);}
-  await act(async()=>root.root.findByProps({className:'bottomNav'}).findAllByType('button')[1].props.onClick());
-  await act(async()=>root.root.findByProps({className:'bottomNav'}).findAllByType('button')[0].props.onClick());
-  assert.equal(dialogs(),0);
   await unmount();await mount();assert.equal(dialogs(),0);
-  console.log('✓ actual app shows once; dismiss, three foreground returns, tab changes and full reload do not reopen it');
-
-  await act(async()=>root.root.findByProps({'aria-label':'Открыть колесо дня'}).props.onClick());
-  assert.equal(dialogs(),1);
-  const spin=button('Крутить колесо').props.onClick;
-  await act(async()=>{spin();spin();});
-  assert.equal(button('Выбираем…').props.disabled,true);
-  const first=savedWallet(),reward=first.earned[wheelRewardId(now)];assert.ok(reward);
-  assert.equal(balanceOf(first),30+reward.amount);
-  assert.equal(Object.keys(first.earned).length,2);
-  // Close before the animation timer fires, then reload.
-  await close();await unmount();await mount();
-  assert.equal(dialogs(),0);assert.equal(root.root.findAllByProps({'aria-label':'Открыть колесо дня'}).length,0);
-  assert.match(visible(root.toJSON()),/Приз дня:/);
-  await wake();assert.equal(dialogs(),0);assert.deepEqual(savedWallet().earned,first.earned);
-  console.log('✓ spin credits once before animation, blocks double taps, survives closing mid-spin and disables further attempts');
-
-  now=Date.parse('2026-10-13T21:00:00Z');await wake();assert.equal(dialogs(),1);
-  assert.ok(button('Крутить колесо'));assert.equal(balanceOf(savedWallet()),30+reward.amount);
-  await close();await wake();assert.equal(dialogs(),0);
-  await act(async()=>root.root.findByProps({className:'bottomNav'}).findAllByType('button')[1].props.onClick());
-  now+=86400000;await wake();assert.equal(dialogs(),0);
   assert.equal(JSON.parse(disk.get('eft3:browser:stats')).byDay[dayKey(now)].wheelSeenAt,undefined);
-  await act(async()=>root.root.findByProps({className:'bottomNav'}).findAllByType('button')[0].props.onClick());
-  assert.equal(dialogs(),1);await close();
-  await unmount();now+=86400000;document.hidden=true;await mount();assert.equal(dialogs(),0);
-  await wake();assert.equal(dialogs(),1);
-  assert.equal(requests,0);
-  console.log('✓ new Istanbul day offers one new spin; other tabs and hidden loads wait for a visible home screen');
+  await act(async()=>button('Открыть призовое колесо').props.onClick());assert.equal(dialogs(),1);
+  const spin=button('Крутить колесо').props.onClick;await act(async()=>{spin();spin();});
+  assert.ok(button('Отлично, на главную'));
+  const first=savedWallet(),reward=first.earned[wheelRewardId(now)];assert.ok(reward);
+  assert.equal(balanceOf(first),30+reward.amount);assert.equal(Object.keys(first.earned).length,2);
+  await close();await unmount();await mount();assert.equal(dialogs(),0);
+  assert.equal(button('Сегодняшний приз получен').props.disabled,true);
+  await wake();assert.deepEqual(savedWallet().earned,first.earned);
+  now=Date.parse('2026-10-13T21:00:00Z');await wake();assert.equal(dialogs(),0);
+  await act(async()=>button('Открыть призовое колесо').props.onClick());assert.equal(dialogs(),1);await close();
+  await wake();assert.equal(dialogs(),0);assert.equal(requests,0);
+  console.log('✓ quiet app: no automatic wheel on entry, wake, reload or next day; optional manual spin remains instant and once-per-day, preserves old money');
 } finally {await unmount();Date.now=originalNow;globalThis.fetch=originalFetch;globalThis.setTimeout=originalTimeout;await server.close();}

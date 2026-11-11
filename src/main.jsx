@@ -2,6 +2,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './AppV5.jsx';
 import './styles.css';
+import './quiet-redesign.css';
 
 const tg = window.Telegram?.WebApp;
 if (tg) {

@@ -31,7 +31,7 @@ export function DailyDraw({name,stats,wallet,onSpin,onClose,time}) {
     // lose a prize or grant another chance.
     const next=onSpin?.();
     if(!next){spinLock.current=false;return;}
-    setReward(next);setStage('spinning');
+    setReward(next);setStage('result');
   }
   return <div className="drawBackdrop"><section ref={dialogRef} className="dailyDraw" role="dialog" aria-modal="true" aria-labelledby="draw-title">
     <button className="drawClose iconButton" aria-label="Закрыть колесо" onClick={onClose}>×</button>
