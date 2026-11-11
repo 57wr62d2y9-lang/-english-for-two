@@ -1,11 +1,12 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {microScene,examplesFor,guideFor} from './micro-lessons.js';
+import {microScene,nextMicroScene,examplesFor,guideFor} from './micro-lessons.js';
 export function QuietHome({level,stats,draft,onStart,onResume,onLegacy,onGames,children}) {
  const completed=Object.values(stats.lessons||{}).filter(r=>r.kind==='micro'&&r.completed&&r.level===level);
- return <><section className="quietHero"><p className="quietLabel">АНГЛИЙСКИЙ В ТВОЕМ ТЕМПЕ · {level}</p><h1>Немного сегодня.<br/>Пригодится завтра.</h1><p>Одна ситуация из жизни, пара выражений и короткое повторение. Без обязательного утра и вечера.</p>
+ const scene=draft&&!draft.done?microScene(draft):nextMicroScene(level,stats);
+ return <><section className="quietHero"><p className="quietLabel">{draft&&!draft.done?'ТВОЕ ЗАНЯТИЕ':'СИТУАЦИЯ НА СЕГОДНЯ'}</p><h1>{scene.title}</h1><p className="quietLead">Короткая переписка, полезные выражения и немного практики.</p><div className="quietMeta"><span>{draft&&!draft.done&&draft.minutes===1?"Около 1 минуты":"Около 5 минут"}</span><span>Можно без звука</span></div>
  {draft&&!draft.done?<><button className="primary big" onClick={onResume}>Продолжить с моего места</button><small>Ответы уже сохранены. Начинать заново не нужно.</small></>:<button className="primary big" onClick={()=>onStart(5)}>Мои 5 минут</button>}
- <button className="quietButton big" onClick={()=>draft&&!draft.done?onResume():onStart(1)}>{draft&&!draft.done?'Вернуться к занятию без таймера':'Сегодня мало сил — 1 минута'}</button><p className="quietFootnote">Можно закончить раньше. Пропуски не создают долгов.</p></section>
- <section className="quietSummary"><span>Уже разобрано ситуаций</span><strong>{completed.length}</strong><p>{completed.length?`Последняя: ${microScene({sceneId:completed.sort((a,b)=>b.at-a.at)[0].situation}).goal.toLowerCase()}.`:'Начнем с небольшой переписки. Говорить вслух не понадобится.'}</p></section>
+ <button className="quietButton big" onClick={()=>draft&&!draft.done?onResume():onStart(1)}>{draft&&!draft.done?'Вернуться к занятию без таймера':'Сегодня мало сил — 1 минута'}</button><p className="quietFootnote">Можно остановиться в любой момент.</p></section>
+ <section className="quietSummary"><div><span>Твоя практика</span>{completed.length>0&&<strong>{completed.length} коротких занятий</strong>}</div><p>{completed.length?`Последняя тема: ${microScene({sceneId:completed.sort((a,b)=>b.at-a.at)[0].situation}).title.toLowerCase()}.`:'Одна небольшая ситуация за раз. Без обязательного утра и вечера.'}</p></section>
  <details className="quietExtras"><summary>Еще возможности</summary><p>Дополнительно, когда есть желание.</p><button className="secondary big" onClick={onLegacy}>Прежние уроки и проверки</button><button className="secondary big" onClick={onGames}>Игры и арена</button><p className="helper">Накопления сохранены. Новые короткие ситуации сами по себе не начисляют деньги; прежние правила наград доступны в дополнительных занятиях.</p>{children}</details></>;
 }
 export default function MicroLesson({session:s,onChange,onAnswer,onLearn,onNext,onFinish,onPause}) {

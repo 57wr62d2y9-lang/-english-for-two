@@ -14,12 +14,14 @@ export const situations=[
  {id:'opinion',title:'Не согласиться спокойно',goal:'Признать чужую мысль и высказать свою',dialogue:['Alex: We should book the cheapest room.','Sam: I see your point, but it’s quite far from the centre.','Alex: Let’s check a few more options.'],ru:'Сэм понимает аргумент о цене, но напоминает о расстоянии до центра.',reply:'Друг выбирает самый дешевый отель далеко от центра. Объясни свое мнение в двух предложениях.',ids:{A2:['p007','p021'],B1:['p027','p028'],B2:['p061','p062'],C1:['p097','p098']}},
  {id:'uncertain',title:'Когда пока нет ответа',goal:'Выразить неуверенность без резкого отказа',dialogue:['Alex: Are you coming this weekend?','Sam: I’m not sure yet. I need to check my plans.','Alex: No problem. Let me know tomorrow.'],ru:'Сэм пока не уверен и обещает уточнить планы.',reply:'Тебя зовут в поездку, но ты еще не знаешь, свободен ли. Ответь и скажи, когда уточнишь.',ids:{A2:['p007','p011'],B1:['p036','p037'],B2:['p056','p076'],C1:['p091','p095']}}
 ];
+export function nextMicroScene(level,stats) {
+ const recent=Object.values(stats.lessons||{}).filter(r=>r.kind==='micro'&&r.level===level).sort((a,b)=>b.at-a.at);
+ return [...situations].sort((a,b)=>(recent.find(r=>r.situation===a.id)?.at||0)-(recent.find(r=>r.situation===b.id)?.at||0))[0];
+}
 export function makeMicro(level,progress,stats,minutes=5,time=Date.now()) {
  const pool=lexiconForLevel(level),recent=Object.values(stats.lessons||{}).filter(r=>r.kind==='micro'&&r.level===level).sort((a,b)=>b.at-a.at);
  const last=recent[0],returning=Boolean(Object.values(stats.byDay||{}).some(d=>d.answers>0)&&!Object.entries(stats.byDay||{}).some(([day,d])=>day>=dayKey(time-7*86400000)&&d.answers>0));
- const scene=[...situations].sort((a,b)=>{
-   const lastAt=s=>recent.find(r=>r.situation===s.id)?.at||0;return lastAt(a)-lastAt(b);
- })[0];
+ const scene=nextMicroScene(level,stats);
  let focus=scene.ids[level].map(id=>pool.find(i=>i.id===id)).filter(Boolean).slice(0,minutes===1||returning?1:2);
  // Once the scene's starter expressions have been encountered, keep one
  // anchor and introduce one unseen unit from the full personal-level lexicon.

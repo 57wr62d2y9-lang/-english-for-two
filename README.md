@@ -1,4 +1,12 @@
-# English for Two · 0.9.0
+# English for Two · 0.9.1
+
+## Mobile layout repair (0.9.1)
+
+- Replaced the leftover three-column mascot header with a shared two-part AppHeader. Long headings can no longer force the greeting into a 48px column or create a tall empty area. Seasonal decorations are suppressed.
+- Font-family inheritance no longer resets control sizes. The bottom navigation uses consistent SVG icons, single-line labels, explicit type sizes and touch targets; the settings emoji is gone.
+- Home presents the actual next situation in a compact card, rather than a large marketing headline and paragraph. Header, primary action and one-minute option stay visible on narrow screens. The next-situation selector is shared with the lesson engine.
+- Added static, account-free `/qa/` fixtures rendered from the production components and styles. They support 320/360/393/430px screen widths, simulated bottom safe area, home/resume/story/recall/feedback views, and contain no API or storage logic. Every production build regenerates them; `npm run preview:layout` also refreshes them independently.
+- Browser review at 393px confirmed the header at 46px high and the primary action at 48px high, above the fixed navigation. Review at 320px exposed the old global 320px body floor when desktop scrollbars consume viewport space; this release removes that floor. No learning, payment, account or notification rules change.
 
 ## Quiet, finite practice (0.9.0)
 

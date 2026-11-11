@@ -800,7 +800,7 @@ footer { display: flex; align-items: center; justify-content: center; gap: 7px; 
 :root{--page-bg:#f5f6f8!important;--accent:#293f54!important;--pink:#293f54!important;--pink-dark:#293f54!important;--pink-soft:#edf1f5!important;}
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%;font-size:16px;}
 html,body{background:#f5f6f8!important;color:#23303c!important;}
-body{font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;line-height:1.45;}
+body{min-width:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;line-height:1.45;}
 .app,.v5App,.quietLesson,.splash{background:#f5f6f8!important;color:#23303c!important;font-family:inherit;}
 .app.v5App{width:100%;max-width:560px;min-height:var(--lesson-height,100dvh);padding:14px 18px calc(90px + var(--app-safe-bottom,env(safe-area-inset-bottom,0px)));}
 .mascot,.brandmark,.holidayRibbon,.brandbar::after{display:none!important;}
