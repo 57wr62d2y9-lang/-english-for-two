@@ -1,4 +1,12 @@
-# English for Two · 0.9.1
+# English for Two · 0.9.2
+
+## Compact secondary screens (0.9.2)
+
+- Vocabulary separates encountered cards from independently verified retention, with compact counts and an expandable explanation. The existing mastery rules and progress are preserved.
+- Short practice history shows seconds for sub-minute sessions and neutral saved/partially saved labels. Zero-dollar records no longer display a cash badge; actual rewards remain visible.
+- Settings retain profile, level, backup and optional legacy-lesson preferences in a compact layout. Pair connection and advanced preferences are collapsed. The page reports the already disabled external notifications and does not fetch or offer to enable reminder schedules.
+- Gifts keep the wallet and goals first, with the date-prize collection collapsed at the bottom. Goal input columns can shrink on narrow screens, and actions retain touch targets.
+- Static account-free fixtures now cover vocabulary, settings and gifts in addition to home and lesson views. The secondary-screen regression test covers level changes, local saving, wallet preservation, honest progress and zero reminder requests.
 
 ## Mobile layout repair (0.9.1)
 

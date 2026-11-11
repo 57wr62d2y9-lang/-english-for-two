@@ -1,7 +1,7 @@
 {
   "name": "english-for-two",
   "private": true,
-  "version": "0.9.1",
+  "version": "0.9.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -12,7 +12,8 @@
     "test:wheel": "node tests/release-v081.mjs && node tests/release-v081-ui.mjs && node tests/release-v082.mjs && node tests/release-v082-ui.mjs",
     "test:arena": "node tests/release-v083.mjs && node tests/release-v083-storage.mjs && node tests/weekly-champion.mjs && node tests/release-v083-ui.mjs",
     "test:micro": "node tests/micro-lessons.mjs && node tests/micro-ui.mjs",
-    "validate": "npm test && npm run test:wheel && npm run test:arena && npm run test:micro && npm run build"
+    "test:secondary": "node tests/secondary-ui.mjs",
+    "validate": "npm test && npm run test:wheel && npm run test:arena && npm run test:micro && npm run test:secondary && npm run build"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^5.0.2",

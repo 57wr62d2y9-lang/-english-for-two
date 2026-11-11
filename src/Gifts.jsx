@@ -10,7 +10,6 @@ export default function Gifts({wallet,couple,profileName,onCreate,onRemove,onReq
   function requests(onlyPending){return <>{incoming.filter(([,e])=>onlyPending?e.status==='pending':e.status!=='pending').map(([id,e])=><div key={id}><span><strong>{nameRu(e.from)} · {e.title}</strong><small>${e.cost} · {e.status==='pending'?'Ждёт решения':e.status==='approved'?'Согласовано':'Отклонено'}</small></span>{e.status==='pending'&&<div className="decisionButtons"><button disabled={couple.busy} onClick={()=>onResolve(id,'approved')}>Согласовать</button><button disabled={couple.busy} onClick={()=>onResolve(id,'rejected')}>Отклонить</button></div>}</div>)}
     {spent.filter(([,e])=>onlyPending?e.status==='pending':e.status!=='pending').map(([id,e])=><div key={id}><span><strong>{e.title} · ${e.cost}</strong><small>{e.status==='approved'?'Партнёр согласовал':e.status==='rejected'?'Отклонено · сумма возвращена':'Ждёт решения партнёра'}</small></span></div>)}</>;}
   return <><section className="walletCard"><span className="eyebrow">ТВОЯ КОПИЛКА</span><h1>${balance}</h1><p>Накопления на подарки за английский.</p></section>
-    <DateCollection wallet={wallet} name={profileName} paired={couple.paired}/>
     <div className="segmented two giftTabs"><button className={tab==='mine'?'active':''} onClick={()=>setTab('mine')}>Мои подарки</button><button className={tab==='partner'?'active':''} onClick={()=>setTab('partner')}>{profileName==='Anna'?'Артур':'Аня'}</button></div>
     <div className="giftList">{(tab==='mine'?mine:partner).map(goal=>{const funds=tab==='mine'?balance:wallet.partner?.balance||0;return <section className="giftCard" key={goal.id}>
       <div className="giftHeading"><div><strong>{goal.title}</strong><p>${Math.min(funds,goal.cost)} из ${goal.cost}</p></div>{tab==='mine'&&<button type="button" className="deleteGoal" aria-label={`Удалить подарок: ${goal.title}`} onClick={()=>setDeleting(goal.id)}>×</button>}</div>
@@ -21,6 +20,7 @@ export default function Gifts({wallet,couple,profileName,onCreate,onRemove,onReq
     {tab==='partner'&&!partner.length&&<p className="emptyState">{couple.paired?'Партнёр пока не добавил подарки.':'Свяжите кабинеты в настройках.'}</p>}
     {(incoming.some(([,e])=>e.status==='pending')||spent.some(([,e])=>e.status==='pending'))&&<section className="history"><h2>Ожидают решения</h2>{requests(true)}</section>}
     {(incoming.some(([,e])=>e.status!=='pending')||spent.some(([,e])=>e.status!=='pending'))&&<details className="history giftArchive"><summary>История подарков</summary>{requests(false)}</details>}
+    <details className="giftCollection"><summary>Коллекция призов для свидания</summary><DateCollection wallet={wallet} name={profileName} paired={couple.paired}/></details>
     <p className="helper">Удаление цели сохраняет накопления. Доллары — ваша договорённость о подарках.</p>
   </>;
 }
