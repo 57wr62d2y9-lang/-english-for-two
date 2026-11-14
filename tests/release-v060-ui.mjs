@@ -50,7 +50,7 @@ try {
     await act(async()=>root.root.findByType(CheckScreen).props.onNext());
   }
   current=root.root.findByType(CheckScreen).props.value;assert.equal(current.done,true);assert.equal(current.awarded,5);
-  assert.match(JSON.stringify(root.toJSON()),/90%/);
+  assert.equal(root.root.findByProps({className:'resultSummary'}).findAllByType('strong')[0].children.join(''),'90%');
   assert.match(JSON.stringify(root.toJSON()),/incorrect example/);
   await act(async()=>button('На главную').props.onClick());
   assert.equal(weeklyAction().props.disabled,true);
