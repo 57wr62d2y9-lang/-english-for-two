@@ -31,7 +31,7 @@ export function completedStudyDays(stats,time=Date.now()) {
   for(const record of Object.values(stats?.lessons || {})) {
     // Old $1 payments could represent unfinished practice. Do not invent
     // attendance from those imports. New payments explicitly prove completion.
-    if(record.completed!==true || (record.imported && record.completionVerified!==true))continue;
+    if(record.kind==='review' || record.completed!==true || (record.imported && record.completionVerified!==true))continue;
     const legacy=/^routine:(\d{4}-\d{2}-\d{2}):(morning|evening)$/.exec(record.rewardId || '');
     const at=Number(record.at);
     const day=record.studyDay || legacy?.[1] || (Number.isFinite(at) && at>0 ? dayKey(at) : null);
@@ -80,22 +80,27 @@ export function awardAttendanceBonus(wallet,stats,time=Date.now()) {
 // One pure settlement for the finish button, reload safety and regression tests.
 export function finishStudySession(wallet,stats,snapshot,time=Date.now()) {
   if(!snapshot || !snapshot.id || snapshot.done || stats.lessons?.[snapshot.id])return {wallet,stats,session:snapshot,duplicate:true};
-  const spentSeconds=Math.max(0,Math.round((snapshot.plannedMs-snapshot.remainingMs)/1000));
+  const spentSeconds=Math.max(0,Math.round((snapshot.activeMs ?? snapshot.plannedMs-snapshot.remainingMs)/1000));
   const studiedAt=lessonStudyTime(snapshot,time),rewardId=routineRewardId(studiedAt);
-  const prior=wallet.earned?.[rewardId]?[]:Object.values(stats.lessons || {}).filter(record=>!record.completed&&!record.imported&&!record.contributedTo &&
+  const review=snapshot.mode==='review';
+  const fullLesson=snapshot.mode==='lesson' && snapshot.plannedMs>=900000;
+  const prior=review||fullLesson||wallet.earned?.[rewardId]?[]:Object.values(stats.lessons || {}).filter(record=>record.kind!=='review'&&record.mode!=='lesson'&&!record.completed&&!record.imported&&!record.contributedTo &&
     (record.studyDay||dayKey(record.at))===dayKey(studiedAt) && (record.slot||studySlot(record.at))===studySlot(studiedAt));
   const evaluation={...snapshot,spentSeconds:spentSeconds+prior.reduce((sum,r)=>sum+(Number(r.seconds)||0),0),
     scoredAnswers:Number(snapshot.scoredAnswers ?? snapshot.answers ?? 0)+prior.reduce((sum,r)=>sum+(Number(r.answers)||0),0)};
-  const routine=awardRoutine(wallet,evaluation,studiedAt);
-  const session={...snapshot,done:true,spentSeconds,routineReward:routine.awarded,rewardReasons:routine.evaluation.reasons,
-    rewardAlready:Boolean(wallet.earned?.[rewardId]) && !routine.awarded && routine.evaluation.amount>0};
+  const routine=review?null:awardRoutine(wallet,evaluation,studiedAt);
+  const completed=review ? snapshot.exhausted===true : Boolean(routine.evaluation.amount);
+  const session={...snapshot,done:true,completed,spentSeconds,routineReward:routine?.awarded || 0,rewardReasons:routine?.evaluation.reasons,
+    rewardAlready:Boolean(wallet.earned?.[rewardId]) && !routine?.awarded && completed && !review};
   const record=lessonRecord(session,snapshot.level,time);
-  if(routine.evaluation.amount>0){record.completed=true;record.climb=Math.min(1,snapshot.plannedMs/900000);}
-  if(routine.awarded)record.rewardId=rewardId;
-  let nextWallet=routine.wallet;
-  if(routine.awarded)nextWallet={...nextWallet,earned:{...nextWallet.earned,[rewardId]:{...nextWallet.earned[rewardId],level:snapshot.level,sessionId:snapshot.id}}};
+  if (snapshot.mode) record.mode=snapshot.mode;
+  if (review) {record.kind='review';record.completed=completed;record.climb=0;}
+  else if(completed){record.completed=true;record.climb=Math.min(1,snapshot.plannedMs/900000);}
+  if(routine?.awarded)record.rewardId=rewardId;
+  let nextWallet=routine?.wallet || wallet;
+  if(routine?.awarded)nextWallet={...nextWallet,earned:{...nextWallet.earned,[rewardId]:{...nextWallet.earned[rewardId],level:snapshot.level,sessionId:snapshot.id}}};
   const key=record.studyDay,day=stats.byDay?.[key] || {};
-  const contributions=routine.awarded?Object.fromEntries(prior.map(r=>[r.id,{...r,contributedTo:snapshot.id,updatedAt:time}])):{};
+  const contributions=routine?.awarded?Object.fromEntries(prior.map(r=>[r.id,{...r,contributedTo:snapshot.id,updatedAt:time}])):{};
   const nextStats={...stats,lessons:{...stats.lessons,...contributions,[snapshot.id]:record},byDay:{...stats.byDay,[key]:{...day,visitedAt:day.visitedAt||time,seconds:(day.seconds||0)+spentSeconds,sessions:(day.sessions||0)+1,at:time}}};
   const bonus=awardAttendanceBonus(nextWallet,nextStats,time);
   if(bonus.awarded)record.bonusReward=bonus.awarded;

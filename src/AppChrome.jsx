@@ -1,12 +1,16 @@
 import React from 'react';
 
-function Icon({name}) {
+export function Icon({name}) {
  const paths={
   home:<><path d="m3 10 9-7 9 7"/><path d="M5 9v12h14V9M9 21v-8h6v8"/></>,
   progress:<><path d="M5 5h14v16H5zM9 3v4M15 3v4M9 11h6M9 15h6"/></>,
   rewards:<><path d="M3 8h18v4H3zM5 12v9h14v-9M12 8v13"/><path d="M12 8H8a3 3 0 1 1 3-3zM12 8h4a3 3 0 1 0-3-3z"/></>,
   settings:<><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2" fill="currentColor"/><circle cx="15" cy="12" r="2" fill="currentColor"/><circle cx="9" cy="18" r="2" fill="currentColor"/></>,
-  bell:<><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></>
+  bell:<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>,
+  book:<path d="M12 6C9 4 5 4 2 5v14c3-1 7-1 10 1 3-2 7-2 10-1V5c-3-1-7-1-10 1v14"/>,
+  repeat:<path d="M4 9h12a3 3 0 0 1 3 3M7 6 4 9l3 3m13 3H8a3 3 0 0 1-3-3m12 6 3-3-3-3"/>,
+  check:<path d="M9 4H5v17h14V4h-4M9 3h6v4H9zm-1 11 3 3 5-6"/>,
+  arrow:<path d="M4 12h15m-5-5 5 5-5 5"/>
  };
  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
 }

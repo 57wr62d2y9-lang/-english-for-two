@@ -13,6 +13,13 @@ export const studySlot = (time = Date.now()) => {
   const hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Istanbul', hour: '2-digit', hour12: false }).format(new Date(time)));
   return hour >= 4 && hour < 14 ? 'morning' : 'evening';
 };
+export function studyDuration(seconds, empty = 'Короткая практика') {
+  const total = Math.max(0, Math.round(Number(seconds) || 0));
+  if (!total) return empty;
+  const minutes = Math.floor(total / 60), remainder = total % 60;
+  if (!minutes) return `${total} сек`;
+  return remainder ? `${minutes} мин ${remainder} сек` : `${minutes} мин`;
+}
 export function shuffle(items, random = Math.random) {
   const out = [...items];
   for (let i = out.length - 1; i > 0; i--) { const j = Math.floor(random() * (i + 1)); [out[i], out[j]] = [out[j], out[i]]; }
@@ -152,7 +159,7 @@ export function chooseTask(items, progress, session, time = Date.now()) {
   const newPool=Number(session.newCount||0)%3===1&&conversation.length?conversation:base.length?base:conversation;
   const priority=newPool[0]?.pack==='2026-10';
   const freshChoice=newPool.find(item=>(item.pack==='2026-10')===priority && item.kind===(Number(session.newCount || 0)%2?'phrase':'word')) || newPool[0];
-  const canIntroduce = fresh.length && Number(session.newCount || 0) < newItemLimit(session)+Number(session.extraNew || 0);
+  const canIntroduce = session.mode !== 'review' && fresh.length && Number(session.newCount || 0) < newItemLimit(session)+Number(session.extraNew || 0);
   // Both morning and evening reserve one in three tasks for new learning.
   if (canIntroduce && session.step % 3 === 0) return {item:freshChoice,type:'intro',reason:'new'};
   const recovery = (session.recoveryQueue || []).find(entry => entry.dueStep <= session.step && !seen.slice(-5).includes(entry.id) && entry.attempts <= 2);
@@ -237,18 +244,22 @@ export function sessionCompletion(session = {}) {
   const answers = Math.max(0, Number(session.scoredAnswers ?? session.answers ?? 0));
   const minAnswers = plannedSeconds <= 330 ? 3 : 5;
   const spent=Number(session.spentSeconds || 0);
+  const fullLesson=session.mode==='lesson' && plannedSeconds>=900;
+  const requiredSeconds=fullLesson ? plannedSeconds : plannedSeconds*.8;
   const completed=Number.isFinite(plannedSeconds) && Number.isFinite(spent) && Number.isFinite(answers) &&
-    answers>=minAnswers && (spent>=plannedSeconds*.8 || session.exhausted===true);
-  return {completed,plannedSeconds,minAnswers};
+    answers>=minAnswers && (spent>=requiredSeconds || (!fullLesson&&session.exhausted===true));
+  return {completed,plannedSeconds,minAnswers,requiredSeconds};
 }
 export function evaluateSessionReward(session = {}) {
-  const {completed,plannedSeconds,minAnswers}=sessionCompletion(session);
+  const {completed,plannedSeconds,minAnswers,requiredSeconds}=sessionCompletion(session);
   const answers = Math.max(0, Number(session.scoredAnswers ?? session.answers ?? 0));
   const correct = Math.max(0, Number(session.scoredCorrect ?? session.correct ?? 0));
   const accuracy = answers ? correct / answers : 0;
   const counts = session.taskCounts || {};
   const diversity = Object.values(counts).filter(value => Number(value) > 0).length;
-  if (!completed) return { amount:0, accuracy, diversity, reasons:[`Практика сохранена. Продолжи до конца подборки или набери ${Math.ceil(plannedSeconds*.8/60)} минут и ${minAnswers} ответов. Короткие попытки в одной части дня складываются; ошибки разрешены.`] };
+  if (!completed) return {amount:0,accuracy,diversity,reasons:[requiredSeconds===plannedSeconds
+    ? `Для зачёта урока нужно ${plannedSeconds/60} минут практики и минимум ${minAnswers} ответов.`
+    : `Практика сохранена. Продолжи до конца подборки или набери ${Math.ceil(requiredSeconds/60)} минут и ${minAnswers} ответов. Короткие попытки в одной части дня складываются; ошибки разрешены.`]};
   return { amount:1, accuracy, diversity, reasons:['$1 за завершённый урок. Ошибки, подсказки и скорость ответов не уменьшают награду.'] };
 }
 export function awardRoutine(wallet, session, time = Date.now()) {

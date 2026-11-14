@@ -8,7 +8,7 @@ const tg = window.Telegram?.WebApp;
 if (tg) {
   tg.ready();
   tg.expand();
-  try { tg.setHeaderColor('#f7f5f8'); } catch {}
+  try { tg.setHeaderColor('#f7f3ff'); } catch {}
 }
 
 createRoot(document.getElementById('root')).render(
