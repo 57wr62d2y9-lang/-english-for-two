@@ -260,6 +260,41 @@ export function saveStats(stats) {
 
 export function loadDraft() { return localRead(prefix()+'activeLesson'); }
 export function saveDraft(session) { const record={at:Date.now(),data:session};localWrite(prefix()+'activeLesson',record);return record; }
+
+function studyDraftMode(draft) {
+  if (draft.kind === 'micro') return 'micro';
+  if (draft.kind === 'checkpoint') return draft.mode === 'weekly' ? 'weekly' : 'checkpoint';
+  if (draft.adventure) return 'adventure';
+  return draft.mode === 'review' ? 'review' : 'lesson';
+}
+
+export function loadStudyDrafts(restored, completed = {}) {
+  const drafts = {...getLocalMeta('studyDrafts')};
+  const previous = getLocalMeta('previousLessonDraft');
+  for (const record of [{at:previous?.startedAt || 1,data:previous}, loadDraft(), restored]) {
+    const draft = record?.data;
+    if (!draft?.id || !draft.level || draft.done || completed[draft.id] || ![1,3,4,5,6].includes(draft.version)) continue;
+    const key = `${draft.level}:${studyDraftMode(draft)}`;
+    if (!drafts[key] || drafts[key].at < record.at) drafts[key] = record;
+  }
+  for (const [key, record] of Object.entries(drafts)) {
+    if (record.data && completed[record.data.id]) drafts[key] = {...record,data:null};
+  }
+  setLocalMeta('studyDrafts', drafts);
+  setLocalMeta('previousLessonDraft',null);
+  return drafts;
+}
+
+export function saveStudyDraft(drafts, draft) {
+  const key = `${draft.level}:${studyDraftMode(draft)}`;
+  const data = draft.done ? null : draft;
+  const next = {...drafts,[key]:{at:Date.now(),data}};
+  // The existing private backup has one draft slot. Keep other paused activities locally.
+  saveDraft(data);
+  setLocalMeta('studyDrafts', next);
+  return next;
+}
+
 export function loadReadNotifications() { return localRead(prefix()+'readNotifications') || []; }
 export function saveReadNotifications(ids) { localWrite(prefix()+'readNotifications',ids.slice(-200)); }
 export function getLocalMeta(key) { return localRead(prefix()+key); }

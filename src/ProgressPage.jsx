@@ -3,6 +3,8 @@ import {TOTAL_LEXICAL_UNITS} from './lexicon.js';
 import {lessonRewardTotal} from './rewards.js';
 import {microScene} from './micro-lessons.js';
 import {AttendanceCard,CheckRewardsSection} from './RewardOverview.jsx';
+import {studyDuration} from './learning.js';
+export {studyDuration} from './learning.js';
 
 export function VocabularyProgress({vocab,level}) {
  return <section className="vocabularyProgress">
@@ -14,17 +16,14 @@ export function VocabularyProgress({vocab,level}) {
  </section>;
 }
 
-export function studyDuration(seconds) {
- const n=Math.max(0,Math.round(Number(seconds)||0));
- return n===0?'Короткая практика':n<60?`${n} сек`:`${Math.round(n/60)} мин`;
-}
-
 export function PracticeHistory({stats,level}) {
  const records=Object.values(stats.lessons||{}).filter(r=>r.level===level).sort((a,b)=>b.at-a.at).slice(0,12);
- return <section className="history"><h2>Последние занятия</h2>{records.length===0?<p className="historyEmpty">Здесь появятся сохраненные занятия. Можно начать с одной минуты.</p>:records.map(r=>{
+ return <section className="history"><h2>Последние занятия</h2>{records.length===0?<p className="historyEmpty">Здесь появятся твои занятия и их результаты.</p>:records.map(r=>{
   const reward=lessonRewardTotal(r),micro=r.kind==='micro';
-  const label=micro?`${microScene({sceneId:r.situation}).title} · ${r.completed?'занятие сохранено':'часть занятия сохранена'}`:r.kind==='checkpoint'?`${r.mode==='weekly'?'Контрольная недели':r.quarter?`${r.retest?'Повторная проверка':'Контрольная'} ${r.quarter}`:'Итоговая проверка'} · ${r.passed?'пройдена':'попытка сохранена'}`:r.completed?'Практика сохранена':'Часть практики сохранена';
-  return <div key={r.id}><span><strong>{new Date(r.at).toLocaleDateString('ru-RU',{day:'numeric',month:'long'})} · {studyDuration(r.seconds)}</strong><small>{label}{r.imported?' · из предыдущей версии':''}</small></span>{reward>0&&<b>+${reward}</b>}</div>;
+  const label=micro?`${microScene({sceneId:r.situation}).title} · ${r.completed?'занятие сохранено':'часть занятия сохранена'}`:r.kind==='checkpoint'?`${r.mode==='weekly'?'Контрольная недели':r.quarter?`${r.retest?'Повторная проверка':'Контрольная'} ${r.quarter}`:'Итоговая проверка'} · ${r.passed?'пройдена':'попытка сохранена'}`:r.kind==='review'?'Повторение':r.completed?'Практика сохранена':'Часть практики сохранена';
+  return <div key={r.id}><span><strong>{new Date(r.at).toLocaleDateString('ru-RU',{day:'numeric',month:'long'})} · {studyDuration(r.seconds)}</strong><small>{label}{r.imported?' · из предыдущей версии':''}</small>
+    {r.answers>0&&Number.isFinite(r.correct)&&<small>{r.correct} из {r.answers} верно · {Math.round(r.correct/r.answers*100)}%</small>}
+  </span>{reward>0&&<b>+${reward}</b>}</div>;
  })}</section>;
 }
 

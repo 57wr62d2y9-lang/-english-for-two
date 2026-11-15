@@ -36,7 +36,8 @@ try {
   assert.equal(root.root.findAllByProps({role:'status'}).length,0);
   await render(Lesson,{session:{done:true,level:'A2',correct:0,answers:5,climb:1,routineReward:1,attendanceReward:10,rewardReasons:['$1 за урок']},ascent:{steps:60,total:80,lessons:60,percent:75},onHome(){},onMore(){}});
   assert.match(text(),/\+\$11/);assert.match(text(),/за 30 накопленных дней/);
-  assert.match(root.root.findByProps({className:'resultSummary'}).findAllByType('strong').map(n=>n.children.join('')).join(' '),/\+\$11/);
+  assert.match(root.root.findByProps({className:'scoreReward'}).children.join(''),/\+\$11/);
+  assert.match(root.root.findByProps({className:'resultSummary'}).findAllByType('strong').map(n=>n.children.join('')).join(' '),/0% 0 из 5/);
   await act(async()=>root.unmount());assert.equal(requests,0);
   console.log('✓ reward UI: fixed rates, daily entry attendance, reachable A2, actual checkpoint payouts and $1 + $10 finish result');
 } finally {globalThis.fetch=originalFetch;await server.close();}

@@ -7,7 +7,8 @@ import fs from 'node:fs/promises';
 const server=await createServer({server:{middlewareMode:true},appType:'custom'});
 try {
  const {AppHeader,BottomNav}=await server.ssrLoadModule('/src/AppChrome.jsx');
- const {default:MicroLesson,QuietHome}=await server.ssrLoadModule('/src/MicroLesson.jsx');
+ const {default:MicroLesson,ShortPractice}=await server.ssrLoadModule('/src/MicroLesson.jsx');
+ const {default:DailyLessonCard}=await server.ssrLoadModule('/src/DailyLessonCard.jsx');
  const {makeMicro}=await server.ssrLoadModule('/src/micro-lessons.js');
  const {default:ProgressPage}=await server.ssrLoadModule('/src/ProgressPage.jsx');
  const {default:SettingsPage}=await server.ssrLoadModule('/src/SettingsPage.jsx');
@@ -17,7 +18,9 @@ try {
  const {courseProgress}=await server.ssrLoadModule('/src/learning.js');
  const {securedItem}=await import('./learning-fixtures.mjs');
  const h=React.createElement,noop=()=>{},stats={lessons:{},byDay:{}},session=makeMicro('B1',{},stats);
- const home=draft=>h('div',{className:'app v5App'},h(AppHeader,{name:'Артур',level:'B1',unread:22,onNews:noop}),h(QuietHome,{level:'B1',stats,draft,onStart:noop,onResume:noop,onLegacy:noop,onGames:noop}),h('footer',{className:'saveStatus'},'Прогресс сохранен'),h(BottomNav,{screen:'home',onNavigate:noop}));
+ const home=draft=>h('div',{className:'app v5App'},h(AppHeader,{name:'Аня',level:'A2',unread:2,onNews:noop}),
+  h(DailyLessonCard,{stats,wallet:{earned:{}},dailyGoal:30,due:8,lesson:draft?{minutes:15,slot:'morning'}:null,check:{mode:'weekly',count:10},onLesson:noop,onReview:noop,onCheck:noop,time:Date.parse('2026-11-11T08:00:00Z')}),
+  h(ShortPractice,{draft,onStart:noop,onGames:noop}),h('footer',{className:'saveStatus'},'Прогресс сохранён'),h(BottomNav,{screen:'home',onNavigate:noop}));
  const recallIndex=session.stages.findIndex(s=>s.type==='recall');
  const views={home:home(null),resume:home({...session,index:recallIndex,input:'My unfinished answer'}),story:h(MicroLesson,{session,onChange:noop,onAnswer:noop,onLearn:noop,onNext:noop,onFinish:noop,onPause:noop}),recall:h(MicroLesson,{session:{...session,index:recallIndex},onChange:noop,onAnswer:noop,onLearn:noop,onNext:noop,onFinish:noop,onPause:noop}),feedback:h(MicroLesson,{session:{...session,index:recallIndex,feedback:{correct:true,value:session.stages[recallIndex].item.phrase}},onChange:noop,onAnswer:noop,onLearn:noop,onNext:noop,onFinish:noop,onPause:noop})};
  const fixtureTime=Date.parse('2026-11-11T08:00:00Z'),items=lexiconForLevel('B1');

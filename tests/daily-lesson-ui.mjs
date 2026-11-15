@@ -9,29 +9,31 @@ const savedFetch=globalThis.fetch;let network=0;
 globalThis.fetch=async()=>{network++;throw Error('No network allowed in UI checks');};
 try {
   const {default:Card}=await server.ssrLoadModule('/src/DailyLessonCard.jsx');
-  const props={settings:{minutes:15,dailyGoal:30,vocabPace:'normal',speakingMode:'aloud'},time:Date.parse('2026-09-23T16:10:00Z'),
-    wallet:{earned:{'routine:2026-09-23:morning':{amount:1}}},stats:{byDay:{'2026-09-23':{seconds:1800}},lessons:{}},session:null};
-  let root;const starts=[];
-  await act(async()=>{root=create(React.createElement(Card,{...props,onStart:minutes=>starts.push(minutes)}));});
+  const starts=[];
+  const props={dailyGoal:30,due:3,check:{mode:'weekly',count:10},time:Date.parse('2026-09-23T16:10:00Z'),
+    wallet:{earned:{'routine:2026-09-23:morning':{amount:1}}},stats:{byDay:{'2026-09-23':{seconds:1800}},lessons:{}},
+    onLesson:()=>starts.push('lesson'),onReview:()=>starts.push('review'),onCheck:()=>starts.push('weekly')};
+  let root;
+  await act(async()=>{root=create(React.createElement(Card,props));});
   const text=()=>JSON.stringify(root.toJSON());
   const button=label=>root.root.findAllByType('button').find(n=>n.children.join('')===label);
   assert.doesNotMatch(text(),/В автобусе|Дома · вслух|Режим речевой практики/);
-  assert.match(text(),/без разговора вслух/);
-  assert.equal(root.root.findAllByProps({role:'progressbar'}).length,0,'time no longer resembles a completed lesson');
-  assert.doesNotMatch(text(),/Вечерний урок завершён/);assert.match(text(),/Урок · \+\$1/);
-  await act(async()=>button('Начать · 15 минут →').props.onClick());
-  await act(async()=>button('Короткий урок · 5 минут').props.onClick());assert.deepEqual(starts,[15,5]);
-  await act(async()=>root.update(React.createElement(Card,{...props,session:{startedAt:Date.parse('2026-09-23T05:00:00Z'),slot:'morning'},onStart:()=>{}})));
-  assert.match(text(),/В процессе/);assert.ok(button('Продолжить урок →'));
+  assert.match(text(),/Урок на .*15.* минут/);
+  assert.match(text(),/Можно начать/);
+  const action=kind=>root.root.findByProps({className:`studyAction ${kind}`});
+  await act(async()=>root.root.findByProps({className:'studyStart'}).props.onClick());
+  await act(async()=>action('studyReview').props.onClick());
+  await act(async()=>action('studyCheck').props.onClick());
+  assert.deepEqual(starts,['lesson','review','weekly']);
+  await act(async()=>root.update(React.createElement(Card,{...props,lesson:{minutes:15,slot:'evening'}})));
+  assert.match(text(),/В процессе/);assert.match(text(),/Продолжить урок/);
   const paid={...props,wallet:{earned:{...props.wallet.earned,'routine:2026-09-23:evening':{amount:1}}}};
-  await act(async()=>root.update(React.createElement(Card,{...paid,onStart:()=>{}})));
-  assert.match(text(),/Вечерний урок завершён/);assert.ok(button('Ещё попрактиковаться →'));
+  await act(async()=>root.update(React.createElement(Card,{...paid,check:null})));
+  assert.match(text(),/Следующая в понедельник/);assert.equal(action('studyCheck').props.disabled,true);
   assert.equal(root.root.findByProps({className:'slotRow'}).findAllByProps({className:'done'}).length,2);
-  assert.doesNotMatch(text(),/Урок · \+\$1/);
-  assert.equal(button('Короткий урок · 5 минут'),undefined);
   const recorded={...props,stats:{...props.stats,lessons:{evening:{completed:true,studyDay:'2026-09-23',slot:'evening'}}}};
-  await act(async()=>root.update(React.createElement(Card,{...recorded,onStart:()=>{}})));
-  assert.match(text(),/Готово ✓/);assert.doesNotMatch(text(),/Урок · \+\$1/);
+  await act(async()=>root.update(React.createElement(Card,recorded)));
+  assert.equal(root.root.findByProps({className:'slotRow'}).findAllByProps({className:'done'}).length,2);
   await act(async()=>root.unmount());assert.equal(network,0);
   console.log('✓ daily lesson UI: one silent mode, compact practice time, actual slot completion and payout status');
 } finally {globalThis.fetch=savedFetch;await server.close();}

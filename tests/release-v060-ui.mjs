@@ -29,8 +29,8 @@ try {
   disk.set('eft3:browser:settings',JSON.stringify({at:now,data:{level:'A2',profileName:'Anna',minutes:15,updatedAt:now}}));
   disk.set('eft3:browser:progress:A2',JSON.stringify(progress));
   await act(async()=>{root=create(h(App));});
-  await act(async()=>button('Прежние уроки и проверки').props.onClick());
-  const weeklyButton=button('Короткая проверка недели');
+  const weeklyAction=()=>root.root.findByProps({className:'studyAction studyCheck'});
+  const weeklyButton=weeklyAction();
   assert.equal(weeklyButton.props.disabled,false);
   await act(async()=>weeklyButton.props.onClick());
   let current=root.root.findByType(CheckScreen).props.value;
@@ -38,29 +38,30 @@ try {
   await act(async()=>root.root.findByType(CheckScreen).props.onAnswer(current.tasks[0].answer));
   await act(async()=>root.root.findByType(CheckScreen).props.onNext());
   await act(async()=>root.root.findByType(CheckScreen).props.onBack());
-  await act(async()=>button('Прежние уроки и проверки').props.onClick());
-  assert.ok(button('Продолжить контрольную'));
+  assert.match(JSON.stringify(root.toJSON()),/Продолжить контрольную/);
   await act(async()=>root.unmount());
   await act(async()=>{root=create(h(App));});
-  await act(async()=>button('Прежние уроки и проверки').props.onClick());
-  await act(async()=>button('Продолжить контрольную').props.onClick());
+  await act(async()=>weeklyAction().props.onClick());
   current=root.root.findByType(CheckScreen).props.value;
   assert.equal(current.index,1);assert.equal(current.score,1);
   for(let i=1;i<10;i++){
     current=root.root.findByType(CheckScreen).props.value;
-    await act(async()=>root.root.findByType(CheckScreen).props.onAnswer(current.tasks[i].answer));
+    await act(async()=>root.root.findByType(CheckScreen).props.onAnswer(i===3?'incorrect example':current.tasks[i].answer));
     await act(async()=>root.root.findByType(CheckScreen).props.onNext());
   }
   current=root.root.findByType(CheckScreen).props.value;assert.equal(current.done,true);assert.equal(current.awarded,5);
+  assert.equal(root.root.findByProps({className:'resultSummary'}).findAllByType('strong')[0].children.join(''),'90%');
+  assert.match(JSON.stringify(root.toJSON()),/incorrect example/);
   await act(async()=>button('На главную').props.onClick());
-  await act(async()=>button('Прежние уроки и проверки').props.onClick());
+  assert.equal(weeklyAction().props.disabled,true);
   const daily=root.root.findByType(Card);assert.match(daily.findByProps({className:'slotRow'}).findAllByType('span').flatMap(n=>n.children.filter(x=>typeof x==='string')).join(' '),/Готово · \+\$5/);
   const saved=JSON.parse(disk.get('eft3:browser:wallet'));
   assert.equal(saved.earned['routine:2026-10-03:morning'].amount,0);
   assert.equal(Object.values(saved.earned).reduce((n,x)=>n+x.amount,0),5);
   await act(async()=>root.root.findByProps({className:'bottomNav'}).findAllByType('button')[1].props.onClick());
   const history=root.root.findByProps({className:'history'});
-  assert.equal(history.findByType('small').children.join(''),'Контрольная недели · пройдена');
+  assert.equal(history.findAllByType('small')[0].children.join(''),'Контрольная недели · пройдена');
+  assert.match(history.findAllByType('small')[1].children.join(''),/90%/);
   assert.equal(history.findByType('b').children.join(''),'+$5');
   assert.deepEqual(JSON.parse(disk.get('eft3:browser:wallet')),saved);
   await act(async()=>root.unmount());

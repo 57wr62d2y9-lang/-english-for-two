@@ -1,5 +1,5 @@
 import {lexiconForLevel,progressFor} from './lexicon.js';
-import {chooseTask,isDue,queueRecovery,settleRecovery,shuffle,studySlot} from './learning.js';
+import {chooseTask,isDue,queueRecovery,settleRecovery,shuffle,studySlot,weaknessScore} from './learning.js';
 import {normaliseSpeakingMode} from './quiet-speaking.js';
 import {vocabularyTask,contextSupport} from './vocabulary-tasks.js';
 import {dailyThemes} from './arcade.js';
@@ -44,9 +44,22 @@ export function nextLessonTask(base,progress,time=Date.now()) {
       .sort((a,b)=>(session.visits[a.id]||0)-(session.visits[b.id]||0));
     if(consolidation.length)choice={item:consolidation[0],type:'recall',reason:'adventure-consolidation'};
   }
+  // Voluntary review covers familiar vocabulary once. A full lesson can keep
+  // practising past the planned queue without advancing spaced review dates.
+  const review = session.mode === 'review';
+  const needsMorePractice = session.mode === 'lesson' && (session.remainingMs > 0 || (session.scoredAnswers ?? session.answers) < 5);
+  if (!choice && (review || needsMorePractice)) {
+    const familiar = pool.map(item => ({item,record:progressFor(item, progress),visits:session.visits[item.id] || 0}))
+      .filter(({record,visits}) => record && record.s !== 'NEW' && (review ? !visits : !record.known || isDue(record,time)));
+    const recent = session.recent.slice(-5);
+    const available = familiar.filter(({item}) => !recent.includes(item.id));
+    const [next] = (available.length ? available : familiar).sort((a,b) => a.visits-b.visits ||
+      weaknessScore(b.record,time)-weaknessScore(a.record,time) || (a.record.l || 0)-(b.record.l || 0));
+    if (next) choice = {item:next.item,type:'recall',reason:'extra-review',rehearsal:true};
+  }
   let task;
   if(!task && choice)task=phraseTask(choice,pool,progress,session);
-  if(!task)return {...session,task:null,exhausted:true,moreAvailable:pool.some(item=>!progressFor(item,progress) || progressFor(item,progress).s==='NEW')};
+  if(!task)return {...session,task:null,exhausted:true,moreAvailable:session.mode!=='review'&&pool.some(item=>!progressFor(item,progress) || progressFor(item,progress).s==='NEW')};
   const id=task.item.id,isNew=task.type==='intro';
   const previous=progressFor(task.item,progress),mixed=!isNew&&!choice.recovery&&!previous?.known&&!previous?.sentenceRecallPending&&Number(previous?.c||0)+Number(previous?.w||0)>=2;
   return {...session,task,step:session.step+1,formatStep:Number(session.formatStep||0)+(mixed?1:0),newCount:session.newCount+(isNew?1:0),
@@ -56,6 +69,10 @@ export function nextLessonTask(base,progress,time=Date.now()) {
 }
 export function extendVocabularySession(session) {
   return {...session,extraNew:Number(session.extraNew || 0)+(session.minutes<=5?4:6),exhausted:false};
+}
+
+export function canFinishTimedLesson(session) {
+  return session.remainingMs <= 0 && (session.mode !== 'lesson' || (session.scoredAnswers ?? session.answers) >= 5);
 }
 // Upgrade old tasks without resetting time, wallet, answers or lesson identity.
 export function resumeVocabularySession(draft,progress,settings={},time=Date.now()) {
@@ -76,7 +93,7 @@ export function applySessionEvidence(session,task,correct) {
   const unaided = scored && correct && !session.hintUsed && unique && elapsed >= .8;
   const wasQueued=(session.recoveryQueue || []).some(entry=>entry.id===task.progressId);
   let recoveryQueue = session.recoveryQueue || [];
-  if(scored) {
+  if(scored && !task.rehearsal) {
     recoveryQueue = correct ? settleRecovery(recoveryQueue,task.progressId,true,task.type,session.step+2)
       : queueRecovery(recoveryQueue,task.progressId,task.type,session.step+2);
     // Preserve identity for retries and legacy saved sessions.

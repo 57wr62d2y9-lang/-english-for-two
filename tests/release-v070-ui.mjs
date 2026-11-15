@@ -29,7 +29,7 @@ try {
   await act(async()=>root.root.findByType('form').props.onSubmit({preventDefault(){}}));
   assert.deepEqual(submissions,["I've already sent the report."]);assert.ok(isAnswerCorrect(task,submissions[0]));
   await act(async()=>root.update(h(Lesson,{...props,session:{...session,feedback:'wrong',selected:'I sent wrong'}})));
-  assert.ok(visible(root.toJSON()).includes(task.answer));assert.match(json(),/Сравним с учебным вариантом/);assert.match(json(),/единственный возможный перевод/);
+  assert.ok(visible(root.toJSON()).includes(task.answer));assert.match(json(),/Ответ не совпал с учебным вариантом/);assert.match(json(),/единственный возможный перевод/);
   await act(async()=>root.unmount());
   for(const type of ['recognition','context','recall']) {
     const next=vocabularyTask(item,type,[item],0,{optionsFor});

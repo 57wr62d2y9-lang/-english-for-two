@@ -1,19 +1,18 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { lexiconForLevel, progressFor, vocabularyStats } from './lexicon.js';
 import { LEVELS, addGoal, removeGoal, ascentProgress, balanceOf, courseProgress, dayKey, redeem, reviewItem } from './learning.js';
-import { emptyStats, inTelegram, loadLevelProgress, loadSettings, loadStats, loadWallet, saveLevelProgress, saveSettings, saveStats, saveWallet, loadDraft, saveDraft, telegramProfile, getLocalMeta, setLocalMeta, summariseStats, loadReadNotifications, saveReadNotifications } from './storage-v3.js';
+import { emptyStats, loadLevelProgress, loadSettings, loadStats, loadWallet, saveLevelProgress, saveSettings, saveStats, saveWallet, loadDraft, loadStudyDrafts, saveStudyDraft, telegramProfile, getLocalMeta, setLocalMeta, summariseStats, loadReadNotifications, saveReadNotifications } from './storage-v3.js';
 import { coupleSyncConfigured, createPairCode, joinPair, syncCouple, mergeCoupleSnapshot, createCoupleGiftRequest, resolveCoupleGiftRequest, publishLesson } from './couple-sync.js';
 import { saveBackup, restoreBackup } from './private-backup.js';
-import { makeSession, nextLessonTask, isAnswerCorrect, applySessionEvidence, resumeVocabularySession, extendVocabularySession,reviewActionFor } from './lesson-engine.js';
+import { makeSession, nextLessonTask, isAnswerCorrect, applySessionEvidence, resumeVocabularySession, extendVocabularySession,reviewActionFor,canFinishTimedLesson } from './lesson-engine.js';
 import {weeklyCheckpoint as pendingCheckpoint,makeCheckpoint,finishCheckpoint,resumeCheckpoint} from './checkpoint.js';
-import {dailyAdventure,createSpeedRound,finishSpeedRound,arcadeSummary} from './arcade.js';
+import {dailyAdventure,createSpeedRound,finishSpeedRound,arcadeSummary,weekKey} from './arcade.js';
 import {AdventureHub,DailyDraw,WheelCollection,SpeedRound,SpeedResult} from './Adventure.jsx';
 import {claimDailyWheel,dailyWheelReward,shouldShowDailyWheel,markDailyWheelSeen,dateCollectionSummary} from './daily-wheel.js';
 import {awardAttendanceBonus,finishStudySession,registerDailyVisit} from './rewards.js';
 import Lesson,{OrderAnswer,CheckScreen} from './VocabularyLesson.jsx';
 import {themeFor} from './themes.js';
 export {Lesson,OrderAnswer,CheckScreen};
-import Mountain from './Mountain.jsx';
 import SettingsPage from './SettingsPage.jsx';
 import ProgressPage from './ProgressPage.jsx';
 export {VocabularyProgress} from './ProgressPage.jsx';
@@ -21,16 +20,15 @@ import DailyLessonCard from './DailyLessonCard.jsx';
 import {lessonViewportHeight} from './lesson-layout.js';
 import Gifts from './Gifts.jsx';
 import {normaliseSpeakingMode} from './quiet-speaking.js';
-import MicroLesson,{QuietHome} from './MicroLesson.jsx';
+import MicroLesson,{ShortPractice} from './MicroLesson.jsx';
 import {AppHeader,BottomNav} from './AppChrome.jsx';
 import {makeMicro,microEvidence,settleMicro} from './micro-lessons.js';
 
-const defaults={level:'B1',minutes:15,dailyGoal:30,profileName:'Artur',speakingMode:'quiet',vocabPace:'normal'};
+const defaults={level:'B1',dailyGoal:30,profileName:'Artur',speakingMode:'quiet',vocabPace:'normal'};
 const emptyWallet=()=>({earned:{},spent:{},goals:{},incoming:{},partner:null});
 const walletShape=value=>({...emptyWallet(),...value});
 const nameRu=name=>name === 'Anna' ? 'Аня' : name === 'Artur' ? 'Артур' : name || 'Партнёр';
 const other=name=>name === 'Anna' ? 'Artur' : 'Anna';
-const nextLevel=level=>({A2:'B1',B1:'B2',B2:'C1',C1:'C1+'}[level]);
 const uid=prefix=>`${prefix}-${crypto.randomUUID()}`;
 const itemCount=level=>lexiconForLevel(level).length;
 const ruPlural=(value,one,few,many)=>{const n=Math.abs(value)%100;return n>=11&&n<=14?many:n%10===1?one:n%10>=2&&n%10<=4?few:many;};
@@ -41,17 +39,27 @@ export default function App() {
   const [couple,setCouple]=useState({paired:false,notifications:[],code:'',busy:false}),[readNotices,setReadNotices]=useState(loadReadNotifications);
   const [saveMessage,setSaveMessage]=useState(''),[theme,setTheme]=useState(()=>themeFor());
   const [drawOpen,setDrawOpen]=useState(false),[speed,setSpeed]=useState(null),[micro,setMicro]=useState(null);
-  const microRef=useRef(null);
-  function storeMicro(value){microRef.current=value;setMicro(value);if(value&&!value.done)saveDraft(value);}
+  const microRef=useRef(null),checkpointRef=useRef(null),draftsRef=useRef({});
+  const [drafts,setDrafts]=useState({});
+  function rememberDraft(value) {
+    const next=saveStudyDraft(draftsRef.current,value);
+    draftsRef.current=next;
+    setDrafts(next);
+  }
+  function storeMicro(value){microRef.current=value;setMicro(value);rememberDraft(value);}
+  function draftFor(mode,level=settings.level){return draftsRef.current[`${level}:${mode}`]?.data;}
   const stateRef=useRef({settings,progress,stats,wallet}),screenRef=useRef(screen),sessionRef=useRef(null),busyRef=useRef(false),finishedRef=useRef(new Set()),levelToken=useRef(0),activityRef=useRef(Date.now());
   stateRef.current={settings,progress,stats,wallet};
   screenRef.current=screen;
   const items=useMemo(()=>lexiconForLevel(settings.level),[settings.level]);
-  const vocab=useMemo(()=>vocabularyStats(items,progress),[items,progress]);
+  const vocab=useMemo(()=>vocabularyStats(items,progress),[items,progress,theme.date]);
   const path=useMemo(()=>courseProgress(items,progress),[items,progress]);
   const ascent=useMemo(()=>ascentProgress(stats,settings.level),[stats,settings.level]);
   const unread=couple.notifications.filter(entry=>!readNotices.includes(entry.id)).length;
-  const scheduledCheck=useMemo(()=>pendingCheckpoint(items,progress,wallet,stats,settings.level),[items,progress,wallet,stats,settings.level,theme.date]);
+  const week=weekKey(Date.parse(`${theme.date}T12:00:00Z`));
+  const scheduledCheck=useMemo(()=>pendingCheckpoint(items,progress,wallet,stats,settings.level),[items,progress,wallet,stats,settings.level,week]);
+  const weeklyDraft=drafts[`${settings.level}:weekly`]?.data;
+  const weekly=scheduledCheck && (weeklyDraft?.week===week ? {...weeklyDraft,resuming:true} : scheduledCheck);
   useEffect(()=>{
     function update(){if(document.hidden)return;const next=themeFor();setTheme(old=>old.date===next.date?old:next);document.documentElement.dataset.season=next.season;document.documentElement.dataset.holiday=next.holiday;
       const tg=window.Telegram?.WebApp;try{tg?.setHeaderColor?.(getComputedStyle(document.documentElement).getPropertyValue('--page-bg').trim()||'#fffdfb');}catch{}
@@ -89,8 +97,6 @@ export default function App() {
   function bundle(draft=loadDraft()) { const s=stateRef.current;return {settings:s.settings,level:s.settings.level,progress:s.progress,stats:s.stats,wallet:s.wallet,draft}; }
   async function backUpNow({manual=false}={}) {
     setBackup('saving');if(manual)setSaveMessage('Сохраняю ответы, урок и настройки…');
-    if(microRef.current&&!microRef.current.done)saveDraft(microRef.current);
-    else if(sessionRef.current && !sessionRef.current.done)saveDraft(sessionRef.current);
     try {
       const result=await saveBackup(bundle(),{force:manual});
       setBackup(result.ok?'saved':'pending');
@@ -110,7 +116,6 @@ export default function App() {
       const profileName=['Artur','Anna'].includes(saved?.profileName) ? saved.profileName : /^(anna|anya|аня|анна)/.test(first)?'Anna':'Artur';
       let config={...defaults,...saved,profileName};
       if(!LEVELS.includes(saved?.level))config.level=profileName==='Anna'?'A2':'B1';
-      if(![5,15].includes(Number(config.minutes)))config.minutes=15;
       const [p,s,w]=await Promise.all([loadLevelProgress(config.level),loadStats(),loadWallet()]);
       let loaded=await restoreBackup({settings:config,level:config.level,progress:p,stats:s,wallet:walletShape(w),draft:loadDraft()});
       if(loaded.settings && LEVELS.includes(loaded.settings.level)) {
@@ -133,11 +138,9 @@ export default function App() {
       if(!active)return;
       stateRef.current={settings:config,progress:loaded.progress,stats:loaded.stats,wallet:loaded.wallet};
       setSettings(config);storeProgress(loaded.progress,config.level);storeStats(loaded.stats);storeWallet(loaded.wallet);
-      const draft=loaded.draft?.data;
-      if(draft?.kind==='micro'&&draft.version===1&&draft.level===config.level&&!loaded.stats.lessons?.[draft.id]&&!draft.done){storeMicro(draft);const previous=getLocalMeta('previousLessonDraft');if(previous?.version===3&&previous.level===config.level&&!loaded.stats.lessons?.[previous.id])setCurrentSession(previous);}
-      else if([4,5,6].includes(draft?.version)&&draft.kind==='checkpoint'&&draft.level===config.level&&!loaded.stats.lessons?.[draft.id]&&!draft.done){const resumed=resumeCheckpoint(draft,lexiconForLevel(config.level));setCheckpoint(resumed);saveDraft(resumed);}
-      else if(draft?.version===3 && !loaded.stats.lessons?.[draft.id] && !draft.done){const resumed=resumeVocabularySession(draft,loaded.progress,config);setCurrentSession(resumed);saveDraft(resumed);}
-      else saveDraft(null);
+      const restored=loadStudyDrafts(loaded.draft,loaded.stats.lessons);
+      draftsRef.current=restored;
+      setDrafts(restored);
       setBackup(loaded.backupOk?'saved':'pending');setReady(true);saveSettings(config);
     })().catch(()=>{if(active){setNotice('Не удалось загрузить все данные. Обнови страницу: сохранённые уроки не удалены.');setReady(true);}});
     return()=>{active=false;};
@@ -154,7 +157,7 @@ export default function App() {
     if(!ready)return;
     const timer=setTimeout(()=>backUpNow(),1500);
     return()=>clearTimeout(timer);
-  },[ready,progress,stats,wallet,settings,micro?.index,micro?.feedback,micro?.reply]);
+  },[ready,progress,stats,wallet,settings,screen,micro?.index,micro?.feedback,micro?.reply,checkpoint?.index,checkpoint?.selected]);
 
   useEffect(()=>{
     if(!ready)return;
@@ -171,13 +174,14 @@ export default function App() {
     const tick=setInterval(()=>{
       const now=Date.now(),delta=now-last;last=now;
       const current=sessionRef.current;
-      if(!current || current.done || document.hidden || current.paused || now-activityRef.current>300000)return;
+      if(!current || current.done || (current.mode!=='review'&&current.remainingMs<=0) || document.hidden || current.paused || now-activityRef.current>300000)return;
       const next={...current,remainingMs:Math.max(0,current.remainingMs-Math.min(delta,1500))};
+      if(current.mode==='review')next.activeMs=(current.activeMs ?? current.plannedMs-current.remainingMs)+Math.min(delta,1500);
       setCurrentSession(next);
-      if(now-lastSave>5000){saveDraft(next);lastSave=now;}
+      if(now-lastSave>5000){rememberDraft(next);lastSave=now;}
       // Let the current answer and all questions about one recording finish.
     },500);
-    return()=>{clearInterval(tick);if(sessionRef.current&&!sessionRef.current.done&&(!microRef.current||microRef.current.done))saveDraft(sessionRef.current);};
+    return()=>clearInterval(tick);
   },[screen,session?.id,session?.done]);
 
   async function refreshCouple() {
@@ -193,7 +197,7 @@ export default function App() {
       // Retry completed lesson notifications after a temporary loss of network.
       if(result.paired) {
         const ack=getLocalMeta('publishedLessons') || [];
-        for(const record of Object.values(stateRef.current.stats.lessons || {}).filter(r=>r.completed&&r.kind!=='micro'&&!r.imported&&!ack.includes(r.id)).slice(-20)) {
+        for(const record of Object.values(stateRef.current.stats.lessons || {}).filter(r=>r.completed&&!['micro','review'].includes(r.kind)&&!r.imported&&!ack.includes(r.id)).slice(-20)) {
           const sent=await publishLesson({...record,accuracy:record.answers?record.correct/record.answers*100:0,steps:ascentProgress(stateRef.current.stats,record.level).steps});
           if(sent.ok){ack.push(record.id);setLocalMeta('publishedLessons',ack);}
         }
@@ -208,7 +212,6 @@ export default function App() {
   }
   async function changeLevel(level) {
     if(level===settings.level)return;
-    if((microRef.current&&!microRef.current.done)||(sessionRef.current&&!sessionRef.current.done)||(checkpoint&&!checkpoint.done)){setNotice('Сначала заверши или сохрани начатое занятие на этом уровне.');return;}
     const token=++levelToken.current;
     setNotice('Загружаю твой прогресс…');
     await backUpNow();
@@ -221,9 +224,10 @@ export default function App() {
 
   function addNewBatch() {advance(extendVocabularySession(sessionRef.current));}
   function startMicro(minutes=5){
-    if(microRef.current&&!microRef.current.done){setScreen('micro');return;}
-    if(sessionRef.current&&!sessionRef.current.done)setLocalMeta('previousLessonDraft',sessionRef.current);
-    const s=stateRef.current;storeMicro(makeMicro(s.settings.level,s.progress,s.stats,minutes));setScreen('micro');
+    const s=stateRef.current;
+    setNotice('');
+    storeMicro(draftFor('micro',s.settings.level) || makeMicro(s.settings.level,s.progress,s.stats,minutes));
+    setScreen('micro');
   }
   function microLearn(item){const s=stateRef.current;if(progressFor(item,s.progress))return;const result=reviewItem(undefined,'intro',Date.now(),microRef.current.id+':learn:'+item.id);storeProgress({...s.progress,[item.id]:result.item});}
   function microAnswer(value){
@@ -237,25 +241,31 @@ export default function App() {
     const key=dayKey(),day=s.stats.byDay?.[key]||{};storeStats({...s.stats,byDay:{...s.stats.byDay,[key]:{...day,answers:(day.answers||0)+1,correct:(day.correct||0)+Number(ok),at:Date.now()}}});
     storeMicro(next);
   }
-  function endMicro(){const current=microRef.current;if(!current||current.done)return;storeStats(settleMicro(current,stateRef.current.stats));storeMicro({...current,done:true});saveDraft(null);backUpNow();refreshCouple();}
-  function startLesson(minutes=settings.minutes,adventure=false) {
-    if(microRef.current&&!microRef.current.done){setScreen('micro');return;}
+  function endMicro(){const current=microRef.current;if(!current||current.done)return;storeStats(settleMicro(current,stateRef.current.stats));storeMicro({...current,done:true});backUpNow();refreshCouple();}
+  function startLesson(mode='lesson') {
     setDrawOpen(false);
-    if(sessionRef.current&&!sessionRef.current.done){setScreen('session');return;}
-    if(checkpoint&&!checkpoint.done){setScreen('checkpoint');return;}
-    const pending=pendingCheckpoint(items,stateRef.current.progress,stateRef.current.wallet,stateRef.current.stats,stateRef.current.settings.level);
-    if(pending&&pending.mode!=='weekly'&&!adventure){openCheck(pending);return;}
-    const s=stateRef.current,index=Object.values(s.stats.lessons || {}).filter(record=>record.level===s.settings.level).length;
-    const base=makeSession(s.settings.level,minutes,index,Date.now(),s.settings.speakingMode,s.settings.vocabPace);
-    if(adventure)base.adventure={target:12,theme:dailyAdventure(s.settings.profileName).id};
-    const next=nextLessonTask(base,s.progress);
-    activityRef.current=Date.now();setCurrentSession(next);saveDraft(next);setScreen('session');
+    setNotice('');
+    const s=stateRef.current;
+    const saved=draftFor(mode,s.settings.level);
+    let next;
+    if (saved) {
+      next=resumeVocabularySession(saved,s.progress,s.settings);
+      if(!next.mode&&next.plannedMs>=900000)next={...next,mode};
+      if(!next.task&&next.mode==='lesson'&&next.remainingMs>0)next=nextLessonTask(next,s.progress);
+    } else {
+      const index=Object.values(s.stats.lessons || {}).filter(record=>record.level===s.settings.level).length;
+      const base={...makeSession(s.settings.level,mode==='adventure'?5:15,index,Date.now(),s.settings.speakingMode,s.settings.vocabPace),mode};
+      if(mode==='adventure')base.adventure={target:12,theme:dailyAdventure(s.settings.profileName).id};
+      next=nextLessonTask(base,s.progress);
+      if(mode==='review'&&!next.task){setNotice('Нет карточек для повторения. Начни урок, чтобы познакомиться с новыми словами.');return;}
+    }
+    activityRef.current=Date.now();setCurrentSession(next);rememberDraft(next);setScreen('session');
   }
   function advance(base=sessionRef.current) {
-    if(base.remainingMs<=0&&!base.adventure){finishLesson(base);return;}
+    if(!base.adventure&&base.mode!=='review'&&canFinishTimedLesson(base)){finishLesson(base);return;}
     if(base.adventure&&base.answers>=base.adventure.target){finishLesson({...base,exhausted:true});return;}
     const next=nextLessonTask(base,stateRef.current.progress);
-    setCurrentSession(next);saveDraft(next);
+    setCurrentSession(next);rememberDraft(next);
   }
   function introduce(known=false) {
     if(known){markKnown();return;}
@@ -274,16 +284,19 @@ export default function App() {
   function answer(value) {
     const current=sessionRef.current;if(!current||current.feedback)return;
     const task=current.task,ok=!task.practice&&isAnswerCorrect(task,value);
-    const action=reviewActionFor(task,ok);
-    const result=reviewItem(progressFor(task.item,stateRef.current.progress),action,Date.now(),`${current.id}:${current.step}`,{unaided:!current.hintUsed,typed:Boolean(task.typed)});
-    storeProgress({...stateRef.current.progress,[task.progressId]:result.item});
+    let xp=0;
+    if(!task.rehearsal){
+      const result=reviewItem(progressFor(task.item,stateRef.current.progress),reviewActionFor(task,ok),Date.now(),`${current.id}:${current.step}`,{unaided:!current.hintUsed,typed:Boolean(task.typed)});
+      storeProgress({...stateRef.current.progress,[task.progressId]:result.item});
+      xp=result.xp;
+    }
     const st=stateRef.current.stats,key=dayKey(),day=st.byDay?.[key] || {};
     let nextDay={...day,at:Date.now()};
     if(!task.practice){nextDay.answers=(day.answers||0)+1;nextDay.correct=(day.correct||0)+(ok?1:0);}
 
     storeStats({...st,byDay:{...st.byDay,[key]:nextDay}});
-    const next={...applySessionEvidence(current,task,ok),selected:value,feedback:task.practice?'practice':ok?'correct':'wrong',xp:current.xp+result.xp};
-    setCurrentSession(next);saveDraft(next);
+    const next={...applySessionEvidence(current,task,ok),selected:value,feedback:task.practice?'practice':ok?'correct':'wrong',xp:current.xp+xp};
+    setCurrentSession(next);rememberDraft(next);
   }
   function finishLesson(snapshot=sessionRef.current) {
     if(!snapshot||snapshot.done||finishedRef.current.has(snapshot.id)||stateRef.current.stats.lessons?.[snapshot.id])return;
@@ -291,9 +304,10 @@ export default function App() {
     const result=finishStudySession(stateRef.current.wallet,stateRef.current.stats,snapshot);
     if(result.duplicate)return;
     storeStats(result.stats);storeWallet(result.wallet);setCurrentSession(result.session);
-    saveDraft(null);backUpNow();refreshCouple();
+    rememberDraft(result.session);backUpNow();refreshCouple();
   }
-  function pauseLesson() {saveDraft(sessionRef.current);backUpNow();setScreen('home');}
+  function pauseLesson() {rememberDraft(sessionRef.current);backUpNow();setScreen('home');}
+  function useHint() {const next={...sessionRef.current,hintUsed:true};setCurrentSession(next);rememberDraft(next);}
   function showNotifications() {setScreen('notifications');const ids=[...new Set([...readNotices,...couple.notifications.map(entry=>entry.id)])];setReadNotices(ids);saveReadNotifications(ids);}
 
   function createGift(title,cost) {const next=addGoal(stateRef.current.wallet,title,Number(cost),uid('gift'));if(next===stateRef.current.wallet)return false;storeWallet(next);setNotice('Подарок добавлен.');refreshCouple();return true;}
@@ -309,15 +323,19 @@ export default function App() {
     setCouple(c=>({...c,busy:false}));refreshCouple();
   }
   async function resolveGift(id,status) {setCouple(c=>({...c,busy:true}));const result=await resolveCoupleGiftRequest(id,status);if(result.ok){storeWallet(mergeCoupleSnapshot(stateRef.current.wallet,result));setNotice(status==='approved'?'Подарок согласован.':'Запрос отклонён. Сумма вернулась партнёру.');}else setNotice(result.error);setCouple(c=>({...c,busy:false}));refreshCouple();}
-  function saveCheck(next){setCheckpoint(next);saveDraft(next);activityRef.current=Date.now();}
+  function saveCheck(next){checkpointRef.current=next;setCheckpoint(next);rememberDraft(next);}
   function openCheck(quarter=0) {
-    if(sessionRef.current&&!sessionRef.current.done){setNotice('Сначала заверши сохранённый урок.');return;}
-    if(checkpoint&&!checkpoint.done){setScreen('checkpoint');return;}
-    const current=stateRef.current,next=makeCheckpoint(items,current.progress,current.settings.level,quarter);
+    const current=stateRef.current;
+    const mode=quarter?.mode==='weekly'?'weekly':'checkpoint';
+    const saved=draftFor(mode,current.settings.level);
+    const canResume=saved && (mode!=='weekly'||saved.week===quarter.week);
+    const next=canResume?resumeCheckpoint(saved,items):makeCheckpoint(items,current.progress,current.settings.level,quarter);
     if(!next)return;
+    setNotice('');
     saveCheck(next);setScreen('checkpoint');
   }
   function checkAnswer(value) {
+    const checkpoint=checkpointRef.current;
     if(!checkpoint||checkpoint.done||checkpoint.selected!==undefined)return;
     const task=checkpoint.tasks[checkpoint.index],ok=isAnswerCorrect(task,value);
     const action=reviewActionFor(task,ok);
@@ -328,14 +346,15 @@ export default function App() {
     saveCheck({...checkpoint,selected:value,score:checkpoint.score+(ok?1:0),responses:[...(checkpoint.responses||[]),{index:checkpoint.index,value,correct:ok}]});
   }
   function nextCheck() {
+    const checkpoint=checkpointRef.current;
     if(!checkpoint||checkpoint.done||checkpoint.selected===undefined)return;
     if(checkpoint.index+1<checkpoint.tasks.length){saveCheck({...checkpoint,index:checkpoint.index+1,selected:undefined});return;}
     const current=stateRef.current,result=finishCheckpoint(current.wallet,current.stats,checkpoint,items,current.progress);
     if(result.duplicate)return;
-    storeStats(result.stats);storeWallet(result.wallet);setCheckpoint(result.check);saveDraft(null);
+    storeStats(result.stats);storeWallet(result.wallet);saveCheck(result.check);
     backUpNow();refreshCouple();
   }
-  function pauseCheck(){saveDraft(checkpoint);backUpNow();setScreen('home');}
+  function pauseCheck(){backUpNow();setScreen('home');}
 
   function startSpeed(mode) {
     setDrawOpen(false);
@@ -354,7 +373,7 @@ export default function App() {
   if(screen==='micro'&&micro)return <MicroLesson session={micro} onChange={storeMicro} onAnswer={microAnswer} onLearn={microLearn} onNext={()=>storeMicro({...microRef.current,index:microRef.current.index+1,feedback:null,input:''})} onFinish={endMicro} onPause={()=>{backUpNow();setScreen('home');}}/>;
   if(screen==='speed'&&speed)return <SpeedRound key={speed.id} initial={speed} onFinish={settleSpeed} onBack={()=>setScreen('home')}/>;
   if(screen==='speedResult'&&speed)return <SpeedResult round={speed} onAgain={()=>startSpeed(speed.mode)} onHome={()=>setScreen('home')}/>;
-  if(screen==='session'&&session)return <div onPointerDown={()=>activityRef.current=Date.now()} onKeyDown={()=>activityRef.current=Date.now()} onScrollCapture={()=>activityRef.current=Date.now()}><Lesson session={session} course={path} ascent={ascentProgress(stats,session.level)} onIntro={introduce} onKnown={markKnown} onAnswer={answer} onNext={()=>advance()} onFinish={()=>finishLesson()} onBack={pauseLesson} onHome={()=>{setCurrentSession(null);setScreen('home');}} onHint={()=>{setCurrentSession({...sessionRef.current,hintUsed:true});}} onMore={()=>startLesson(15)} onAddNew={addNewBatch}/></div>;
+  if(screen==='session'&&session)return <div onPointerDown={()=>activityRef.current=Date.now()} onKeyDown={()=>activityRef.current=Date.now()} onScrollCapture={()=>activityRef.current=Date.now()}><Lesson key={session.id} session={session} course={path} ascent={ascentProgress(stats,session.level)} onIntro={introduce} onKnown={markKnown} onAnswer={answer} onNext={()=>advance()} onFinish={()=>finishLesson()} onBack={pauseLesson} onHome={()=>{setCurrentSession(null);setScreen('home');}} onHint={useHint} onMore={()=>startLesson()} onAddNew={addNewBatch}/></div>;
   if(screen==='checkpoint'&&checkpoint)return <CheckScreen value={checkpoint} onAnswer={checkAnswer} onNext={nextCheck} onBack={pauseCheck} onDone={()=>{setCheckpoint(null);setScreen('home');}}/>;
   const balance=balanceOf(wallet);
   return <div className="app v5App">
@@ -362,14 +381,15 @@ export default function App() {
     {screen!=='home'&&<button className="textBack" onClick={()=>setScreen('home')}>← На главную</button>}
     {notice&&<button className="notice" onClick={()=>setNotice('')}>{notice}</button>}
     {screen==='home'&&<>
-      <QuietHome level={settings.level} stats={stats} draft={micro} onStart={startMicro} onResume={()=>setScreen('micro')} onLegacy={()=>setScreen('practice')} onGames={()=>setScreen('games')}>
+      <DailyLessonCard stats={stats} wallet={wallet} dailyGoal={settings.dailyGoal} due={vocab.due} lesson={draftFor('lesson')} review={draftFor('review')}
+        check={weekly} onLesson={()=>startLesson()} onReview={()=>startLesson('review')} onCheck={()=>openCheck(weekly)}/>
+      <ShortPractice draft={draftFor('micro')} onStart={startMicro} onGames={()=>setScreen('games')}>
         <WheelCollection wallet={wallet} name={settings.profileName} paired={couple.paired}/>
         <button className="secondary big" disabled={Boolean(dailyWheelReward(wallet))} onClick={()=>openDailyWheel()}>{dailyWheelReward(wallet)?'Сегодняшний приз получен':'Открыть призовое колесо'}</button>
-      </QuietHome>
+      </ShortPractice>
       {wallet.partner?<section className="partnerCard"><div><span>{nameRu(wallet.partner.name)}</span><strong>{wallet.partner.level} · {wallet.partner.vocabulary?.version===1?`${wallet.partner.vocabulary.verified} / ${wallet.partner.vocabulary.total} закреплено`:'ждем новую проверку словаря'}</strong><small>Сегодня {wallet.partner.todayMinutes||0} мин · в копилке ${wallet.partner.balance}</small></div><button onClick={showNotifications}>Новости {unread?`· ${unread}`:'→'}</button></section>:<button className="referenceButton" onClick={()=>setScreen('settings')}>Связать кабинеты с {settings.profileName==='Anna'?'Артуром':'Аней'} →</button>}
     </>}
-    {screen==='practice'&&<><h1>Дополнительная практика</h1><p>Необязательные занятия по прежним правилам.</p><DailyLessonCard settings={settings} stats={stats} wallet={wallet} session={session} checkpoint={checkpoint} scheduledCheck={scheduledCheck} onStart={startLesson}/><button className="secondary big" disabled={!scheduledCheck&&!checkpoint} onClick={()=>checkpoint&&!checkpoint.done?setScreen('checkpoint'):scheduledCheck&&openCheck(scheduledCheck)}>Короткая проверка недели</button></>}
-    {screen==='games'&&<><h1>Игры и арена</h1><p>Дополнительно, когда хочется поиграть.</p><AdventureHub name={settings.profileName} stats={stats} wallet={wallet} paired={couple.paired} syncError={couple.error} weekly={scheduledCheck} onAdventure={()=>startLesson(5,true)} onSpeed={startSpeed} onCheck={()=>scheduledCheck&&openCheck(scheduledCheck)}/></>}
+    {screen==='games'&&<><h1>Игры и арена</h1><AdventureHub name={settings.profileName} stats={stats} wallet={wallet} paired={couple.paired} syncError={couple.error} weekly={weekly} onAdventure={()=>startLesson('adventure')} onSpeed={startSpeed} onCheck={()=>weekly&&openCheck(weekly)}/></>}
     {screen==='progress'&&<ProgressPage vocab={vocab} level={settings.level} path={path} items={items} progress={progress} stats={stats} wallet={wallet} onCheck={openCheck}/>}
     {screen==='rewards'&&<Gifts wallet={wallet} couple={couple} profileName={settings.profileName} onCreate={createGift} onRemove={id=>{storeWallet(removeGoal(stateRef.current.wallet,id));refreshCouple();}} onRequest={requestGift} onResolve={resolveGift}/>}
     {screen==='notifications'&&<section className="notificationList"><p>Уроки партнёра, заработок и результаты арены.</p>{couple.notifications.length?couple.notifications.map(entry=><article key={entry.id}><span className="notificationIcon">{entry.payload.kind==='weekly-champion'?'🏆':'🐿'}</span><div>{entry.payload.kind==='weekly-champion'?<><strong>Пояс недели · +$5</strong><p>{nameRu(entry.payload.winnerName)} — чемпион! Неделя с {entry.payload.week} · {entry.payload.score} очков</p></>:<><strong>{nameRu(entry.payload.from)} завершил{entry.payload.from==='Anna'?'а':''} {entry.payload.kind==='checkpoint'?entry.payload.quarter?`контрольную ${entry.payload.quarter}`:'итоговую проверку':'урок'} {entry.payload.level}</strong><p>{entry.payload.answers} {ruPlural(entry.payload.answers,'ответ','ответа','ответов')} · {entry.payload.accuracy}% верных · +${entry.payload.reward}</p></>}<small>{new Date(entry.created_at).toLocaleString('ru-RU',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'})}</small></div></article>):<div className="emptyState">{couple.paired?'После следующего урока партнёра здесь появится первая новость.':'Свяжите кабинеты один раз в настройках.'}</div>}{couple.error&&<p className="errorText">{couple.error}</p>}</section>}

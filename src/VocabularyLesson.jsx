@@ -6,6 +6,8 @@ import Mountain from './Mountain.jsx';
 import {sentenceFeedback} from './sentence-feedback.js';
 import PronunciationButton from './PronunciationButton.jsx';
 import {requestVariantNote} from './answer-variants.js';
+import {studyDuration} from './learning.js';
+import {canFinishTimedLesson} from './lesson-engine.js';
 
 export function TextAnswer({onSubmit,disabled,sentence=false,formId,submitOutside=false,onValueChange,supportOptions=[],onHint}) {
   const [value,setValue]=useState(''),[showOptions,setShowOptions]=useState(false);
@@ -43,22 +45,38 @@ function Examples({examples=[]}) {
 const taskName={recognition:'Значение',meaning:'Смысл в ситуации',context:'Заполни пропуск',recall:'Вспомни по-английски',write:'Напиши предложение',order:'Напиши предложение'};
 function RuleNote({rule}) {return rule?<details className="sentenceRule"><summary>Как построить предложение · {rule.title}</summary><strong>{rule.formula}</strong><p>{rule.ru}</p><small>Здесь только правило, без готового ответа.</small></details>:null;}
 
+export function ScoreSummary({answers,correct}) {
+  return answers ? <div className="resultSummary" aria-label="Результат ответов">
+    <div><strong>{Math.round(correct/answers*100)}%</strong><span>верных ответов</span></div>
+    <div><strong>{correct} из {answers}</strong><span>засчитано · {answers-correct} не засчитано</span></div>
+  </div> : <p>В этой попытке ещё нет проверенных ответов.</p>;
+}
+
 export default function Lesson({session,ascent,course,onIntro,onKnown,onAnswer,onNext,onFinish,onBack,onHome,onHint,onMore,onAddNew}) {
   const [entry,setEntry]=useState({key:'',filled:false});
-  if(session.done)return <div className="app lessonFinish"><div className="eyebrow">УРОК СОХРАНЁН</div><h1>Практика сохранена</h1>
-    <Mountain level={session.level} ascent={ascent} course={course} celebrate reward={(session.routineReward||0)+(session.attendanceReward||0)} climb={session.climb}/>
-    <div className="resultSummary"><div><strong>{session.correct}/{session.answers}</strong><span>Совпало с учебным ответом</span></div><div><strong>+${(session.routineReward||0)+(session.attendanceReward||0)}</strong><span>В копилку</span></div></div>
-    <p>{session.rewardAlready?'Награда за эту часть дня уже получена. Ответы сохранены.':session.rewardReasons?.join(' · ')}</p>
-    {session.attendanceReward>0&&<p className="bonusNotice" role="status">+${session.attendanceReward} за 30 накопленных дней входов!</p>}
+  const answers=session.scoredAnswers ?? session.answers ?? 0, correct=session.scoredCorrect ?? session.correct ?? 0;
+  const review=session.mode==='review';
+  const reward=(session.routineReward||0)+(session.attendanceReward||0);
+  if(session.done)return <div className="app lessonFinish"><h1>{review?'Повторение сохранено':session.completed===false?'Часть урока сохранена':'Итог урока'}</h1>
+    <p>{studyDuration(session.spentSeconds,'0 сек')} практики</p>
+    <ScoreSummary answers={answers} correct={correct}/>
+    {!review&&<>
+      {reward>0&&<p className="scoreReward">+${reward} в копилку</p>}
+      <Mountain level={session.level} ascent={ascent} course={course} celebrate reward={reward} climb={session.climb}/>
+      <p>{session.rewardAlready?'Награда за эту часть дня уже получена. Ответы сохранены.':session.rewardReasons?.join(' · ')}</p>
+      {session.attendanceReward>0&&<p className="bonusNotice" role="status">+${session.attendanceReward} за 30 накопленных дней входов!</p>}
+    </>}
     <button className="primary big" onClick={onHome}>На главную</button><button className="quietButton" onClick={onMore}>Ещё один урок</button></div>;
   const task=session.task,seconds=Math.max(0,Math.ceil(session.remainingMs/1000)),intro=task?.type==='intro';
   const answerId=`answer-${session.id}-${session.step}`,typed=['recall','write','order','context'].includes(task?.type);
   const issue=task?.type==='write'&&session.feedback==='wrong'?sentenceFeedback(task,session.selected):null;
   return <WordHelpProvider key={session.id+':'+session.step} level={session.level} onHint={onHint} enabled={intro||Boolean(session.feedback)}><div className="compactLesson">
-    <header className="compactTopbar"><button className="iconButton" onClick={onBack} aria-label="Сохранить урок и выйти">×</button><div className="sessionProgress"><i style={{width:(session.adventure?Math.min(100,session.answers/session.adventure.target*100):Math.min(100,100-session.remainingMs/session.plannedMs*100))+'%'}}/></div><span className="compactTimer">{session.adventure?`${session.answers}/${session.adventure.target}`:`${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`}</span></header>
+    <header className="compactTopbar"><button className="iconButton" onClick={onBack} aria-label="Сохранить урок и выйти">×</button>
+      {review ? <strong className="studyModeTitle">Повторение</strong> : <div className="sessionProgress"><i style={{width:(session.adventure?Math.min(100,answers/session.adventure.target*100):Math.min(100,100-session.remainingMs/session.plannedMs*100))+'%'}}/></div>}
+      <span className="compactTimer">{review ? `Ответов: ${answers}` : session.adventure ? `${answers}/${session.adventure.target}` : `${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`}</span></header>
     {session.adventure&&<div className="adventureRoundLabel">Раунд {Math.min(3,1+Math.floor(session.answers/4))} из 3 · {session.answers<4?'Разминка':session.answers<8?'Набираем ход':'Финишная четвёрка'}</div>}
     <main className={`compactCard ${task?.item?.phrase?.length>32?'compactLong':''}`} key={session.id+':'+session.step}>
-      {!task?<><span className="eyebrow">ПОДБОРКА ПРОЙДЕНА</span><h1>Отличная работа!</h1><p>Ответы сохранены. Повторы вернутся в назначенные дни.</p>
+      {!task?review?<><h1>Подборка для повторения пройдена</h1><ScoreSummary answers={answers} correct={correct}/></>:<><span className="eyebrow">ПОДБОРКА ПРОЙДЕНА</span><h1>Отличная работа!</h1><p>Ответы сохранены. Повторы вернутся в назначенные дни.</p>
         {session.moreAvailable?<p>На уровне ещё есть новые слова — можно продолжить сейчас.</p>:<p>На сегодня все доступные карточки пройдены. Можно подвести итог урока.</p>}
         <div className="compactExample"><strong>{session.answers} ответов за урок</strong><p>Ошибки не отменяют награду. Для завершённой подборки нужно минимум {session.minutes<=5?3:5} ответов.</p></div></>:
       intro?<><span className="eyebrow">{task.item.kind==='word'?'НОВОЕ СЛОВО':'НОВАЯ ФРАЗА'} · {session.level}</span>
@@ -68,7 +86,10 @@ export default function Lesson({session,ascent,course,onIntro,onKnown,onAnswer,o
         {(task.item.explanationRu||task.item.usageRu)&&<details className="compactUsage"><summary>Когда так говорят</summary><p>{task.item.register?task.item.usageRu:task.item.explanationRu||task.item.usageRu}</p>{task.item.source&&<a href={task.item.source} target="_blank" rel="noopener noreferrer">Проверить употребление в словаре ↗</a>}</details>}
         <Examples examples={task.examples?.length?task.examples:examplesFor(task.item)}/>
         <small className="compactLookupHint">Нажми на английское слово для перевода.</small>
-      </>:session.feedback?<><span className={'feedbackTitle '+session.feedback}>{session.feedback==='correct'?'Верно!':task.type==='write'?'Сравним с учебным вариантом':'Запомним правильный ответ'}</span>
+      </>:session.feedback?<><div className={`answerFeedback ${session.feedback}`} role="status">
+          <strong>{session.feedback==='correct'?'Верно!':task.practice?'Пример ответа':task.type==='write'?'Ответ не совпал с учебным вариантом':'Неверно. Вот правильный ответ'}</strong>
+          {answers>0&&<span>{correct} из {answers} верно · {Math.round(correct/answers*100)}%</span>}
+        </div>
         {session.feedback==='wrong'&&<p className={`compactYourAnswer${task.type==='write'?' sentenceAttempt':''}`}>Твой ответ: {session.selected}</p>}
         <h1 className="feedbackAnswer"><EnglishText text={['write','order','context'].includes(task.type)?task.answer:task.item.phrase} ru={['write','order'].includes(task.type)?task.prompt:task.item.ru}/></h1>
         <p className="compactMeaning">{['write','order'].includes(task.type)?task.prompt:task.item.ru}</p>
@@ -78,7 +99,7 @@ export default function Lesson({session,ascent,course,onIntro,onKnown,onAnswer,o
         {issue&&<section className="sentenceFeedback"><strong>{issue.title}</strong><p>{issue.text}</p></section>}
         {task.guide?.ru&&<details className="compactUsage"><summary>Почему так говорят</summary><strong>{task.guide.formula}</strong><p>{task.guide.ru}</p></details>}
         <Examples examples={task.examples?.length?task.examples:examplesFor(task.item)}/>
-        {session.feedback==='wrong'&&<p className="compactRecovery">{task.type==='write'?'Это учебный образец, а не единственный возможный перевод. Закрепление слова не сброшено: проверим его отдельно после других карточек.':'Повторим после других карточек. Полная и сокращённая формы равнозначны.'}</p>}
+        {session.feedback==='wrong'&&<p className="compactRecovery">{task.rehearsal?'Расписание повторений для этой карточки сохранено.':task.type==='write'?'Это учебный образец, а не единственный возможный перевод. Закрепление слова не сброшено: проверим его отдельно после других карточек.':'Повторим после других карточек. Полная и сокращённая формы равнозначны.'}</p>}
       </>:<><span className="eyebrow">{taskName[task.type]} · {session.level}</span>
         {task.recovery&&<small className="recoveryTag">Повтор после ошибки</small>}
         <h1 className="compactPrompt">{task.prompt}</h1>
@@ -90,18 +111,20 @@ export default function Lesson({session,ascent,course,onIntro,onKnown,onAnswer,o
       </>}
     </main>
     <footer className="compactActions">
-      {!task?<><button className="primary" onClick={onFinish}>Завершить урок</button>{session.moreAvailable&&<button className="secondary" onClick={onAddNew}>Ещё новые слова</button>}</>:
-      <>{intro?<button className="primary" onClick={()=>onIntro(false)}>Потренировать →</button>:session.feedback?<button className="primary" onClick={onNext}>{session.adventure?session.answers>=session.adventure.target?'Маршрут пройден →':'Дальше →':seconds===0?'Завершить урок':'Дальше →'}</button>:typed?<button type="submit" form={answerId} className="primary" disabled={entry.key!==answerId||!entry.filled}>Проверить</button>:null}
-        <button type="button" className="knownButton" onClick={()=>onKnown?onKnown():onIntro(true)}>Очень хорошо знаю · повтор через 35 дней</button></>}
-      <button className="compactFinishLink" onClick={onFinish}>Завершить сейчас</button>
+      {!task?<><button className="primary" onClick={onFinish}>{review?'Завершить повторение':'Завершить урок'}</button>{session.moreAvailable&&<button className="secondary" onClick={onAddNew}>Ещё новые слова</button>}</>:
+      <>{intro?<button className="primary" onClick={()=>onIntro(false)}>Потренировать →</button>:session.feedback?<button className="primary" onClick={onNext}>{session.adventure?session.answers>=session.adventure.target?'Маршрут пройден →':'Дальше →':!review&&canFinishTimedLesson(session)?'Завершить урок':'Дальше →'}</button>:typed?<button type="submit" form={answerId} className="primary" disabled={entry.key!==answerId||!entry.filled}>Проверить</button>:null}
+        {!task.rehearsal&&<button type="button" className="knownButton" onClick={()=>onKnown?onKnown():onIntro(true)}>Очень хорошо знаю · повтор через 35 дней</button>}</>}
+      {task&&<button className="compactFinishLink" onClick={onFinish}>{!review&&!session.adventure&&seconds>0?'Завершить раньше':'Подвести итог'}</button>}
     </footer>
   </div></WordHelpProvider>;
 }
 
 export function CheckScreen({value,onAnswer,onNext,onDone,onBack}) {
   const [entry,setEntry]=useState({key:'',filled:false});
-  if(value.done)return <div className="app lessonFinish"><h1>{value.score} / {value.tasks.length}</h1><p>{value.passed?'Контрольная пройдена!':'Повторим трудные карточки и попробуем ещё раз.'}</p>
-    <p>Занятие за эту часть дня засчитано.</p>{value.awarded>0&&<p className="bonusNotice" role="status">+${value.awarded} в копилку{!value.quarter&&value.level==='A2'?' за завершение программы A2':''}!</p>}
+  if(value.done)return <div className="app lessonFinish"><h1>{value.passed?'Контрольная пройдена':'Результат контрольной'}</h1>
+    <ScoreSummary answers={value.tasks.length} correct={value.score}/>
+    {!value.passed&&<p>Для зачёта нужно 80%. Повтори трудные карточки и попробуй ещё раз.</p>}
+    {value.passed&&<p>Занятие за эту часть дня засчитано.</p>}{value.awarded>0&&<p className="bonusNotice" role="status">+${value.awarded} в копилку{!value.quarter&&value.level==='A2'?' за завершение программы A2':''}!</p>}
     {(value.responses||[]).filter(r=>!r.correct).length>0&&<section className="checkMistakes"><h2>Разбор после проверки</h2>{value.responses.filter(r=>!r.correct).map(r=>{const task=value.tasks[r.index];return <article key={r.index}><strong>{task.item.phrase}</strong><p>{task.item.ru}</p><p lang="en">Учебный ответ: {task.answer}</p><small>Твой ответ: {r.value}</small><RuleNote rule={task.rule}/></article>;})}<p className="helper">Ошибки сохранены и вернутся в следующих уроках.</p></section>}
     <button className="primary big" onClick={onDone}>На главную</button></div>;
   const task=value.tasks[value.index],answered=value.selected!==undefined;
